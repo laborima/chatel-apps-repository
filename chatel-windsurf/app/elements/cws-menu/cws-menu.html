@@ -1,0 +1,84 @@
+
+<dom-module id="cws-menu">
+   <style>
+    :host {
+      display: block;
+    }
+    
+  paper-menu iron-icon {
+    margin-right: 33px;
+    opacity: 0.54;
+  }
+
+  .paper-menu > .iron-selected {
+    color: var(--default-primary-color);
+  }
+
+  paper-menu a {
+    text-decoration: none;
+    color: var(--menu-link-color);
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -ms-flex-direction: row;
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    -ms-flex-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    font-family: 'Roboto', 'Noto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 24px;
+    min-height: 48px;
+    padding: 0 16px;
+  }
+    
+  </style>
+  <template>
+    <paper-menu class="list" attr-for-selected="data-route" selected="{{route}}" on-iron-select="onMenuSelect">
+        <a data-route="home" href="/">
+             <iron-icon icon="icons:alarm"></iron-icon>
+             <span>Temps réels</span>
+         </a>
+         <a data-route="users" href="/users">
+             <iron-icon icon="icons:cloud-queue"></iron-icon>
+             <span>Aujourd'hui</span>
+        </a>
+      <template is="dom-repeat" items="{{items}}">
+        <a data-route="{{item.key}}" href="/{{item.key}}">
+            <iron-icon icon="icons:cloud-queue"></iron-icon>
+            <span>{{item.label}}</span>
+        </a>
+      </template>
+     </paper-menu>
+  </template>
+</dom-module>
+<script>
+  (function () {
+    Polymer({
+      is: 'cws-menu',
+      ready: function() {
+          var d = new Date();
+          var weekday = new Array(7);
+          weekday[0]=  "Dimanche";
+          weekday[1] = "Lundi";
+          weekday[2] = "Mardi";
+          weekday[3] = "Mercredi";
+          weekday[4] = "Jeudi";
+          weekday[5] = "Vendredi";
+          weekday[6] = "Samedi";
+
+         this.items = [];
+         for(var i=0;i<5;i++){
+             d.setDate(d.getDate()+1);
+             this.push("items",{key:"day"+i, label:weekday[d.getDay()]});
+             console.log("Add :"+weekday[d.getDay()]+ " "+d.getDay() );
+         }
+       
+      }
+    });
+  })();
+</script>
