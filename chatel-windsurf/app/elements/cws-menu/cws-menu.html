@@ -4,7 +4,7 @@
     :host {
       display: block;
     }
-    
+
   paper-menu iron-icon {
     margin-right: 33px;
     opacity: 0.54;
@@ -35,7 +35,7 @@
     min-height: 48px;
     padding: 0 16px;
   }
-    
+
   </style>
   <template>
     <paper-menu class="list" attr-for-selected="data-route" selected="{{route}}" on-iron-select="onMenuSelect">
@@ -48,7 +48,7 @@
              <span>Aujourd'hui</span>
         </a>
       <template is="dom-repeat" items="{{items}}">
-        <a data-route="{{item.key}}" href="/{{item.key}}">
+        <a data-route="{{item.key}}" href$="{{item.key}}">
             <iron-icon icon="icons:cloud-queue"></iron-icon>
             <span>{{item.label}}</span>
         </a>
@@ -74,10 +74,10 @@
          this.items = [];
          for(var i=0;i<5;i++){
              d.setDate(d.getDate()+1);
-             this.push("items",{key:"day"+i, label:weekday[d.getDay()]});
+             this.push("items",{key:"/day"+i, label:weekday[d.getDay()]});
              console.log("Add :"+weekday[d.getDay()]+ " "+d.getDay() );
          }
-       
+
       }
     });
   })();
