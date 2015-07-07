@@ -17,8 +17,9 @@
 		    auto
 		    url="http://api.openweathermap.org/data/2.5/weather"
 		    params='{"q":"Chatelaillon-Plage"}'
-		    handle-as="jsonp"
+		    handle-as="json"
 		    last-response="{{ajaxResponse}}"></iron-ajax>
+
                 <div class="header">
                     <h1 class="paper-font-display1">[[ajaxResponse.name]]</h1>
                 </div>
@@ -35,8 +36,7 @@
                         <li><b>Clouds:</b> <span>[[ajaxResponse.clouds.all]]</span>&#37;</li>
                     </ul>
                 </div>
-                
-        </template>
+    </template>
 <script>
   (function() {
     Polymer({
