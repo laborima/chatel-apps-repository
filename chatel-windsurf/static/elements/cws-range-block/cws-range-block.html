@@ -17,8 +17,12 @@
 		    auto
 		    url="http://api.openweathermap.org/data/2.5/weather"
 		    params='{"q":"Chatelaillon-Plage"}'
-		    handle-as="jsonp"
-		    last-response="{{ajaxResponse}}"></iron-ajax>
+		    handle-as="json"
+		    last-response="{{ajaxResponse}}"
+		    on-response="handleResponse"
+		    ></iron-ajax>
+		    
+		    <paper-material elevation="1">
                 <div class="header">
                     <h1 class="paper-font-display1">[[ajaxResponse.name]]</h1>
                 </div>
@@ -35,12 +39,15 @@
                         <li><b>Clouds:</b> <span>[[ajaxResponse.clouds.all]]</span>&#37;</li>
                     </ul>
                 </div>
-                
+            </paper-material>    
         </template>
 <script>
   (function() {
     Polymer({
-      is: 'cws-range-block'
+      is: 'cws-range-block',
+      handleResponse : function(request){
+          console.log(request.detail.response);
+      }
     });
   })();
 </script>

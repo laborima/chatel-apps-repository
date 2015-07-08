@@ -39,16 +39,16 @@
   </style>
   <template>
     <paper-menu class="list" attr-for-selected="data-route" selected="{{route}}" on-iron-select="onMenuSelect">
-        <a data-route="home" href="/">
+        <a data-route="now" href="/">
              <iron-icon icon="icons:alarm"></iron-icon>
              <span>Temps réels</span>
          </a>
-         <a data-route="users" href="/users">
+         <a data-route="prevs" href="/prevs/today">
              <iron-icon icon="icons:cloud-queue"></iron-icon>
              <span>Aujourd'hui</span>
         </a>
       <template is="dom-repeat" items="{{items}}">
-        <a data-route="{{item.key}}" href="/{{item.key}}">
+        <a data-route="prevs" href$="{{item.url}}">
             <iron-icon icon="icons:cloud-queue"></iron-icon>
             <span>{{item.label}}</span>
         </a>
@@ -74,7 +74,7 @@
          this.items = [];
          for(var i=0;i<5;i++){
              d.setDate(d.getDate()+1);
-             this.push("items",{key:"day"+i, label:weekday[d.getDay()]});
+             this.push("items",{url:"prevs/day"+i, label:weekday[d.getDay()]});
              console.log("Add :"+weekday[d.getDay()]+ " "+d.getDay() );
          }
        
