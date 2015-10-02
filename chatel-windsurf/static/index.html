@@ -90,16 +90,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         <!-- Main Content -->
         <div class="content">
-          <iron-pages attr-for-selected="data-route" selected="{{route}}">
+          <iron-pages attr-for-selected="data-route" selected="{{section}}">
 
              <section data-route="now">
                  <cws-now-block></cws-now-block> 
              </section>
              
              <section data-route="prevs">
-             	 Day : {{params.day}}
-             
-                 <cws-range-block></cws-range-block> 
+                 <cws-range-block day="{{route}}"></cws-range-block> 
              </section>
 
           </iron-pages>

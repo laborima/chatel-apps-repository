@@ -3,8 +3,11 @@ package org.leslaborie.cws.domain.owm;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
 import javax.annotation.Generated;
+
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -21,25 +24,22 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
     "clouds",
     "wind",
     "rain",
-    "sys",
     "dt_txt"
 })
-public class Forecasts {
+public class Forecast {
 
     @JsonProperty("dt")
     private Integer dt;
     @JsonProperty("main")
     private Main main;
     @JsonProperty("weather")
-    private java.util.List<Weather> weather = new ArrayList<Weather>();
+    private List<Weather> weather = new ArrayList<Weather>();
     @JsonProperty("clouds")
     private Clouds clouds;
     @JsonProperty("wind")
     private Wind wind;
     @JsonProperty("rain")
     private Rain rain;
-    @JsonProperty("sys")
-    private Sys_ sys;
     @JsonProperty("dt_txt")
     private String dtTxt;
     @JsonIgnore
@@ -165,25 +165,6 @@ public class Forecasts {
         this.rain = rain;
     }
 
-    /**
-     * 
-     * @return
-     *     The sys
-     */
-    @JsonProperty("sys")
-    public Sys_ getSys() {
-        return sys;
-    }
-
-    /**
-     * 
-     * @param sys
-     *     The sys
-     */
-    @JsonProperty("sys")
-    public void setSys(Sys_ sys) {
-        this.sys = sys;
-    }
 
     /**
      * 

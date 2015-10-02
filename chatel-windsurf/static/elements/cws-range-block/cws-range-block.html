@@ -11,35 +11,122 @@
         font-size: 24px;
       }
     }
+    
+    div.paper-font-body2 {
+     color: black;
+     
+    }
+    
+    div.wind-view {
+        float:right;
+        background-image:url('../../images/plage-chatel.png');
+	    background-position: center center;
+	    background-repeat: no-repeat;
+	    background-size: cover;
+	    height: 250px;
+	    width: 250px;
+	    border: 3px solid rgb(255, 255, 255);
+	    border-radius: 50%;
+	    box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+	    display: inline-block;
+	    margin-bottom: 10px;
+    }
+    
+   
+   
+    div.wind-view > img.wind-dir {
+        position: relative;
+    	margin-left: 30%;
+    	margin-top: 40%;
+    
+   }
+   
+   div.activity {
+    
+    margin-top : 15px; 
+   
+   }
+   
+   div.activity > img {
+        object-fit: cover;
+        border: 3px solid rgb(255, 255, 255);
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+	    border-radius: 50%;
+	    height: 100px;
+	    width: 100px;
+	    
+   } 
+   
+   
+  img.weather-icon {
+       float:left;
+   }
+   
+   .temperature {
+	    font-size: 50px;
+	    font-weight: 400;
+	    letter-spacing: -0.018em;
+	    line-height: 48px;
+    }
+    
+    .wind-speed {
+	    font-size: 30px;
+	    font-weight: 400;
+	    letter-spacing: -0.018em;
+	    line-height: 48px;
+    }
+    .cloud {
+	    font-size: 15px;
+    }
+    
+    
+    div.info {
+     float:left;
+    }
+    
+    div.clear {
+     clear:both;
+    }
+    
   </style>
   <template >
+        <span>{{day}}</span>
 		<iron-ajax
+		    id="ajax"
 		    auto
-		    url="http://api.openweathermap.org/data/2.5/weather"
-		    params='{"q":"Chatelaillon-Plage"}'
+		    params="{{ajaxParams}}"
+		    url="/service/activities"
 		    handle-as="json"
-		    last-response="{{ajaxResponse}}"
+		    last-response="{{weatherDependentActivities}}"
 		    on-response="handleResponse"
 		    ></iron-ajax>
-		    
-		    <paper-material elevation="1">
-                <div class="header">
-                    <h1 class="paper-font-display1">[[ajaxResponse.name]]</h1>
-                </div>
-                <div class="paper-font-body2" style="background:url('../../images/plage-chatel.png') no-repeat">
-                    <ul>
-                        <li><b>Latitude:</b> <span>[[ajaxResponse.coord.lat]]</span></li>
-                        <li><b>Longitude:</b> <span>[[ajaxResponse.coord.lon]]</span></li>
-                        <li><b>Humidity:</b> <span>[[ajaxResponse.main.humidity]]</span></li>
-                        <li><b>Pressure:</b> <span>[[ajaxResponse.main.pressure]]</span></li>
-                        <li><b>Temperature:</b> <span>[[ajaxResponse.main.temp]]</span></li>
-                        <li><b>Max. temperature:</b> <span>[[ajaxResponse.main.temp_max]]</span></li>
-                        <li><b>Min. temperature:</b> <span>[[ajaxResponse.main.temp_min]]</span></li>
-                        <li><b>Wind speed:</b> <span>[[ajaxResponse.wind.speed]]</span></li>
-                        <li><b>Clouds:</b> <span>[[ajaxResponse.clouds.all]]</span>&#37;</li>
-                    </ul>
-                </div>
-            </paper-material>    
+		    <template is="dom-repeat" items="{{weatherDependentActivities}}">
+			    <paper-material elevation="1" animated="true" >
+	                <div class="header">
+	                    <h1 class="paper-font-display1">Session: <span>{{item.activity.name}}</span></h1>
+	                    <h2 class="paper-font-display2"><span>{{item.activity.startDate}}</span>-<span>{{item.activity.endDate}}</span></h2>
+	                </div>
+	                <div class="paper-font-body2" >
+	                //   https://erikflowers.github.io/weather-icons/
+	                    <div class="info">	
+	                    	<img class="weather-icon" src$="{{extractWheaterIcon(item.forecast.weather)}}" alt="{{item.forecast.weather[0].description}}" />
+	                    	<div class="temperature"><span>{{item.forecast.main.temp}}</span>°</div>
+	                    	<div class="wind-speed"><span>{{item.forecast.wind.speed}}</span>km/h</div>
+	                    	<div class="cloud"><b>Couverture:</b> <span>{{item.forecast.clouds.all}}</span>%</div>
+	                    	<div class="activity"  >
+		                        <img src="{{extractImageName(item.activity.name,1)}}" />
+		                     	<img src="{{extractImageName(item.activity.name,2)}}" />
+		                    </div>  
+	                    </div>
+	                  
+	                   <div class="wind-view" >
+	                      <img class="wind-dir" style$="{{extractWindStyle(item.forecast.wind)}}" alt="{{extractWindStyle(item.forecast.wind.speed)}}" src="//ssl.gstatic.com/m/images/weather/wind_unselected.svg">
+	                    </div>
+						<div class="clear" ></div>
+	                    
+	                </div>
+	            </paper-material>
+            </template>
         </template>
 <script>
   (function() {
@@ -47,6 +134,34 @@
       is: 'cws-range-block',
       handleResponse : function(request){
           console.log(request.detail.response);
+      },
+      properties : {
+        day : String ,
+        ajaxParams: {
+            type: String,
+            computed: 'processParams(day)'
+        }
+      },
+      processParams: function(day){
+    	  console.log("Send param : "+day);
+          return {d: day};
+      }, 
+      extractImageName : function(name,idx){
+          if(name.split("-").length>idx){
+              return "../../images/"+name.split("-")[idx]+".jpg";
+          }
+          return null;
+        
+      },
+      extractWindStyle : function(wind){
+    	var zoom = (wind.speed % 50) *10; 
+    	var rotate = 360 - wind.deg;
+    	
+        return "transform-origin:"+zoom+"% "+zoom+"%;transform:rotate("+rotate+"deg);";
+      },
+      extractWheaterIcon : function(weather){
+    	  return '//openweathermap.org/img/w/'+weather[0].icon+'.png';
+    	  
       }
     });
   })();

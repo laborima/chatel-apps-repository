@@ -43,12 +43,8 @@
              <iron-icon icon="icons:alarm"></iron-icon>
              <span>Temps réels</span>
          </a>
-         <a data-route="prevs" href="/prevs/today">
-             <iron-icon icon="icons:cloud-queue"></iron-icon>
-             <span>Aujourd'hui</span>
-        </a>
       <template is="dom-repeat" items="{{items}}">
-        <a data-route="prevs" href$="{{item.url}}">
+        <a data-route$="{{item.route}}" href="{{item.url}}">
             <iron-icon icon="icons:cloud-queue"></iron-icon>
             <span>{{item.label}}</span>
         </a>
@@ -72,9 +68,13 @@
           weekday[6] = "Samedi";
 
          this.items = [];
-         for(var i=0;i<5;i++){
+         for(var i=0;i<6;i++){
+             if(i == 0){
+                this.push("items",{route: "day"+i,url:"prevs/day"+i, label:"Aujourd'hui"});
+             } else {
+           		this.push("items",{route: "day"+i,url:"prevs/day"+i, label:weekday[d.getDay()]});
+             }
              d.setDate(d.getDate()+1);
-             this.push("items",{url:"prevs/day"+i, label:weekday[d.getDay()]});
              console.log("Add :"+weekday[d.getDay()]+ " "+d.getDay() );
          }
        

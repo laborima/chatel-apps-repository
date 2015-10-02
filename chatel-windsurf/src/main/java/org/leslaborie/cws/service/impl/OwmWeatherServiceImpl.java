@@ -32,7 +32,7 @@ public class OwmWeatherServiceImpl implements WeatherService{
 			Map<String, String> vars = new HashMap<>();
 			vars.put("city", cityId);
 			vars.put("endpoint",weatherEndPoint);
-			CurrentWheatherData currentWeather = restTemplate.getForObject("{endpoint}/weather?q={city}&mode=json", CurrentWheatherData.class,vars);
+			CurrentWheatherData currentWeather = restTemplate.getForObject("{endpoint}/weather?q={city}&mode=json&units=metric", CurrentWheatherData.class,vars);
 
 		return currentWeather;
 	}
@@ -43,7 +43,7 @@ public class OwmWeatherServiceImpl implements WeatherService{
 		Map<String, String> vars = new HashMap<>();
 		vars.put("city", cityId);
 		vars.put("endpoint",weatherEndPoint);
-		ForecastWheatherData forecast = restTemplate.getForObject("{endpoint}/forecast?q={city}&mode=json", ForecastWheatherData.class,vars);
+		ForecastWheatherData forecast = restTemplate.getForObject("{endpoint}/forecast?q={city}&mode=json&units=metric", ForecastWheatherData.class,vars);
 		
 		return forecast;
 	}
