@@ -12,9 +12,13 @@ public class WeatherDependentActivity {
 	private Forecast forecast;
 
 	private Date startDate;
-	
 	private Date endDate;
 
+	private Double windSpeedKmPerHour;
+	private Integer windSpeedBeaufort;
+	private String  windSpeedBeaufordDesc;
+	private Double windSpeedKnots;
+	
 	private TideInfo tideInfo;
 
 	
@@ -35,6 +39,11 @@ public class WeatherDependentActivity {
 		super();
 		this.activity = activity;
 		this.forecast = forecast;
+		
+		this.windSpeedKmPerHour = WeatherHelper.convertVelocity(WeatherHelper.MPS, WeatherHelper.KMPH, forecast.getWind().getSpeed());
+		this.windSpeedKnots = WeatherHelper.convertVelocity(WeatherHelper.MPS, WeatherHelper.KNOTS, forecast.getWind().getSpeed());
+		this.windSpeedBeaufort = WeatherHelper.getBeaufort(this.windSpeedKmPerHour);
+		this.windSpeedBeaufordDesc = WeatherHelper.getBeaufortDesc(this.windSpeedKmPerHour);
 	}
 
 	public void setTideInfo(TideInfo tideInfo) {
@@ -55,6 +64,22 @@ public class WeatherDependentActivity {
 
 	public void setEndDate(Date endDate) {
 		this.endDate = endDate;
+	}
+
+	public Double getWindSpeedKmPerHour() {
+		return windSpeedKmPerHour;
+	}
+
+	public Integer getWindSpeedBeaufort() {
+		return windSpeedBeaufort;
+	}
+
+	public String getWindSpeedBeaufordDesc() {
+		return windSpeedBeaufordDesc;
+	}
+
+	public Double getWindSpeedKnots() {
+		return windSpeedKnots;
 	}
 
 	

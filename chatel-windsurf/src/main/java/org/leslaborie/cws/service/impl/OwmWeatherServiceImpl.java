@@ -9,6 +9,7 @@ import org.leslaborie.cws.domain.owm.CurrentWheatherData;
 import org.leslaborie.cws.domain.owm.ForecastWheatherData;
 import org.leslaborie.cws.service.WeatherService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 /**
@@ -24,6 +25,10 @@ public class OwmWeatherServiceImpl implements WeatherService{
 	@Value("${weather.api.endpoint}")
 	private String weatherEndPoint;
 	
+	@Value("${weather.api.id}")
+	private String appId;
+	
+	
 	public CurrentWheatherData currentWeatherAtCity(String cityId)  { 
 		
 		logger.info("Calling endpoint : "+weatherEndPoint);
@@ -32,18 +37,21 @@ public class OwmWeatherServiceImpl implements WeatherService{
 			Map<String, String> vars = new HashMap<>();
 			vars.put("city", cityId);
 			vars.put("endpoint",weatherEndPoint);
-			CurrentWheatherData currentWeather = restTemplate.getForObject("{endpoint}/weather?q={city}&mode=json&units=metric", CurrentWheatherData.class,vars);
+			vars.put("appId", appId);
+			CurrentWheatherData currentWeather = restTemplate.getForObject("{endpoint}/weather?q={city}&mode=json&units=metric&APPID={appId}", CurrentWheatherData.class,vars);
 
 		return currentWeather;
 	}
 	
 
+	@Cacheable("forecasts")
 	public ForecastWheatherData forecastWeatherAtCity(String cityId) {
 		RestTemplate restTemplate = new RestTemplate();
 		Map<String, String> vars = new HashMap<>();
 		vars.put("city", cityId);
 		vars.put("endpoint",weatherEndPoint);
-		ForecastWheatherData forecast = restTemplate.getForObject("{endpoint}/forecast?q={city}&mode=json&units=metric", ForecastWheatherData.class,vars);
+		vars.put("appId", appId);
+		ForecastWheatherData forecast = restTemplate.getForObject("{endpoint}/forecast?q={city}&mode=json&units=metric&APPID={appId}", ForecastWheatherData.class,vars);
 		
 		return forecast;
 	}

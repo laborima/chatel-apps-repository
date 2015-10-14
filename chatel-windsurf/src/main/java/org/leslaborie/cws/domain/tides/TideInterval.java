@@ -46,7 +46,7 @@ public class TideInterval {
 	}
 
 	public Long getDuration() {
-		return endDate.getTime() - startDate.getTime();
+		return (endDate.getTime() - startDate.getTime())/(1000*60*60);
 	}
 	
 	@Override

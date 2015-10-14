@@ -34,7 +34,7 @@ allow-rain:true
 public class ActivitySpecification {
 
 	private String name;
-	private Integer minimalDuration;
+	private Integer minimalDuration = 2; //Default 2 hours
 	
 	//weather
 	private Range windRange;

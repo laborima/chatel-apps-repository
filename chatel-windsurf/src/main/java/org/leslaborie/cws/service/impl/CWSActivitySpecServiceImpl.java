@@ -34,7 +34,4 @@ public class CWSActivitySpecServiceImpl implements CWSActivitySpecService {
 		return Arrays.asList(windsurf1,windsurf2,windsurf3,piaf,beachcombing1,beachcombing2);
 	}
 
-	
-	
-	
 }

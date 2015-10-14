@@ -90,7 +90,6 @@
     
   </style>
   <template >
-        <span>{{day}}</span>
 		<iron-ajax
 		    id="ajax"
 		    auto
@@ -103,19 +102,35 @@
 		    <template is="dom-repeat" items="{{weatherDependentActivities}}">
 			    <paper-material elevation="1" animated="true" >
 	                <div class="header">
-	                    <h1 class="paper-font-display1">Session: <span>{{item.activity.name}}</span></h1>
-	                    <h2 class="paper-font-display2"><span>{{item.activity.startDate}}</span>-<span>{{item.activity.endDate}}</span></h2>
+	                    <h1 class="paper-font-display1">Session: <span>{{extractDate(item.startDate,item.endDate)}}</span></h1>
 	                </div>
 	                <div class="paper-font-body2" >
-	                //   https://erikflowers.github.io/weather-icons/
-	                    <div class="info">	
-	                    	<img class="weather-icon" src$="{{extractWheaterIcon(item.forecast.weather)}}" alt="{{item.forecast.weather[0].description}}" />
+	                     <div class="info">	
+	                        <img class="weather-icon" src$="{{extractWheaterIcon(item.forecast.weather)}}" alt="{{item.forecast.weather[0].description}}" />
 	                    	<div class="temperature"><span>{{item.forecast.main.temp}}</span>°</div>
-	                    	<div class="wind-speed"><span>{{item.forecast.wind.speed}}</span>km/h</div>
-	                    	<div class="cloud"><b>Couverture:</b> <span>{{item.forecast.clouds.all}}</span>%</div>
+	                    	<div class="wind-speed"> 
+	                    		<div>
+	                    			<span>{{formatNumber(item.windSpeedKmPerHour)}}</span> km/h 
+	                    	    	<span>{{formatNumber(item.windSpeedKnots)}}</span> noeuds
+	                    		</div>
+	                    	 	<div>  
+	                    	    	<span>{{item.windSpeedBeaufordDesc}}</span>
+	                    			<span><i class$="{{extractBeaufortIcon(item.windSpeedBeaufort)}}"></i></span>
+	                    	    </div>
+	                    	</div>
+	                    	<div class="tide-info">
+	                    	  Haute mer: <span>{{formatTime(item.tideInfo.highTime)}}</span>
+	                    	  Basse mer: <span>{{formatTime(item.tideInfo.lowTime)}}</span>
+	                    	  Coef: <span>{{item.tideInfo.coef}}</span>
+	                    	</div>
+	                    	
+	                    	
+	                    	<div class="cloud"><b>Couverture nuageuse:</b> <span>{{item.forecast.clouds.all}}</span>%</div>
 	                    	<div class="activity"  >
 		                        <img src="{{extractImageName(item.activity.name,1)}}" />
-		                     	<img src="{{extractImageName(item.activity.name,2)}}" />
+		                        <template is="dom-if" if="{{extractImageName(item.activity.name,2)!=null}}">
+		                     		<img src="{{extractImageName(item.activity.name,2)}}" />
+		                     	</template>
 		                    </div>  
 	                    </div>
 	                  
@@ -123,7 +138,6 @@
 	                      <img class="wind-dir" style$="{{extractWindStyle(item.forecast.wind)}}" alt="{{extractWindStyle(item.forecast.wind.speed)}}" src="//ssl.gstatic.com/m/images/weather/wind_unselected.svg">
 	                    </div>
 						<div class="clear" ></div>
-	                    
 	                </div>
 	            </paper-material>
             </template>
@@ -162,7 +176,28 @@
       extractWheaterIcon : function(weather){
     	  return '//openweathermap.org/img/w/'+weather[0].icon+'.png';
     	  
+      },
+      extractDate : function (startDt,endDt){
+    	  var startDate = new Date();
+    	  startDate.setTime(startDt);
+    	  var endDate = new Date();
+    	  endDate.setTime(endDt);
+    	  return  startDate.getHours() +"h - "+ endDate.getHours()+"h";
+      },
+      formatNumber : function (number){
+    	  return (new Number(number)).toFixed(0);
+    	  
+      },
+      formatTime : function (startDt){
+    	  var startDate = new Date();
+    	  startDate.setTime(startDt);
+    	  return startDate.getHours()+":"+startDate.getMinutes();
+    	  
+      },
+      extractBeaufortIcon : function (windSpeedBeaufort) {
+    	  return "wi wi-wind-beaufort-"+windSpeedBeaufort;
       }
+      
     });
   })();
 </script>
