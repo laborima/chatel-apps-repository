@@ -74,6 +74,7 @@
 	    font-weight: 400;
 	    letter-spacing: -0.018em;
 	    line-height: 48px;
+	     min-width:14em;
     }
     .cloud {
 	    font-size: 15px;
@@ -110,7 +111,7 @@
 	                    	<div class="temperature"><span>{{item.forecast.main.temp}}</span>°</div>
 	                    	<div class="wind-speed"> 
 	                    		<div>
-	                    			<span>{{formatNumber(item.windSpeedKmPerHour)}}</span> km/h 
+	                    			<span>{{formatNumber(item.windSpeedKmPerHour)}}</span> km/h - 
 	                    	    	<span>{{formatNumber(item.windSpeedKnots)}}</span> noeuds
 	                    		</div>
 	                    	 	<div>  
@@ -169,7 +170,7 @@
       },
       extractWindStyle : function(wind){
     	var zoom = (wind.speed % 50) *10; 
-    	var rotate = 360 - wind.deg;
+    	var rotate = wind.deg + 90;
     	
         return "transform-origin:"+zoom+"% "+zoom+"%;transform:rotate("+rotate+"deg);";
       },

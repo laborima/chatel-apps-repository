@@ -46,7 +46,7 @@ public class CWSServiceImpl implements CWSService {
 
 		List<WeatherDependentActivity> ret = new LinkedList<>();
 		List<ActivitySpecification> specs = activitySpecService.getActivitySpecifications();
-		ForecastWheatherData fwData = weatherService.forecastWeatherAtCity("Chatelaillon-Plage");
+		ForecastWheatherData fwData = weatherService.forecastWeatherAtCity("chatelaillon-plage,FR");
 
 
 		

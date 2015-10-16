@@ -171,12 +171,15 @@ public class TideServiceImpl implements TideService {
 			//if(tideRange!=null){
 				
 				Double ma = hightTide.getHeight() - lowTide.getHeight();
-				Double du = (double) Math.abs(infos.getHighTime().getTime()  - infos.getLowTime().getTime())*2; // *2 aprxo attention pas bon 
+				Double du = (double) Math.abs(infos.getHighTime().getTime()  - infos.getLowTime().getTime()); 
 	
 				if (logger.isInfoEnabled()) {
 					logger.info("Nearest hight tide: " + infos.getHighTime().toString());
 					logger.info("Nearest low tide: " + infos.getLowTime().toString());
+					
+					//Negatif a marée descendente
 					logger.info("Marnage:" + ma +"m ");
+					
 					logger.info("Tide duration:" + (du/(1000*60*60)));
 				}
 				
@@ -188,13 +191,40 @@ public class TideServiceImpl implements TideService {
 				while(tmp.getTimeInMillis()< endDate.getTime() ){
 					
 					dt = (double) (tmp.getTimeInMillis() - infos.getHighTime().getTime())  ;
-					Double dh = ma * Math.pow(Math.sin((90 * dt) / du), 2);
+					Double dh = ma * Math.pow(Math.sin(((90 * dt) / du)*Math.PI/180), 2);
 					
-					log+= "\n"+ dh+" "+(dt/du)+" "+tmp.getTime().toString();
+					
+					
+					log+= "\n"+ (ma-dh)+" "+tmp.getTime().toString();
 					
 					tmp.add(Calendar.MINUTE, 10);
 				}
+				
+
 			
+//				String[] s = {"/usr/bin/gnuplot",
+//			              "-e",
+//			              "set term jpeg large size 800,600;set autoscale; set grid;set format y \"%0.f\";set output \"plot.jpg\";set xdata time;set timefmt \"%Y-%m-%d-%H:%M:%S\";set xlabel \"Dates\";set ylabel \"Data transferred (bytes)\";plot \""+x+"\" using 1:2 title \"Total:"+tot+"\" with linespoints;"
+//			             };
+//			try {
+//			    Runtime rt = Runtime.getRuntime();
+//			    Process proc = rt.exec(s);
+//			    InputStream stdin = proc.getErrorStream();
+//			    InputStreamReader isr = new InputStreamReader(stdin);
+//			    BufferedReader br = new BufferedReader(isr);
+//			    String line = null;
+//			    while ((line = br.readLine()) != null)
+//			        System.err.println("gnuplot:"+line);
+//			    int exitVal = proc.waitFor();
+//			    if (exitVal != 0)
+//			        log("gnuplot Process exitValue: " + exitVal);
+//			    proc.getInputStream().close();
+//			    proc.getOutputStream().close();
+//			    proc.getErrorStream().close();
+//			} catch (Exception e) {
+//			    System.err.println("Fail: " + e);
+//			}
+				
 				
 				System.out.println(log.replaceAll("\\.", ","));
 				
