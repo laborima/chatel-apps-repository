@@ -2,6 +2,7 @@ package org.leslaborie.cws.service.impl;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -118,16 +119,58 @@ public class TideServiceImpl implements TideService {
 	    ma : marnage de la marée concernée
 	    \Delta t : temps écoulé depuis le point de repère choisi
 	    Du : durée de la marée
+	 * @throws ParseException 
 	    
 
 	*/
+	
+	
+	private TideInfo getTideInfoAtDateTime(String cityId, Date date) throws ParseException{
+			List<Tide> tides = getDayTides(cityId, date);
+			logger.info(tides.toString());
+			
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
+
+			Tide hightTide = null;
+			Tide lowTide = null;
+			Double dt = null;
+
+			for (Tide tide : tides) {
+				Date tideDate = dateFormat.parse(tide.getTime());
+				if (tide.getHigh()) {
+					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - date.getTime())) {
+						hightTide = tide;
+						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
+					}
+				} 
+			}
+
+			dt = null;
+			for (Tide tide : tides) {
+				Date tideDate = dateFormat.parse(tide.getTime());
+				if (!tide.getHigh()) {
+					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - date.getTime())) {
+						lowTide = tide;
+						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
+					}
+				} 
+			}
+
+			
+			TideInfo infos = new TideInfo(hightTide);
+			infos.setHighTime(dateFormat.parse(hightTide.getTime()));
+			infos.setLowTime(dateFormat.parse(lowTide.getTime()));
+
+			return infos;
+		
+	}
+ 	
 
 	@Override
 	public TideInterval getTideInterval(Date startDate, Date endDate, Range tideRange, String cityId) {
 
 		TideInterval tideInterval = new TideInterval();
-		tideInterval.setStartDate(startDate);
-		tideInterval.setEndDate(endDate);
+		
 		try {
 			List<Tide> tides = getDayTides(cityId, startDate);
 			logger.info(tides.toString());
@@ -141,10 +184,9 @@ public class TideServiceImpl implements TideService {
 			for (Tide tide : tides) {
 				Date tideDate = dateFormat.parse(tide.getTime());
 				if (tide.getHigh()) {
-					if ( startDate.getTime() < tideDate.getTime() 
-							&& (dt == null ||   dt >  (tideDate.getTime() - startDate.getTime()))) {
+					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - startDate.getTime())) {
 						hightTide = tide;
-						dt = (double) (tideDate.getTime() - startDate.getTime());
+						dt = (double) Math.abs(tideDate.getTime() - startDate.getTime());
 					}
 				} 
 			}
@@ -153,10 +195,9 @@ public class TideServiceImpl implements TideService {
 			for (Tide tide : tides) {
 				Date tideDate = dateFormat.parse(tide.getTime());
 				if (!tide.getHigh()) {
-					if ( startDate.getTime() < tideDate.getTime() 
-							&& (dt == null ||   dt >  (tideDate.getTime() - startDate.getTime()))) {
+					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - startDate.getTime())) {
 						lowTide = tide;
-						dt = (double) (tideDate.getTime() - startDate.getTime());
+						dt = (double) Math.abs(tideDate.getTime() - startDate.getTime());
 					}
 				} 
 			}
@@ -166,9 +207,10 @@ public class TideServiceImpl implements TideService {
 			infos.setHighTime(dateFormat.parse(hightTide.getTime()));
 			infos.setLowTime(dateFormat.parse(lowTide.getTime()));
 
-			tideInterval.setTideInfo(infos);
+			tideInterval.setTideInfo(getTideInfoAtDateTime(cityId,startDate));
 
-			//if(tideRange!=null){
+		
+			if(tideRange!=null){
 				
 				Double ma = hightTide.getHeight() - lowTide.getHeight();
 				Double du = (double) Math.abs(infos.getHighTime().getTime()  - infos.getLowTime().getTime()); 
@@ -176,10 +218,7 @@ public class TideServiceImpl implements TideService {
 				if (logger.isInfoEnabled()) {
 					logger.info("Nearest hight tide: " + infos.getHighTime().toString());
 					logger.info("Nearest low tide: " + infos.getLowTime().toString());
-					
-					//Negatif a marée descendente
 					logger.info("Marnage:" + ma +"m ");
-					
 					logger.info("Tide duration:" + (du/(1000*60*60)));
 				}
 				
@@ -188,19 +227,59 @@ public class TideServiceImpl implements TideService {
 				
 				String log = "";
 				
+				
+				TideInterval curInter = null;
+				List<TideInterval> interList = new ArrayList<>();
+				
 				while(tmp.getTimeInMillis()< endDate.getTime() ){
 					
 					dt = (double) (tmp.getTimeInMillis() - infos.getHighTime().getTime())  ;
-					Double dh = ma * Math.pow(Math.sin(((90 * dt) / du)*Math.PI/180), 2);
+					Double height = hightTide.getHeight() - ma * Math.pow(Math.sin(((90 * dt) / du)*Math.PI/180), 2);
+					
+					if(tideRange.isInRange(height)){
+						if(curInter == null){
+							curInter = new TideInterval();
+							curInter.setStartDate(tmp.getTime());
+							interList.add(curInter);
+						}
+						
+						curInter.setEndDate(tmp.getTime());
+						
+						log+= "\n\u001B[31m"+ (height)+" "+tmp.getTime().toString()+"\u001B[0m";
+						
+					} else {
+						curInter = null;
+						
+						log+= "\n"+ (height)+" "+tmp.getTime().toString();
+					}
 					
 					
-					
-					log+= "\n"+ (ma-dh)+" "+tmp.getTime().toString();
 					
 					tmp.add(Calendar.MINUTE, 10);
 				}
 				
+				curInter = null;
+				Long maxDuration = 0L;
+				
+				System.out.println(log.replaceAll("\\.", ","));
+				
+				for(TideInterval inter : interList) {
+					if(inter.getDuration() > maxDuration){
+						curInter = inter;
+						maxDuration  = inter.getDuration();
+					}
+				}
+				if(curInter!=null){
+					
+					logger.info("Inter duraction : "+curInter.getDuration());
+					tideInterval.setStartDate(curInter.getStartDate());
+					tideInterval.setEndDate(curInter.getEndDate());
+				} else {
+					return null;
+				}
+				
 
+			
 			
 //				String[] s = {"/usr/bin/gnuplot",
 //			              "-e",
@@ -226,7 +305,6 @@ public class TideServiceImpl implements TideService {
 //			}
 				
 				
-				System.out.println(log.replaceAll("\\.", ","));
 				
 				
 			
@@ -240,7 +318,10 @@ public class TideServiceImpl implements TideService {
 	
 				
 			
-			//}
+			} else {
+				tideInterval.setStartDate(startDate);
+				tideInterval.setEndDate(endDate);
+			}
 
 		} catch (ParseException e) {
 			logger.error(e, e);

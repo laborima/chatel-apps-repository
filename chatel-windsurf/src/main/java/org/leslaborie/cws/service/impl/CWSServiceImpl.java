@@ -112,11 +112,13 @@ public class CWSServiceImpl implements CWSService {
 
 			TideInterval tideInterval = tideService.getTideInterval(activity.getStartDate(), activity.getEndDate(), activity.getActivity()
 						.getTideRange(), "la-rochelle-pallice");
-				if (tideInterval != null && tideInterval.getDuration() > activity.getActivity().getMinimalDuration()) {
+				if (tideInterval != null && tideInterval.getDuration() >= activity.getActivity().getMinimalDuration()) {
 					activity.setStartDate(tideInterval.getStartDate());
 					activity.setEndDate(tideInterval.getEndDate());
 					activity.setTideInfo(tideInterval.getTideInfo());
 					ret.add(activity);
+				} else {
+					logger.info("Not in tide range: "+activity.getActivity().getName());
 				}
 			
 		}
