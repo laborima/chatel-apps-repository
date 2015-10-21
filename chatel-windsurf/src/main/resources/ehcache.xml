@@ -1,0 +1,13 @@
+<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:noNamespaceSchemaLocation="http://ehcache.org/ehcache.xsd">
+	<cache name="tides"
+	       maxEntriesLocalHeap="25"
+		   eternal="true" >
+	</cache>
+	
+	<cache name="forecasts"
+		   maxEntriesLocalHeap="25"
+		   timeToLiveSeconds="180">
+	</cache>
+	
+</ehcache>
