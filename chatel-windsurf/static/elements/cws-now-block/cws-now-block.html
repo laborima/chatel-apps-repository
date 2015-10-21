@@ -1,53 +1,40 @@
-
-
 <dom-module id="cws-now-block">
   <style>
     :host {
-      display: block;
+    
     }
-
-    @media (max-width: 600px) {
-      h1.paper-font-display1 {
-        font-size: 24px;
-      }
+    #iframe {
+      border: 0px;
+      width: 100%;
     }
   </style>
+  
+  
   <template >
-		<!-- <iron-ajax
-		    auto
-		    url="http://api.openweathermap.org/data/2.5/weather"
-		    params='{"q":"Chatelaillon-Plage"}'
-		    handle-as="json"
-		    last-response="{{ajaxResponse}}"
-		    on-response="handleResponse"
-		    ></iron-ajax>
-		    
-		    <paper-material elevation="1">
-                <div class="header">
-                    <h1 class="paper-font-display1">[[ajaxResponse.name]]</h1>
-                </div>
-                <div class="paper-font-body2" style="background:url('../../images/plage-chatel.png') no-repeat">
-                    <ul>
-                        <li><b>Latitude:</b> <span>[[ajaxResponse.coord.lat]]</span></li>
-                        <li><b>Longitude:</b> <span>[[ajaxResponse.coord.lon]]</span></li>
-                        <li><b>Humidity:</b> <span>[[ajaxResponse.main.humidity]]</span></li>
-                        <li><b>Pressure:</b> <span>[[ajaxResponse.main.pressure]]</span></li>
-                        <li><b>Temperature:</b> <span>[[ajaxResponse.main.temp]]</span></li>
-                        <li><b>Max. temperature:</b> <span>[[ajaxResponse.main.temp_max]]</span></li>
-                        <li><b>Min. temperature:</b> <span>[[ajaxResponse.main.temp_min]]</span></li>
-                        <li><b>Wind speed:</b> <span>[[ajaxResponse.wind.speed]]</span></li>
-                        <li><b>Clouds:</b> <span>[[ajaxResponse.clouds.all]]</span>&#37;</li>
-                    </ul>
-                </div>
-            </paper-material>     -->
-        </template>
+    	<iframe id="iframe" src="{{src}}"  height="1380"  scrollbars="no"></iframe>
+   </template>
 <script>
   (function() {
     Polymer({
       is: 'cws-now-block',
-      handleResponse : function(request){
-          console.log(request.detail.response);
-      }
+      properties : {
+    	  src : String
+      },
+      ready : function(){
+    	  
+    	/*   this.$.iframe.addEventListener('load', function() {
+    		  
+    		  alert(this.$.iframe.contentWindow.document.body.scrollHeight);
+    		  this.$.iframe.height = this.$.iframe.contentWindow.document.body.scrollHeight + 'px';
+
+    	  }.bind(this));
+    	   */
+    	  this.src = "http://node0.wxswitch.com/wxwebhtml/wxreport/chatel.html?c1ff684e-68f6-4da3-88c8-41d45f93415b";
+    	  
+  
+    	  
+     }
+    
     });
   })();
 </script>

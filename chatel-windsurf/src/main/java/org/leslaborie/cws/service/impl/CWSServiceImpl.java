@@ -90,7 +90,7 @@ public class CWSServiceImpl implements CWSService {
 				tmp.setTimeInMillis(forecast.getDt() * 1000L);
 				logger.debug("Forecast start :"+ tmp.getTime());
 				if (activity == null || activity.getEndDate().getTime() != tmp.getTimeInMillis()) {
-					activity = new WeatherDependentActivity(entry.getKey(), forecast);	
+					activity = new WeatherDependentActivity(entry.getKey());	
 					activity.setStartDate(tmp.getTime());
 					tempActivities.add(activity);
 				} else {
@@ -121,6 +121,20 @@ public class CWSServiceImpl implements CWSService {
 					logger.info("Not in tide range: "+activity.getActivity().getName());
 				}
 			
+		}
+		
+		
+		//Get the closest forecast
+		for (WeatherDependentActivity activity : ret) {
+			Forecast tmp = null;
+			Long dt = null;
+			for (Forecast forecast : forecastsByActivities.get(activity.getActivity())) {
+				if (dt == null || dt > Math.abs(forecast.getDt() * 1000L - activity.getStartDate().getTime())) {
+					tmp = forecast;
+					dt = Math.abs(forecast.getDt() * 1000L - activity.getStartDate().getTime());
+				}
+			}
+			activity.setForecast(tmp);
 		}
 
 		return ret;

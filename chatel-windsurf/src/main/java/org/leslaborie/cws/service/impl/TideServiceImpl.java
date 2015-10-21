@@ -22,11 +22,34 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+
+/**
+ * Méthode sinusoïdale La méthode harmonique est utilisée pour les ports
+ * rattachés, car aucune courbe type n'est délivrée pour ces derniers. On
+ * assimile la variation de la hauteur d'eau dans le temps à une sinusoïde.
+ * La hauteur d'eau à une heure donnée ou, l'heure à laquelle la hauteur
+ * d'eau est atteinte, s'obtient par l'utilisation d'une des deux formules
+ * ci-dessous.
+ * 
+ * La première approximation effectuée pour modéliser l'onde de marée de
+ * façon simple est la considération de celle-ci comme étant sinusoïdale.
+ * Voici les formules de la méthode dite harmonique :
+ * 
+ * \Delta H = ma * sin^2((90* Delta t)/Du)
+ * 
+ * \Delta t = Du / 90 * arcsin( sqrt ({Delta H}/{ma}))
+ * 
+ * avec :
+ * 
+ * \Delta H : variation de hauteur par rapport au point de repère choisi ma
+ * : marnage de la marée concernée \Delta t : temps écoulé depuis le point
+ * de repère choisi Du : durée de la marée
+ * 
+ */
 @Service
 public class TideServiceImpl implements TideService {
 
 	private static Log logger = LogFactory.getLog(TideServiceImpl.class);
-	// http://www.meteofrance.com/mf3-rpc-portlet/rest/maree/la-rochelle-pallice/20151001/METROPOLE
 
 	@Value("${tide.api.endpoint}")
 	private String tideEndPoint;
@@ -50,131 +73,97 @@ public class TideServiceImpl implements TideService {
 
 	@Override
 	public Double getWaterHeightAtDateTime(String cityId, Date date) {
-		try {
-			List<Tide> tides = getDayTides(cityId, date);
-			// 201510011947
-			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
+		TideInfo tideInfo = getTideInfoAtDateTime(cityId, date);
 
-			Tide currentHightTide = null;
-			Long dt = null;
-			Long du = null;
-			Double ma = null;
-			for (Tide tide : tides) {
-				Date tideDate = dateFormat.parse(tide.getTime());
-				if (tide.getHigh()) {
+		Long dt = (date.getTime() - tideInfo.getHighTime().getTime());
+		return tideInfo.getTideHeight() - tideInfo.getMarnage() * Math.pow(Math.sin(((90 * dt) / tideInfo.getTideDuration()) * Math.PI / 180), 2);
 
-					if ((dt == null) || (dt > Math.abs(date.getTime() - tideDate.getTime()))) {
-						currentHightTide = tide;
-						logger.info("Time delta:" + date.toString() + " " + tideDate.toString());
-
-						dt = Math.abs(date.getTime() - tideDate.getTime()) / 1000;
-						du = null;
-					}
-				} else if (du == null) {
-					Date tmp = dateFormat.parse(currentHightTide.getTime());
-					ma = currentHightTide.getHeight() - tide.getHeight();
-					du = (tmp.getTime() - tideDate.getTime()) / 1000;
-				}
-
-			}
-
-			// On cherche la marée haute la plus proche
-
-			// DT delta temps
-			// DH delta hauteur
-			// DU durée marrée
-
-			Double dh = ma * Math.pow(Math.sin((90 * du) / dt), 2);
-
-			if (logger.isInfoEnabled()) {
-				logger.info("Nearest hight tide: " + currentHightTide.toString());
-				logger.info("Time delta:" + dt);
-				logger.info("Marnage:" + ma);
-				logger.info("Tide duration:" + du);
-				logger.info("Height delta:" + dh);
-			}
-
-			return currentHightTide.getHeight() - dh;
-
-		} catch (ParseException e) {
-			logger.error(e, e);
-		}
-		return 0d;
 	}
 	
-	/**
-	 * 
-	 * Méthode sinusoïdale
-	La méthode harmonique est utilisée pour les ports rattachés, car aucune courbe type n'est délivrée pour ces derniers. On assimile la variation de la hauteur d'eau dans le temps à une sinusoïde. La hauteur d'eau à une heure donnée ou, l'heure à laquelle la hauteur d'eau est atteinte, s'obtient par l'utilisation d'une des deux formules ci-dessous.
-
-	La première approximation effectuée pour modéliser l'onde de marée de façon simple est la considération de celle-ci comme étant sinusoïdale. Voici les formules de la méthode dite harmonique :
-
-	\Delta H = ma * sin^2((90* Delta t)/Du)
-
-	\Delta t =  Du / 90 * arcsin( sqrt ({Delta H}/{ma}))
-
-	avec :
-
-	    \Delta H : variation de hauteur par rapport au point de repère choisi
-	    ma : marnage de la marée concernée
-	    \Delta t : temps écoulé depuis le point de repère choisi
-	    Du : durée de la marée
-	 * @throws ParseException 
-	    
-
-	*/
-	
-	
-	private TideInfo getTideInfoAtDateTime(String cityId, Date date) throws ParseException{
-			List<Tide> tides = getDayTides(cityId, date);
-			logger.info(tides.toString());
-			
-			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
-
-			Tide hightTide = null;
-			Tide lowTide = null;
-			Double dt = null;
-
-			for (Tide tide : tides) {
-				Date tideDate = dateFormat.parse(tide.getTime());
-				if (tide.getHigh()) {
-					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - date.getTime())) {
-						hightTide = tide;
-						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
-					}
-				} 
-			}
-
-			dt = null;
-			for (Tide tide : tides) {
-				Date tideDate = dateFormat.parse(tide.getTime());
-				if (!tide.getHigh()) {
-					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - date.getTime())) {
-						lowTide = tide;
-						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
-					}
-				} 
-			}
-
-			
-			TideInfo infos = new TideInfo(hightTide);
-			infos.setHighTime(dateFormat.parse(hightTide.getTime()));
-			infos.setLowTime(dateFormat.parse(lowTide.getTime()));
-
-			return infos;
-		
-	}
- 	
-
 	@Override
 	public TideInterval getTideInterval(Date startDate, Date endDate, Range tideRange, String cityId) {
 
 		TideInterval tideInterval = new TideInterval();
+
+		TideInfo tideInfo = getTideInfoAtDateTime(cityId, startDate);
+
+		tideInterval.setTideInfo(tideInfo);
 		
+		if (tideRange != null) {
+
+			Double ma = tideInfo.getMarnage();
+			Long du = tideInfo.getTideDuration();
+
+			if (logger.isDebugEnabled()) {
+				logger.info("Nearest hight tide: " + tideInfo.getHighTime().toString());
+				logger.info("Nearest low tide: " + tideInfo.getLowTime().toString());
+				logger.info("Marnage:" + tideInfo.getMarnage() + "m ");
+				logger.info("Tide duration:" + (du / (1000 * 60 * 60)));
+			}
+
+			Calendar tmp = Calendar.getInstance();
+			tmp.setTime(startDate);
+
+			TideInterval curInter = null;
+			List<TideInterval> interList = new ArrayList<>();
+
+			while (tmp.getTimeInMillis() < endDate.getTime()) {
+
+				Long dt = (tmp.getTimeInMillis() - tideInfo.getHighTime().getTime());
+				Double height = tideInfo.getTideHeight() - ma * Math.pow(Math.sin(((90 * dt) / du) * Math.PI / 180), 2);
+
+				if (tideRange.isInRange(height)) {
+					if (curInter == null) {
+						curInter = new TideInterval();
+						curInter.setStartDate(tmp.getTime());
+						interList.add(curInter);
+					}
+
+					curInter.setEndDate(tmp.getTime());
+
+					if (logger.isDebugEnabled()) {
+						logger.debug("\u001B[31m" + (height) + " " + tmp.getTime().toString() + "\u001B[0m");
+					}
+				} else {
+					curInter = null;
+					if (logger.isDebugEnabled()) {
+						logger.debug((height) + " " + tmp.getTime().toString());
+					}
+				}
+
+				tmp.add(Calendar.MINUTE, 10);
+			}
+
+			curInter = null;
+			Long maxDuration = 0L;
+
+			for (TideInterval inter : interList) {
+				if (inter.getDuration() > maxDuration) {
+					curInter = inter;
+					maxDuration = inter.getDuration();
+				}
+			}
+			if (curInter != null) {
+				logger.info("Inter duraction : " + curInter.getDuration());
+				tideInterval.setStartDate(curInter.getStartDate());
+				tideInterval.setEndDate(curInter.getEndDate());
+			} else {
+				return null;
+			}
+
+		} else {
+			tideInterval.setStartDate(startDate);
+			tideInterval.setEndDate(endDate);
+		}
+
+		return tideInterval;
+	}
+
+
+	private TideInfo getTideInfoAtDateTime(String cityId, Date date) {
 		try {
-			List<Tide> tides = getDayTides(cityId, startDate);
-			logger.info(tides.toString());
-			
+			List<Tide> tides = getDayTides(cityId, date);
+
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
 
 			Tide hightTide = null;
@@ -184,149 +173,36 @@ public class TideServiceImpl implements TideService {
 			for (Tide tide : tides) {
 				Date tideDate = dateFormat.parse(tide.getTime());
 				if (tide.getHigh()) {
-					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - startDate.getTime())) {
+					if (dt == null || dt > Math.abs(tideDate.getTime() - date.getTime())) {
 						hightTide = tide;
-						dt = (double) Math.abs(tideDate.getTime() - startDate.getTime());
+						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
 					}
-				} 
+				}
 			}
 
 			dt = null;
 			for (Tide tide : tides) {
 				Date tideDate = dateFormat.parse(tide.getTime());
 				if (!tide.getHigh()) {
-					if ( dt == null ||   dt >  Math.abs(tideDate.getTime() - startDate.getTime())) {
+					if (dt == null || dt > Math.abs(tideDate.getTime() - date.getTime())) {
 						lowTide = tide;
-						dt = (double) Math.abs(tideDate.getTime() - startDate.getTime());
+						dt = (double) Math.abs(tideDate.getTime() - date.getTime());
 					}
-				} 
+				}
 			}
 
-			
-			TideInfo infos = new TideInfo(hightTide);
-			infos.setHighTime(dateFormat.parse(hightTide.getTime()));
-			infos.setLowTime(dateFormat.parse(lowTide.getTime()));
+			TideInfo tideInfo = new TideInfo(hightTide);
+			tideInfo.setHighTime(dateFormat.parse(hightTide.getTime()));
+			tideInfo.setLowTime(dateFormat.parse(lowTide.getTime()));
+			tideInfo.setMarnage(hightTide.getHeight() - lowTide.getHeight());
 
-			tideInterval.setTideInfo(getTideInfoAtDateTime(cityId,startDate));
-
-		
-			if(tideRange!=null){
-				
-				Double ma = hightTide.getHeight() - lowTide.getHeight();
-				Double du = (double) Math.abs(infos.getHighTime().getTime()  - infos.getLowTime().getTime()); 
-	
-				if (logger.isInfoEnabled()) {
-					logger.info("Nearest hight tide: " + infos.getHighTime().toString());
-					logger.info("Nearest low tide: " + infos.getLowTime().toString());
-					logger.info("Marnage:" + ma +"m ");
-					logger.info("Tide duration:" + (du/(1000*60*60)));
-				}
-				
-				Calendar tmp = Calendar.getInstance();
-				tmp.setTime(startDate);
-				
-				String log = "";
-				
-				
-				TideInterval curInter = null;
-				List<TideInterval> interList = new ArrayList<>();
-				
-				while(tmp.getTimeInMillis()< endDate.getTime() ){
-					
-					dt = (double) (tmp.getTimeInMillis() - infos.getHighTime().getTime())  ;
-					Double height = hightTide.getHeight() - ma * Math.pow(Math.sin(((90 * dt) / du)*Math.PI/180), 2);
-					
-					if(tideRange.isInRange(height)){
-						if(curInter == null){
-							curInter = new TideInterval();
-							curInter.setStartDate(tmp.getTime());
-							interList.add(curInter);
-						}
-						
-						curInter.setEndDate(tmp.getTime());
-						
-						log+= "\n\u001B[31m"+ (height)+" "+tmp.getTime().toString()+"\u001B[0m";
-						
-					} else {
-						curInter = null;
-						
-						log+= "\n"+ (height)+" "+tmp.getTime().toString();
-					}
-					
-					
-					
-					tmp.add(Calendar.MINUTE, 10);
-				}
-				
-				curInter = null;
-				Long maxDuration = 0L;
-				
-				System.out.println(log.replaceAll("\\.", ","));
-				
-				for(TideInterval inter : interList) {
-					if(inter.getDuration() > maxDuration){
-						curInter = inter;
-						maxDuration  = inter.getDuration();
-					}
-				}
-				if(curInter!=null){
-					
-					logger.info("Inter duraction : "+curInter.getDuration());
-					tideInterval.setStartDate(curInter.getStartDate());
-					tideInterval.setEndDate(curInter.getEndDate());
-				} else {
-					return null;
-				}
-				
-
-			
-			
-//				String[] s = {"/usr/bin/gnuplot",
-//			              "-e",
-//			              "set term jpeg large size 800,600;set autoscale; set grid;set format y \"%0.f\";set output \"plot.jpg\";set xdata time;set timefmt \"%Y-%m-%d-%H:%M:%S\";set xlabel \"Dates\";set ylabel \"Data transferred (bytes)\";plot \""+x+"\" using 1:2 title \"Total:"+tot+"\" with linespoints;"
-//			             };
-//			try {
-//			    Runtime rt = Runtime.getRuntime();
-//			    Process proc = rt.exec(s);
-//			    InputStream stdin = proc.getErrorStream();
-//			    InputStreamReader isr = new InputStreamReader(stdin);
-//			    BufferedReader br = new BufferedReader(isr);
-//			    String line = null;
-//			    while ((line = br.readLine()) != null)
-//			        System.err.println("gnuplot:"+line);
-//			    int exitVal = proc.waitFor();
-//			    if (exitVal != 0)
-//			        log("gnuplot Process exitValue: " + exitVal);
-//			    proc.getInputStream().close();
-//			    proc.getOutputStream().close();
-//			    proc.getErrorStream().close();
-//			} catch (Exception e) {
-//			    System.err.println("Fail: " + e);
-//			}
-				
-				
-				
-				
-			
-				// On cherche la marée haute la plus proche
-	
-				// DT delta temps
-				// DH delta hauteur
-				// DU durée marrée
-	
-				
-	
-				
-			
-			} else {
-				tideInterval.setStartDate(startDate);
-				tideInterval.setEndDate(endDate);
-			}
-
+			return tideInfo;
 		} catch (ParseException e) {
 			logger.error(e, e);
 		}
-		return tideInterval;
+		return null;
+
 	}
+
 
 }

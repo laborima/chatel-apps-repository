@@ -35,11 +35,16 @@ public class WeatherDependentActivity {
 	}
 
 
-	public WeatherDependentActivity(ActivitySpecification activity, Forecast forecast) {
+	public WeatherDependentActivity(ActivitySpecification activity) {
 		super();
 		this.activity = activity;
+	}
+
+	
+	
+	
+	public void setForecast(Forecast forecast) {
 		this.forecast = forecast;
-		
 		this.windSpeedKmPerHour = WeatherHelper.convertVelocity(WeatherHelper.MPS, WeatherHelper.KMPH, forecast.getWind().getSpeed());
 		this.windSpeedKnots = WeatherHelper.convertVelocity(WeatherHelper.MPS, WeatherHelper.KNOTS, forecast.getWind().getSpeed());
 		this.windSpeedBeaufort = WeatherHelper.getBeaufort(this.windSpeedKmPerHour);

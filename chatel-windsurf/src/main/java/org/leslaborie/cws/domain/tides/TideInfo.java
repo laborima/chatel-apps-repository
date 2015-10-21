@@ -8,10 +8,13 @@ public class TideInfo {
 	private Date highTime;
 	private Date lowTime;
 	private Integer coef;
+	private Double marnage;
+	private Double tideHeight;
 
 	public TideInfo(Tide tide) {
 		this.port = tide.getPort();
 		this.coef = tide.getCoef();
+		this.tideHeight = tide.getHeight();
 	}
 
 	public String getPort() {
@@ -26,6 +29,25 @@ public class TideInfo {
 		return highTime;
 	}
 
+	
+	public Double getMarnage() {
+		return marnage;
+	}
+
+	public void setMarnage(Double marnage) {
+		this.marnage = marnage;
+	}
+	
+	
+	public Double getTideHeight() {
+		return tideHeight;
+	}
+
+
+	public Long getTideDuration(){
+		return Math.abs(highTime.getTime()  - lowTime.getTime());
+	}
+	
 	@Override
 	public String toString() {
 		return "TideInfo [port=" + port + ", highTime=" + highTime + ", lowTime=" + lowTime + ", coef=" + coef + "]";

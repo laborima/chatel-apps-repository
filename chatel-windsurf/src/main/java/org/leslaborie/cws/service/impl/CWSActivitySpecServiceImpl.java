@@ -47,14 +47,11 @@ public class CWSActivitySpecServiceImpl implements CWSActivitySpecService {
 		piaf.setTideRange(new Range(5d,6d)); //4.98 --> 6m
 		
 		
-		ActivitySpecification beachcombing1 = new ActivitySpecification("fishing-landingnet");
+		ActivitySpecification beachcombing1 = new ActivitySpecification("fishing-landingnet-clam");
 		beachcombing1.setTideRange(new Range(0d,3d));
-		
-		ActivitySpecification beachcombing2 = new ActivitySpecification("fishing-clam");
-		beachcombing2.setTideRange(new Range(0d,3d));
 				
 		
-		return Arrays.asList(windsurf1,windsurf2,windsurf3,piaf,beachcombing1,beachcombing2);
+		return Arrays.asList(windsurf1,windsurf2,windsurf3,piaf,beachcombing1);
 	}
 
 }
