@@ -128,15 +128,14 @@
 	
     
   </style>
-  <template >
-		<iron-ajax
-		    id="ajax"
+  <template >    
+		  <iron-ajax
+		    id="ajax-activities"
 		    auto
 		    params="{{ajaxParams}}"
 		    url="/service/activities"
 		    handle-as="json"
 		    last-response="{{weatherDependentActivities}}"
-		    on-response="handleResponse"
 		    ></iron-ajax>
 		    <template is="dom-repeat" items="{{weatherDependentActivities}}">
 			    <paper-material elevation="3" animated="true" >
@@ -187,9 +186,6 @@
   (function() {
     Polymer({
       is: 'cws-range-block',
-      handleResponse : function(request){
-          console.log(request.detail.response);
-      },
       properties : {
         day : String ,
         ajaxParams: {
@@ -235,9 +231,13 @@
       extractDate : function (startDt,endDt){
     	  var startDate = new Date();
     	  startDate.setTime(startDt);
-    	  var endDate = new Date();
-    	  endDate.setTime(endDt);
-    	  return  startDate.getHours() +"h - "+ endDate.getHours()+"h";
+    	  if(endDt !=null){
+    	  	var endDate = new Date();
+    	  	endDate.setTime(endDt);
+    	  	return  startDate.getHours() +"h - "+ endDate.getHours()+"h";
+    	  } else {
+    		  return startDate.getHours() +"h";
+    	  }
       },
       formatNumber : function (number){
     	  return (new Number(number)).toFixed(0);
@@ -621,6 +621,9 @@
 	      }
       
     });
+    
+    
+    
   })();
 </script>
 

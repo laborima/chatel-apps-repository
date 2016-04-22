@@ -13,6 +13,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.leslaborie.cws.domain.ActivitySpecification;
 import org.leslaborie.cws.domain.WeatherDependentActivity;
+import org.leslaborie.cws.domain.WeatherForecast;
 import org.leslaborie.cws.domain.owm.Forecast;
 import org.leslaborie.cws.domain.owm.ForecastWheatherData;
 import org.leslaborie.cws.domain.tides.TideInterval;
@@ -41,6 +42,23 @@ public class CWSServiceImpl implements CWSService {
 	@Autowired
 	CWSActivitySpecService activitySpecService;
 
+	
+	@Override
+	public List<WeatherForecast> getForecasts(String day) {
+
+		ForecastWheatherData fwData = weatherService.forecastWeatherAtCity("chatelaillon-plage,FR");
+
+		List<WeatherForecast> ret = new LinkedList<>();
+		for (Forecast forecast : fwData.getForecasts()) {
+			if (isInCurrentDay(forecast.getDt(), day)) {
+				WeatherForecast forecatsWeather = new WeatherForecast(forecast);
+				ret.add(forecatsWeather);
+			}
+		}
+		
+		return ret;
+	}	
+	
 	@Override
 	public List<WeatherDependentActivity> getActivities(String day) {
 

@@ -3,6 +3,7 @@ package org.leslaborie.cws.web;
 import java.util.List;
 
 import org.leslaborie.cws.domain.WeatherDependentActivity;
+import org.leslaborie.cws.domain.WeatherForecast;
 import org.leslaborie.cws.service.CWSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +21,11 @@ public class CWSRestController {
 	@RequestMapping(value="/activities", method=RequestMethod.GET)
 	public List<WeatherDependentActivity> getActivities(@RequestParam("d") String day){
 		return cwsService.getActivities(day);
+	}
+	
+	@RequestMapping(value="/forecasts", method=RequestMethod.GET)
+	public List<WeatherForecast> getForecasts(@RequestParam("d") String day){
+		return cwsService.getForecasts(day);
 	}
 	
 	@RequestMapping(value="/current", method=RequestMethod.GET)

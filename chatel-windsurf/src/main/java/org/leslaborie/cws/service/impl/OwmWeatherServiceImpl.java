@@ -46,6 +46,9 @@ public class OwmWeatherServiceImpl implements WeatherService{
 
 	@Cacheable("forecasts")
 	public ForecastWheatherData forecastWeatherAtCity(String cityId) {
+		
+		logger.info("Calling endpoint : "+weatherEndPoint);
+		
 		RestTemplate restTemplate = new RestTemplate();
 		Map<String, String> vars = new HashMap<>();
 		vars.put("city", cityId);

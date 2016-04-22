@@ -10,7 +10,7 @@ import org.leslaborie.cws.domain.tides.TideInterval;
 public interface TideService {
 
 	List<Tide> getDayTides(String cityId, Date date);
-
+	
 	Double getWaterHeightAtDateTime(String cityId, Date date);
 
 	TideInterval getTideInterval(Date startDate, Date endDate, Range tideRange, String cityId);

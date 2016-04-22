@@ -3,12 +3,9 @@ package org.leslaborie.cws.service.impl;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -17,10 +14,8 @@ import org.leslaborie.cws.domain.tides.Tide;
 import org.leslaborie.cws.domain.tides.TideInfo;
 import org.leslaborie.cws.domain.tides.TideInterval;
 import org.leslaborie.cws.service.TideService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 
 /**
@@ -51,24 +46,14 @@ public class TideServiceImpl implements TideService {
 
 	private static Log logger = LogFactory.getLog(TideServiceImpl.class);
 
-	@Value("${tide.api.endpoint}")
-	private String tideEndPoint;
-
+	@Autowired
+	MeteoFranceRestTideService mfRestTideService;
+	
 	@Override
-	@Cacheable("tides")
 	public List<Tide> getDayTides(String cityId, Date date) {
 
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
-
-		logger.info("Calling endpoint : " + tideEndPoint);
-
-		RestTemplate restTemplate = new RestTemplate();
-		Map<String, String> vars = new HashMap<>();
-		vars.put("city", cityId);
-		vars.put("date", dateFormat.format(date));
-		vars.put("endpoint", tideEndPoint);
-
-		return Arrays.asList(restTemplate.getForObject("{endpoint}/{city}/{date}/METROPOLE", Tide[].class, vars));
+		return mfRestTideService.getDayTides(cityId, dateFormat.format(date));
 	}
 
 	@Override
