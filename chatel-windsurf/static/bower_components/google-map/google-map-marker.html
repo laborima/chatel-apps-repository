@@ -42,8 +42,23 @@ child of `google-map`.
 </dom-module>
 
 <script>
-
 (function() {
+
+  function setupDragHandler_() {
+    if (this.draggable) {
+      this.dragHandler_ = google.maps.event.addListener(
+          this.marker, 'dragend', onDragEnd_.bind(this));
+    } else {
+      google.maps.event.removeListener(this.dragHandler_);
+      this.dragHandler_ = null;
+    }
+  }
+
+  function onDragEnd_(e, details, sender) {
+    this.latitude = e.latLng.lat();
+    this.longitude = e.latLng.lng();
+  }
+
   Polymer({
 
     is: 'google-map-marker',
@@ -53,51 +68,87 @@ child of `google-map`.
      * @param {google.maps.MouseEvent} event The mouse event.
      * @event google-map-marker-click
      */
+
     /**
      * Fired when the marker icon was double clicked. Requires the clickEvents attribute to be true.
      * @param {google.maps.MouseEvent} event The mouse event.
      * @event google-map-marker-dblclick
      */
+
+    /**
+     * Fired repeatedly while the user drags the marker. Requires the dragEvents attribute to be true.
+     * @event google-map-marker-drag
+     */
+
+    /**
+     * Fired when the user stops dragging the marker. Requires the dragEvents attribute to be true.
+     * @event google-map-marker-dragend
+     */
+
+    /**
+     * Fired when the user starts dragging the marker. Requires the dragEvents attribute to be true.
+     * @event google-map-marker-dragstart
+     */
+
     /**
      * Fired for a mousedown on the marker. Requires the mouseEvents attribute to be true.
      * @event google-map-marker-mousedown
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
     /**
      * Fired when the DOM `mousemove` event is fired on the marker. Requires the mouseEvents
      * attribute to be true.
      * @event google-map-marker-mousemove
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
     /**
      * Fired when the mouse leaves the area of the marker icon. Requires the mouseEvents attribute to be
      * true.
      * @event google-map-marker-mouseout
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
     /**
      * Fired when the mouse enters the area of the marker icon. Requires the mouseEvents attribute to be
      * true.
      * @event google-map-marker-mouseover
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
     /**
      * Fired for a mouseup on the marker. Requires the mouseEvents attribute to be true.
      *
      * @event google-map-marker-mouseup
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
     /**
      * Fired for a rightclick on the marker. Requires the clickEvents attribute to be true.
      * @event google-map-marker-rightclick
      * @param {google.maps.MouseEvent} event The mouse event.
      */
+
+    /**
+     * Fired when an infowindow is opened.
+     * @event google-map-marker-open
+     */
+
+    /**
+     * Fired when the close button of the infowindow is pressed.
+     * @event google-map-marker-close
+     */
+
     properties: {
       /**
        * A Google Maps marker object.
        * @type google.maps.Marker
        */
-      marker: Object,
+      marker: {
+        type: Object,
+        notify: true
+      },
 
       /**
        * The Google map object.
@@ -110,6 +161,7 @@ child of `google-map`.
 
       /**
        * A Google Map Infowindow object.
+       * @type {?Object}
        */
       info: {
         type: Object,
@@ -123,6 +175,15 @@ child of `google-map`.
         type: Boolean,
         value: false,
         observer: '_clickEventsChanged'
+      },
+
+      /**
+       * When true, marker drag* events are automatically registered.
+       */
+      dragEvents: {
+        type: Boolean,
+        value: false,
+        observer: '_dragEventsChanged'
       },
 
       /**
@@ -159,15 +220,35 @@ child of `google-map`.
       longitude: {
         type: Number,
         value: null,
-        reflectToAttribute: true
+        notify: true
       },
+
       /**
        * The marker's latitude coordinate.
        */
       latitude: {
         type: Number,
         value: null,
-        reflectToAttribute: true
+        notify: true
+      },
+
+      /**
+       * A animation for the marker. "DROP" or "BOUNCE". See
+       * https://developers.google.com/maps/documentation/javascript/examples/marker-animations.
+       */
+      animation: {
+        type: String,
+        value: null,
+        observer: '_animationChanged'
+      },
+
+      /**
+       * Specifies whether the InfoWindow is open or not
+       */
+      open: {
+        type: Boolean,
+        value: false,
+        observer: '_openChanged'
       }
     },
 
@@ -177,6 +258,8 @@ child of `google-map`.
 
     detached: function() {
       if (this.marker) {
+        google.maps.event.clearInstanceListeners(this.marker);
+        this._listeners = {};
         this.marker.setMap(null);
       }
       if (this._contentObserver)
@@ -192,10 +275,8 @@ child of `google-map`.
 
     _updatePosition: function() {
       if (this.marker && this.latitude != null && this.longitude != null) {
-        this.marker.setPosition({
-          lat: parseFloat(this.latitude),
-          lng: parseFloat(this.longitude)
-        });
+        this.marker.setPosition(new google.maps.LatLng(
+          parseFloat(this.latitude), parseFloat(this.longitude)));
       }
     },
 
@@ -209,6 +290,20 @@ child of `google-map`.
           this._clearListener('click');
           this._clearListener('dblclick');
           this._clearListener('rightclick');
+        }
+      }
+    },
+
+    _dragEventsChanged: function() {
+      if (this.map) {
+        if (this.dragEvents) {
+          this._forwardEvent('drag');
+          this._forwardEvent('dragend');
+          this._forwardEvent('dragstart');
+        } else {
+          this._clearListener('drag');
+          this._clearListener('dragend');
+          this._clearListener('dragstart');
         }
       }
     },
@@ -228,6 +323,12 @@ child of `google-map`.
           this._clearListener('mouseover');
           this._clearListener('mouseup');
         }
+      }
+    },
+
+    _animationChanged: function() {
+      if (this.marker) {
+        this.marker.setAnimation(google.maps.Animation[this.animation]);
       }
     },
 
@@ -270,16 +371,33 @@ child of `google-map`.
         if (!this.info) {
           // Create a new infowindow
           this.info = new google.maps.InfoWindow();
-          this.infoHandler_ = google.maps.event.addListener(this.marker, 'click', function() {
-            this.info.open(this.map, this.marker);
+          this.openInfoHandler_ = google.maps.event.addListener(this.marker, 'click', function() {
+            this.open = true;
+          }.bind(this));
+
+          this.closeInfoHandler_ = google.maps.event.addListener(this.info, 'closeclick', function() {
+            this.open = false;
           }.bind(this));
         }
         this.info.setContent(content);
       } else {
         if (this.info) {
           // Destroy the existing infowindow.  It doesn't make sense to have an empty one.
-          google.maps.event.removeListener(this.infoHandler_);
+          google.maps.event.removeListener(this.openInfoHandler_);
+          google.maps.event.removeListener(this.closeInfoHandler_);
           this.info = null;
+        }
+      }
+    },
+
+    _openChanged: function() {
+      if (this.info) {
+        if (this.open) {
+          this.info.open(this.map, this.marker);
+          this.fire('google-map-marker-open');
+        } else {
+          this.info.close();
+          this.fire('google-map-marker-close');
         }
       }
     },
@@ -293,6 +411,7 @@ child of `google-map`.
           lng: parseFloat(this.longitude)
         },
         title: this.title,
+        animation: google.maps.Animation[this.animation],
         draggable: this.draggable,
         visible: !this.hidden,
         icon: this.icon,
@@ -300,8 +419,9 @@ child of `google-map`.
       });
       this._contentChanged();
       this._clickEventsChanged();
-      this._contentChanged();
+      this._dragEventsChanged();
       this._mouseEventsChanged();
+      this._openChanged();
       setupDragHandler_.bind(this)();
     },
 
@@ -318,7 +438,7 @@ child of `google-map`.
       }.bind(this));
     },
 
-    attributeChanged: function(attrName, oldVal, newVal) {
+    attributeChanged: function(attrName) {
       if (!this.marker) {
         return;
       }
@@ -339,19 +459,5 @@ child of `google-map`.
     }
   });
 
-  function setupDragHandler_() {
-    if (this.draggable) {
-      this.dragHandler_ = google.maps.event.addListener(
-          this.marker, 'dragend', onDragEnd_.bind(this));
-    } else {
-      google.maps.event.removeListener(this.dragHandler_);
-      this.dragHandler_ = null;
-    }
-  }
-
-  function onDragEnd_(e, details, sender) {
-    this.latitude = e.latLng.lat();
-    this.longitude = e.latLng.lng();
-  }
 })();
 </script>
