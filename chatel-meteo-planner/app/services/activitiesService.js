@@ -179,7 +179,9 @@ export const getRecommendedGear = (sailor, windKnots) => {
         boards: [],
         sails: [],
         wings: [],
-        speedsails: []
+        speedsails: [],
+        boats: [],
+        foils: []
     };
 
     if (!sailor || !sailor.windRanges) {
@@ -188,11 +190,15 @@ export const getRecommendedGear = (sailor, windKnots) => {
 
     for (const [gearName, range] of Object.entries(sailor.windRanges)) {
         if (windKnots >= range.minKnots && windKnots <= range.maxKnots) {
-            if (gearName.includes("Wing") || gearName.includes("Strike") || gearName.includes("Unit") || gearName.includes("Mantis")) {
+            if (gearName.includes("Wing") || gearName.includes("Strike") || gearName.includes("Unit") || gearName.includes("Mantis") || gearName.includes("Slingshot") || gearName.includes("Gong Wing")) {
                 recommended.wings.push({ name: gearName, ...range });
-            } else if (gearName.includes("Speedster") || gearName.includes("TR-XI")) {
+            } else if (gearName.includes("Speedster") || gearName.includes("TR-XI") || gearName.includes("Norbert Blanc")) {
                 recommended.speedsails.push({ name: gearName, ...range });
-            } else if (gearName.toLowerCase().includes("sail") || gearName.includes("Pryde") || gearName.includes("Duotone") || gearName.includes("North") || gearName.includes("Severne")) {
+            } else if (gearName.includes("Foil") || gearName.includes("Allvator")) {
+                recommended.foils.push({ name: gearName, ...range });
+            } else if (gearName.includes("Dufour") || gearName.includes("Cirrus")) {
+                recommended.boats.push({ name: gearName, ...range });
+            } else if (gearName.toLowerCase().includes("sail") || gearName.includes("Pryde") || gearName.includes("Duotone") || gearName.includes("North") || gearName.includes("Severne") || gearName.includes("Gaastra") || gearName.includes("Wizard") || gearName.includes("Matrix") || gearName.includes("Idol") || gearName.includes("Warp")) {
                 recommended.sails.push({ name: gearName, ...range });
             } else {
                 recommended.boards.push({ name: gearName, ...range });
@@ -211,13 +217,16 @@ export const matchGearWithFavorites = (activityGear, sailorGear) => {
         boards: [],
         sails: [],
         wings: [],
-        speedsails: []
+        speedsails: [],
+        boats: [],
+        foils: []
     };
 
     const favoriteBoard = sailorGear?.board;
     const favoriteSail = sailorGear?.sail;
     const favoriteWing = sailorGear?.wing;
     const favoriteSpeedsail = sailorGear?.speedsail;
+    const favoriteBoat = sailorGear?.boat;
 
     if (activityGear.boards) {
         matches.boards = activityGear.boards.map((board) => ({
@@ -244,6 +253,20 @@ export const matchGearWithFavorites = (activityGear, sailorGear) => {
         matches.speedsails = activityGear.speedsails.map((speedsail) => ({
             name: speedsail,
             isFavorite: speedsail === favoriteSpeedsail
+        }));
+    }
+
+    if (activityGear.boats) {
+        matches.boats = activityGear.boats.map((boat) => ({
+            name: boat,
+            isFavorite: boat === favoriteBoat
+        }));
+    }
+
+    if (activityGear.foils) {
+        matches.foils = activityGear.foils.map((foil) => ({
+            name: foil,
+            isFavorite: false
         }));
     }
 

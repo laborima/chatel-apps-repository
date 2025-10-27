@@ -158,6 +158,69 @@ export default function ActivityCard({ activity, className = "" }) {
                                 </div>
                             </div>
                         )}
+                        {activity.gearMatches.foils?.length > 0 && (
+                            <div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                    {t("gear.foils")}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {activity.gearMatches.foils.map((foil, idx) => (
+                                        <span
+                                            key={idx}
+                                            className={`px-2 py-1 rounded text-xs ${
+                                                foil.isFavorite
+                                                    ? "bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-200 font-semibold"
+                                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                            }`}
+                                        >
+                                            {foil.isFavorite && "⭐ "}{foil.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {activity.gearMatches.boats?.length > 0 && (
+                            <div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                    {t("gear.boats")}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {activity.gearMatches.boats.map((boat, idx) => (
+                                        <span
+                                            key={idx}
+                                            className={`px-2 py-1 rounded text-xs ${
+                                                boat.isFavorite
+                                                    ? "bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-200 font-semibold"
+                                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                            }`}
+                                        >
+                                            {boat.isFavorite && "⭐ "}{boat.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {activity.gearMatches.speedsails?.length > 0 && (
+                            <div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                    {t("gear.speedsails")}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {activity.gearMatches.speedsails.map((speedsail, idx) => (
+                                        <span
+                                            key={idx}
+                                            className={`px-2 py-1 rounded text-xs ${
+                                                speedsail.isFavorite
+                                                    ? "bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-200 font-semibold"
+                                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                            }`}
+                                        >
+                                            {speedsail.isFavorite && "⭐ "}{speedsail.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
