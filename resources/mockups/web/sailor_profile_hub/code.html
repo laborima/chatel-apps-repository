@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chatel Meteo Planner - Sailor Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1183d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#111b22",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display">
+<div class="relative flex h-auto min-h-screen w-full flex-col bg-[#111b22] dark group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<div class="px-4 md:px-10 lg:px-40 flex flex-1 justify-center py-5">
+<div class="layout-content-container flex flex-col max-w-[960px] flex-1">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#233948] px-4 md:px-10 py-3">
+<div class="flex items-center gap-4 text-white">
+<div class="size-6">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M39.475 21.6262C40.358 21.4363 40.6863 21.5589 40.7581 21.5934C40.7876 21.655 40.8547 21.857 40.8082 22.3336C40.7408 23.0255 40.4502 24.0046 39.8572 25.2301C38.6799 27.6631 36.5085 30.6631 33.5858 33.5858C30.6631 36.5085 27.6632 38.6799 25.2301 39.8572C24.0046 40.4502 23.0255 40.7407 22.3336 40.8082C21.8571 40.8547 21.6551 40.7875 21.5934 40.7581C21.5589 40.6863 21.4363 40.358 21.6262 39.475C21.8562 38.4054 22.4689 36.9657 23.5038 35.2817C24.7575 33.2417 26.5497 30.9744 28.7621 28.762C30.9744 26.5497 33.2417 24.7574 35.2817 23.5037C36.9657 22.4689 38.4054 21.8562 39.475 21.6262ZM4.41189 29.2403L18.7597 43.5881C19.8813 44.7097 21.4027 44.9179 22.7217 44.7893C24.0585 44.659 25.5148 44.1631 26.9723 43.4579C29.9052 42.0387 33.2618 39.5667 36.4142 36.4142C39.5667 33.2618 42.0387 29.9052 43.4579 26.9723C44.1631 25.5148 44.659 24.0585 44.7893 22.7217C44.9179 21.4027 44.7097 19.8813 43.5881 18.7597L29.2403 4.41187C27.8527 3.02428 25.8765 3.02573 24.2861 3.36776C22.6081 3.72863 20.7334 4.58419 18.8396 5.74801C16.4978 7.18716 13.9881 9.18353 11.5858 11.5858C9.18354 13.988 7.18717 16.4978 5.74802 18.8396C4.58421 20.7334 3.72865 22.6081 3.36778 24.2861C3.02574 25.8765 3.02429 27.8527 4.41189 29.2403Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h1 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">Chatel Meteo Planner</h1>
+</div>
+<div class="hidden md:flex flex-1 justify-end gap-8">
+<div class="flex items-center gap-9">
+<a class="text-white text-sm font-medium leading-normal" href="#">Dashboard</a>
+<a class="text-white text-sm font-medium leading-normal" href="#">Forecast</a>
+<a class="text-white text-sm font-medium leading-normal" href="#">Plan</a>
+<a class="text-white text-sm font-medium leading-normal" href="#">Profile</a>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#1183d4] text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">New Plan</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Sailor's profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC64WZs2UT30VwO5nTqrsr0zfu6CNYnZIHqp7MYara-TfJcr9392NnmdhjMh24XB-GThmazv8WN9fffNLVxzUQGqXqotMBKLtHkr5XPA0GYM_HJOKdRrmWAxpAvDZGSKCFVq0cCMhA7lS8Xq5XKq6tGh0NH-0Kuuaqw-uU6Gj-5ol9jOGzhB_g6EIdwFfw0pRlJgCyNyfIGXSs5leF5wnbfYaAOtokEqwpTFyPqnRFtArRmYYbWIA1JW7loh_-6dm5YXJWeB1Z-qaj5");'></div>
+</div>
+</header>
+<main class="flex-1">
+<div class="flex p-4 @container mt-8">
+<div class="flex w-full flex-col gap-4 @[520px]:flex-row @[520px]:justify-between @[520px]:items-center">
+<div class="flex gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full min-h-32 w-32" data-alt="Sailor's profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbNM9bWmOuHmKCAOv9nH3FdOTVBYls9k27HzYrcesk5xit7EKfeIEUwET-Bs6dqSrBbAzdBXaD7hKHuy58rgk_06ThMkOIPB3kLcG74yQ8eB7t9V48Dy9T0iKhLnfv2KBaUkAlFvTFTb8B744Ya_IFmWrSj5-3qphahOtpUYg80el6KkQ_-elJsCAmfvUm1qD3xDPP__LWMgUsBPueVyRyg4Q6VcEjUG_k5TmFgDE2RFnUNPETbRgjELpLqZ0sfzBR0F2TrMSeA1lf");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">Alex Doe</p>
+<p class="text-[#92b2c9] text-base font-normal leading-normal">Height: 180cm, Weight: 75kg</p>
+</div>
+</div>
+<div class="flex w-full max-w-[480px] gap-3 @[480px]:w-auto">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#233948] text-white text-sm font-bold leading-normal tracking-[0.015em] flex-1 @[480px]:flex-auto">
+<span class="truncate">Edit Profile</span>
+</button>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#1183d4] text-white text-sm font-bold leading-normal tracking-[0.015em] flex-1 @[480px]:flex-auto">
+<span class="truncate">Set as Primary</span>
+</button>
+</div>
+</div>
+</div>
+<h2 class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">My Equipment</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-4">
+<div class="flex items-stretch justify-between gap-4 rounded-lg bg-[#192833] p-4 shadow-[0_0_4px_rgba(0,0,0,0.1)]">
+<div class="flex flex-[2_2_0px] flex-col gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-white text-base font-bold leading-tight">JP Australia 120L Freestyle Wave</p>
+<p class="text-[#92b2c9] text-sm font-normal leading-normal">Wind Range: 15-25 knots</p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-8 px-4 flex-row-reverse bg-[#233948] text-white pr-2 gap-1 text-sm font-medium leading-normal w-fit">
+<span class="material-symbols-outlined text-base">edit</span>
+<span class="truncate">Edit</span>
+</button>
+</div>
+<div class="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-lg flex-1" data-alt="JP Australia 120L Freestyle Wave board" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDNLzuhrfqH2rUxXCcUfSlEzEt5EpSFGHV0fpFrsCBREXPzPhzpEYu9mnCLAGrCgF1rJSvH1aLXpJF5oNcjwDNS1YLcL1j9OevjVTGpLgR4DAtoGCo1jn4NN1U292nOHVqJFzX9DajSKLgpgRsFT15QIHKiYFOxupuZAKwXFtpccKvR4qVksI4bnxkC1gALncacPMWC166CluXYS7mwHFGvje_jQ26QTUnYI7wYf66VYkxkuOzVDwIhDQ-oCHlyQXYG-1jCG6-XuwF8");'></div>
+</div>
+<div class="flex items-stretch justify-between gap-4 rounded-lg bg-[#192833] p-4 shadow-[0_0_4px_rgba(0,0,0,0.1)]">
+<div class="flex flex-[2_2_0px] flex-col gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-white text-base font-bold leading-tight">NeilPryde 5.7m Fusion</p>
+<p class="text-[#92b2c9] text-sm font-normal leading-normal">Wind Range: 18-28 knots</p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-8 px-4 flex-row-reverse bg-[#233948] text-white pr-2 gap-1 text-sm font-medium leading-normal w-fit">
+<span class="material-symbols-outlined text-base">edit</span>
+<span class="truncate">Edit</span>
+</button>
+</div>
+<div class="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-lg flex-1" data-alt="NeilPryde 5.7m Fusion sail" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD9-QfAMgOgyg8t0XnjyFK31coJ6YIK6i7EkLqMfJNrmKvPWvRJKECwJNeUpj6z1ptASqdRyvWlnu-353hsUrGnwdg1I4cf42HhZej2RipOuCJc71CHMnjnCnFVa82gPihS823WI95o9mVdtHS0UbFdtTsvIzSJjQ30YJjoQRac2L88E_9I5RDchetqrcSmpvjQxiU8c16t8uQnluwiVb17VoXBRqe42h8KgdpRmJ4Qo_3LHlT6pAOZypyZosdCE4OfEp1qfsOhpccY");'></div>
+</div>
+<div class="flex items-stretch justify-between gap-4 rounded-lg bg-[#192833] p-4 shadow-[0_0_4px_rgba(0,0,0,0.1)]">
+<div class="flex flex-[2_2_0px] flex-col gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-white text-base font-bold leading-tight">Duotone 4m Wing</p>
+<p class="text-[#92b2c9] text-sm font-normal leading-normal">Wind Range: 12-22 knots</p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-8 px-4 flex-row-reverse bg-[#233948] text-white pr-2 gap-1 text-sm font-medium leading-normal w-fit">
+<span class="material-symbols-outlined text-base">edit</span>
+<span class="truncate">Edit</span>
+</button>
+</div>
+<div class="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-lg flex-1" data-alt="Duotone 4m Wing" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuByPi7ZE-3tbw9PHYkxBMP2YG5HF14J4cvVQzOb60sLqTwoe99kjIXKNygyHEXCFg0ZIbY4T70M2aQH9RQPxot4nIj4-rxuBmX7kx8zm2Zvo0uH3rgxiFJZPuXvmD-N1JMgBtRBPLSiM0jwdwFgUTsXDryx7xYxiW4GIIVccM0lZVo2zFqShUvAZvm0JxMetjx6UdI9jWi5txtqqnbOk2tYUNPgWz30vzGgXOBzET_wwL6FHxSNIsKc_Au1PjvT24WrW3mtatRnAJgl");'></div>
+</div>
+<div class="flex items-stretch justify-between gap-4 rounded-lg bg-[#192833] p-4 shadow-[0_0_4px_rgba(0,0,0,0.1)]">
+<div class="flex flex-[2_2_0px] flex-col gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-white text-base font-bold leading-tight">Laser Standard</p>
+<p class="text-[#92b2c9] text-sm font-normal leading-normal">Wind Range: 5-20 knots</p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-8 px-4 flex-row-reverse bg-[#233948] text-white pr-2 gap-1 text-sm font-medium leading-normal w-fit">
+<span class="material-symbols-outlined text-base">edit</span>
+<span class="truncate">Edit</span>
+</button>
+</div>
+<div class="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-lg flex-1" data-alt="Laser Standard sailboat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-j4-fHrG2OetzEkXLOwePDlD1Hy45jzl9wQswOmjChcpsEfvbOhtC0rDtvQcmQ2ogkb-R0zvpHzCw3KTqlkf7ERUTHK5YC8OMmj6mRrjD6qW9NW_00u4kA3iFm1UsRpRkzvz-waCl2C3UJkK-QSNiJ2cxYpIEa6pBXDJuuHjBJlVmzMo_iMmubEpAWRijglBn2cmHTiyK4MvLt8p7MdQu06WfIogQqIHAH25OVJkYJk0Tuvmd__i4_pnuLrAaJdRcuSyNm0Ne8NUo");'></div>
+</div>
+</div>
+<div class="p-4 mt-4">
+<button class="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#233948] text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">Add New Equipment</span>
+</button>
+</div>
+</main>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,307 @@
+{
+    "sailors": [
+        {
+            "name": "christophe",
+            "heightCm": 182,
+            "weightKg": 82,
+            "favoriteGear": {
+                "board": "JP Magic Ride 110",
+                "sail": "Duotone Warp 7.2",
+                "wing": "Gong Wing 5.0",
+                "speedsail": "Norbert Blanc Sports",
+                "boat": "Dufour 310 Grand Large"
+            },
+            "windRanges": {
+                "Duotone Warp 7.2": {
+                    "minKnots": 12,
+                    "maxKnots": 22
+                },
+                "Gaastra Matrix 6.0": {
+                    "minKnots": 14,
+                    "maxKnots": 24
+                },
+                "JP Magic Ride 110": {
+                    "minKnots": 12,
+                    "maxKnots": 25
+                },
+                "Gong Wing 5.0": {
+                    "minKnots": 12,
+                    "maxKnots": 22
+                }
+            }
+        },
+        {
+            "name": "constance",
+            "heightCm": 170,
+            "weightKg": 62,
+            "favoriteGear": {
+                "board": "GONG SUP Inflatable HIPE 5'5",
+                "sail": "Duotone Idol LTD 5.0",
+                "wing": "Slingshot Slingwing V2 4.4",
+                "speedsail": null,
+                "boat": "Dufour 310 Grand Large"
+            },
+            "windRanges": {
+                "Duotone Idol LTD 5.0": {
+                    "minKnots": 15,
+                    "maxKnots": 25
+                },
+                "NeilPryde Wizard 3.6": {
+                    "minKnots": 18,
+                    "maxKnots": 28
+                },
+                "Slingshot Slingwing V2 4.4": {
+                    "minKnots": 16,
+                    "maxKnots": 26
+                },
+                "GONG SUP Inflatable HIPE 5'5": {
+                    "minKnots": 12,
+                    "maxKnots": 20
+                }
+            }
+        },
+        {
+            "name": "matthieu",
+            "heightCm": 178,
+            "weightKg": 78,
+            "favoriteGear": {
+                "board": "RRD 150",
+                "sail": "Gaastra Matrix 6.0",
+                "wing": "Cabrinha Mantis 6.0",
+                "speedsail": "Norbert Blanc Sports",
+                "boat": "Dufour 310 Grand Large"
+            },
+            "windRanges": {
+                "Gaastra Matrix 6.0": {
+                    "minKnots": 14,
+                    "maxKnots": 24
+                },
+                "Duotone Warp 7.2": {
+                    "minKnots": 12,
+                    "maxKnots": 22
+                },
+                "Cabrinha Mantis 6.0": {
+                    "minKnots": 10,
+                    "maxKnots": 18
+                },
+                "RRD 150": {
+                    "minKnots": 12,
+                    "maxKnots": 24
+                },
+                "Norbert Blanc Sports": {
+                    "minKnots": 20,
+                    "maxKnots": 40
+                }
+            }
+        },
+        {
+            "name": "theo",
+            "heightCm": 185,
+            "weightKg": 90,
+            "favoriteGear": {
+                "board": "Bic Techno 293",
+                "sail": "Duotone Warp 7.2",
+                "wing": "Gong Wing 5.0",
+                "speedsail": "Norbert Blanc Sports",
+                "boat": "Dufour 310 Grand Large"
+            },
+            "windRanges": {
+                "Duotone Warp 7.2": {
+                    "minKnots": 12,
+                    "maxKnots": 22
+                },
+                "Gaastra Matrix 6.0": {
+                    "minKnots": 14,
+                    "maxKnots": 24
+                },
+                "Gong Wing 5.0": {
+                    "minKnots": 12,
+                    "maxKnots": 22
+                },
+                "Bic Techno 293": {
+                    "minKnots": 10,
+                    "maxKnots": 24
+                },
+                "Norbert Blanc Sports": {
+                    "minKnots": 20,
+                    "maxKnots": 40
+                }
+            }
+        },
+        {
+            "name": "anna",
+            "heightCm": 168,
+            "weightKg": 58,
+            "favoriteGear": {
+                "board": "JP Magic Ride 110",
+                "sail": "NeilPryde Wizard 3.6",
+                "wing": "Slingshot Slingwing V2 4.4",
+                "speedsail": null,
+                "boat": "Dufour 310 Grand Large"
+            },
+            "windRanges": {
+                "NeilPryde Wizard 3.6": {
+                    "minKnots": 18,
+                    "maxKnots": 30
+                },
+                "Duotone Idol LTD 5.0": {
+                    "minKnots": 15,
+                    "maxKnots": 25
+                },
+                "Slingshot Slingwing V2 4.4": {
+                    "minKnots": 16,
+                    "maxKnots": 26
+                },
+                "JP Magic Ride 110": {
+                    "minKnots": 12,
+                    "maxKnots": 25
+                }
+            }
+        }
+    ],
+    "gearLibrary": {
+        "boards": [
+            "JP Magic Ride 110",
+            "Bic Techno 293",
+            "RRD 150",
+            "GONG SUP Inflatable HIPE 5'5"
+        ],
+        "sails": [
+            "Gaastra Matrix 6.0",
+            "Duotone Idol LTD 5.0",
+            "NeilPryde Wizard 3.6",
+            "Duotone Warp 7.2"
+        ],
+        "wings": [
+            "Cabrinha Mantis 6.0",
+            "Gong Wing 5.0",
+            "Slingshot Slingwing V2 4.4"
+        ],
+        "speedsails": [
+            "Norbert Blanc Sports"
+        ],
+        "boats": [
+            "Dufour 310 Grand Large"
+        ],
+        "foils": [
+            "GONG Wing Foil Allvator V2 X-Over Alu XL"
+        ]
+    },
+    "activities": [
+        {
+            "name": "cirrus",
+            "type": "bateau",
+            "conditions": {
+                "tideMinMeters": 2.0,
+                "windMinKnots": 5,
+                "windMaxKnots": 20,
+                "swellMaxMeters": 3.0,
+                "allowRain": false,
+                "minimalDurationHours": 2
+            },
+            "preferredDirections": ["S", "SO", "O", "NO"],
+            "idealDirection": "O",
+            "timeConstraints": {
+                "weekendOnly": false,
+                "after18h": false,
+                "daylightOnly": true
+            },
+            "suggestedGear": {
+                "boats": ["Dufour 310 Grand Large"],
+                "boards": [],
+                "sails": [],
+                "wings": [],
+                "speedsails": []
+            }
+        },
+        {
+            "name": "windsurf",
+            "type": "windsurf",
+            "conditions": {
+                "tideMinMeters": 3.0,
+                "windMinKnots": 15,
+                "windMaxKnots": 25,
+                "swellMaxMeters": null,
+                "allowRain": false,
+                "minimalDurationHours": 2
+            },
+            "preferredDirections": ["SO", "O", "NO"],
+            "idealDirection": "O",
+            "timeConstraints": {
+                "weekendOnly": true,
+                "after18h": true,
+                "daylightOnly": true
+            },
+            "suggestedGear": {
+                "boards": ["JP Magic Ride 110", "Bic Techno 293", "RRD 150"],
+                "sails": [
+                    "Gaastra Matrix 6.0",
+                    "Duotone Idol LTD 5.0",
+                    "NeilPryde Wizard 3.6",
+                    "Duotone Warp 7.2"
+                ],
+                "wings": [],
+                "speedsails": []
+            }
+        },
+        {
+            "name": "wing",
+            "type": "wing",
+            "conditions": {
+                "tideMinMeters": 4.0,
+                "windMinKnots": 10,
+                "windMaxKnots": 18,
+                "swellMaxMeters": 1.0,
+                "allowRain": false,
+                "minimalDurationHours": 2
+            },
+            "preferredDirections": ["SO", "O", "NO"],
+            "idealDirection": "O",
+            "timeConstraints": {
+                "weekendOnly": true,
+                "after18h": true,
+                "daylightOnly": true
+            },
+            "suggestedGear": {
+                "boards": ["GONG SUP Inflatable HIPE 5'5"],
+                "foils": ["GONG Wing Foil Allvator V2 X-Over Alu XL"],
+                "sails": [],
+                "wings": [
+                    "Cabrinha Mantis 6.0",
+                    "Gong Wing 5.0",
+                    "Slingshot Slingwing V2 4.4"
+                ],
+                "speedsails": []
+            }
+        },
+        {
+            "name": "speedsail",
+            "type": "speedsail",
+            "conditions": {
+                "tideMaxMeters": 4.0,
+                "windMinKnots": 15,
+                "windMaxKnots": 40,
+                "swellMaxMeters": null,
+                "allowRain": false,
+                "minimalDurationHours": 2
+            },
+            "preferredDirections": ["SO", "O"],
+            "idealDirection": "O",
+            "timeConstraints": {
+                "weekendOnly": true,
+                "after18h": true,
+                "daylightOnly": true
+            },
+            "suggestedGear": {
+                "boards": [],
+                "sails": [],
+                 "wings": [
+                    "Cabrinha Mantis 6.0",
+                    "Gong Wing 5.0",
+                    "Slingshot Slingwing V2 4.4"
+                ],
+                "speedsails": ["Norbert Blanc Sports"]
+            }
+        }
+    ]
+}

@@ -1,0 +1,195 @@
+{
+    "app": {
+        "title": "Chatel Meteo Planner",
+        "subtitle": "Planificateur météo pour sports nautiques",
+        "description": "Planifiez vos sessions nautiques à Châtelaillon-Plage selon les conditions météo et marées"
+    },
+    "navigation": {
+        "dashboard": "Tableau de bord",
+        "planner": "Planificateur",
+        "profiles": "Profils",
+        "notifications": "Notifications"
+    },
+    "weather": {
+        "title": "Météo",
+        "wind": "Vent",
+        "direction": "Direction",
+        "speed": "Vitesse",
+        "average": "Moyenne",
+        "gust": "Rafales",
+        "beaufort": "Beaufort",
+        "knots": "nœuds",
+        "kmh": "km/h",
+        "avg1min": "Moy. 1 min",
+        "avg10min": "Moy. 10 min",
+        "temperature": "Température",
+        "humidity": "Humidité",
+        "pressure": "Pression",
+        "precipitation": "Précipitations",
+        "rain": "Pluie",
+        "realTime": "Temps réel",
+        "forecast": "Prévisions",
+        "webcam": "Webcam du port"
+    },
+    "tide": {
+        "title": "Marée",
+        "height": "Hauteur",
+        "currentHeight": "Hauteur actuelle",
+        "highTide": "Marée haute",
+        "lowTide": "Marée basse",
+        "rising": "Montante",
+        "falling": "Descendante",
+        "coefficient": "Coefficient",
+        "nextHigh": "Prochaine haute",
+        "nextLow": "Prochaine basse",
+        "meters": "mètres",
+        "chart": "Courbe de marée"
+    },
+    "activities": {
+        "title": "Activités",
+        "available": "Activités disponibles",
+        "recommended": "Recommandées",
+        "notAvailable": "Aucune activité disponible",
+        "cirrus": "Voile (Cirrus)",
+        "windsurf": "Planche à voile",
+        "wing": "Wing foil",
+        "speedsail": "Speed sail",
+        "conditions": "Conditions requises",
+        "duration": "Durée minimale",
+        "hours": "heures",
+        "gear": "Matériel",
+        "suggestedGear": "Matériel suggéré",
+        "score": "Score",
+        "reasons": "Raisons"
+    },
+    "sailors": {
+        "title": "Profils marins",
+        "selectProfile": "Sélectionner un profil",
+        "name": "Nom",
+        "height": "Taille",
+        "weight": "Poids",
+        "favoriteGear": "Matériel favori",
+        "board": "Planche",
+        "sail": "Voile",
+        "wing": "Wing",
+        "speedsail": "Speed sail",
+        "boat": "Bateau",
+        "windRange": "Plage de vent",
+        "christophe": "Christophe",
+        "constance": "Constance",
+        "matthieu": "Matthieu",
+        "theo": "Théo",
+        "anna": "Anna"
+    },
+    "gear": {
+        "title": "Matériel",
+        "boards": "Planches",
+        "sails": "Voiles",
+        "wings": "Wings",
+        "speedsails": "Speed sails",
+        "boats": "Bateaux",
+        "recommended": "Recommandé",
+        "favorite": "Favori",
+        "suitable": "Adapté"
+    },
+    "planner": {
+        "title": "Planificateur 5 jours",
+        "today": "Aujourd'hui",
+        "tomorrow": "Demain",
+        "days": "jours",
+        "forecast": "Prévisions",
+        "bestTime": "Meilleur moment",
+        "conditions": "Conditions",
+        "noData": "Aucune donnée disponible"
+    },
+    "notifications": {
+        "title": "Notifications",
+        "enable": "Activer les notifications",
+        "disable": "Désactiver les notifications",
+        "settings": "Paramètres de notification",
+        "when": "Quand me notifier",
+        "idealConditions": "Conditions idéales",
+        "favoriteActivity": "Activité favorite disponible",
+        "upcoming": "Créneaux à venir",
+        "toast": {
+            "enabled": "Notifications activées",
+            "disabled": "Notifications désactivées",
+            "error": "Erreur lors de l'activation"
+        }
+    },
+    "time": {
+        "now": "Maintenant",
+        "today": "Aujourd'hui",
+        "tomorrow": "Demain",
+        "weekend": "Week-end",
+        "after18h": "Après 18h",
+        "daylight": "Jour",
+        "morning": "Matin",
+        "afternoon": "Après-midi",
+        "evening": "Soir",
+        "night": "Nuit"
+    },
+    "conditions": {
+        "ideal": "Idéal",
+        "good": "Bon",
+        "acceptable": "Acceptable",
+        "poor": "Médiocre",
+        "unsuitable": "Inadapté",
+        "tooLow": "Trop faible",
+        "tooHigh": "Trop élevé",
+        "perfect": "Parfait"
+    },
+    "directions": {
+        "N": "Nord",
+        "NNE": "Nord-Nord-Est",
+        "NE": "Nord-Est",
+        "ENE": "Est-Nord-Est",
+        "E": "Est",
+        "ESE": "Est-Sud-Est",
+        "SE": "Sud-Est",
+        "SSE": "Sud-Sud-Est",
+        "S": "Sud",
+        "SSO": "Sud-Sud-Ouest",
+        "SO": "Sud-Ouest",
+        "OSO": "Ouest-Sud-Ouest",
+        "O": "Ouest",
+        "ONO": "Ouest-Nord-Ouest",
+        "NO": "Nord-Ouest",
+        "NNO": "Nord-Nord-Ouest"
+    },
+    "status": {
+        "loading": "Chargement...",
+        "error": "Erreur",
+        "noData": "Aucune donnée",
+        "updating": "Mise à jour...",
+        "lastUpdate": "Dernière mise à jour"
+    },
+    "actions": {
+        "refresh": "Actualiser",
+        "select": "Sélectionner",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "close": "Fermer",
+        "viewMore": "Voir plus",
+        "viewLess": "Voir moins",
+        "notify": "Me notifier"
+    },
+    "footer": {
+        "dataSource": "Sources de données",
+        "openWeather": "Prévisions par Open-Meteo (Météo France)",
+        "meteoLaRochelle": "Données temps réel par Météo La Rochelle - Châtelaillon",
+        "github": "Code source sur GitHub",
+        "disclaimer": "Les données météo sont fournies à titre indicatif. Vérifiez toujours les conditions avant de partir en mer."
+    },
+    "watch": {
+        "title": "Vue Montre",
+        "essentials": "Données essentielles",
+        "nextActivity": "Prochaine activité"
+    },
+    "errors": {
+        "loadingFailed": "Échec du chargement des données",
+        "noApiKey": "Clé API manquante",
+        "networkError": "Erreur réseau",
+        "retry": "Réessayer"
+    }
+}
