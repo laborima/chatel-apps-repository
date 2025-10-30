@@ -103,6 +103,127 @@ export const calculateTideHeightUsingTwelfths = (
     return isRising ? cycleStartHeight + heightChange : cycleStartHeight - heightChange;
 };
 
+/**
+ * Calculates tide height for a specific date and time
+ */
+export const calculateTideHeightForDateTime = async (targetDate) => {
+    const year = targetDate.getFullYear();
+    const month = toTwoDigits(targetDate.getMonth() + 1);
+    const fileName = `${month}_${year}.json`;
+
+    let data;
+
+    // Server-side: read from filesystem
+    if (typeof window === "undefined") {
+        try {
+            const [{ readFile }, path] = await Promise.all([
+                import("fs/promises"),
+                import("path")
+            ]);
+
+            const filePath = path.join(
+                process.cwd(),
+                "public",
+                "tides",
+                "larochelle",
+                fileName
+            );
+
+            const fileContent = await readFile(filePath, "utf-8");
+            data = JSON.parse(fileContent);
+        } catch (error) {
+            console.error("[TideService] Failed to read tide data:", error.message);
+            return null;
+        }
+    } else {
+        // Client-side: fetch from public folder
+        const filePath = `${TIDE_FILE_DIRECTORY}/${fileName}`;
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            return null;
+        }
+        data = await response.json();
+    }
+
+    const dateKey = targetDate.toISOString().split("T")[0];
+    const dayEntries = data?.[dateKey];
+
+    if (!Array.isArray(dayEntries)) {
+        return null;
+    }
+
+    const tides = dayEntries
+        .map(parseRawTideEntry)
+        .filter((entry) => Number.isFinite(entry.height))
+        .sort((left, right) => left.timeInMinutes - right.timeInMinutes);
+
+    if (tides.length === 0) {
+        return null;
+    }
+
+    const targetTimeInMinutes = targetDate.getHours() * 60 + targetDate.getMinutes();
+
+    let lastTide = null;
+    let nextTide = null;
+
+    for (const tide of tides) {
+        if (tide.timeInMinutes <= targetTimeInMinutes) {
+            lastTide = tide;
+        } else {
+            nextTide = tide;
+            break;
+        }
+    }
+
+    if (!lastTide) {
+        lastTide = tides[tides.length - 1];
+    }
+    if (!nextTide) {
+        nextTide = tides[0];
+    }
+
+    if (!lastTide || !nextTide) {
+        return null;
+    }
+
+    const isRising = lastTide.type === "tide.low" && nextTide.type === "tide.high";
+
+    // For rising tide: use lastTide (low) and nextTide (high)
+    // For falling tide: use lastTide (high) and nextTide (low)
+    let closestHighTide = null;
+    let closestLowTide = null;
+
+    if (isRising) {
+        closestLowTide = lastTide;
+        closestHighTide = nextTide;
+    } else {
+        closestHighTide = lastTide;
+        closestLowTide = nextTide;
+    }
+
+    if (!closestHighTide || !closestLowTide) {
+        return null;
+    }
+
+    const targetTime = `${toTwoDigits(targetDate.getHours())}:${toTwoDigits(targetDate.getMinutes())}`;
+    const heightAtTime = calculateTideHeightUsingTwelfths(
+        closestHighTide.height,
+        closestLowTide.height,
+        targetTime,
+        closestHighTide.time,
+        closestLowTide.time
+    );
+
+    return {
+        height: heightAtTime,
+        isRising,
+        timeHigh: closestHighTide.time,
+        timeLow: closestLowTide.time,
+        heightHigh: closestHighTide.height,
+        heightLow: closestLowTide.height
+    };
+};
+
 export const fetchTideData = async () => {
     const now = new Date();
     const year = now.getFullYear();

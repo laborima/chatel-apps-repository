@@ -7,42 +7,10 @@
  * Using Open-Meteo API provides reliable real-time data from Météo France.
  */
 
-const CHATELAILLON_COORDS = {
-    latitude: 46.0747,
-    longitude: -1.0881
-};
+import { calculateBeaufort, degreeToDirection } from "./utils";
+import { getLocation } from "./configService";
 
 const OPEN_METEO_API_URL = "https://api.open-meteo.com/v1/meteofrance";
-/**
- * Calculate Beaufort scale from wind speed (km/h)
- */
-function calculateBeaufort(windKmh) {
-    if (windKmh < 1) return 0;
-    if (windKmh < 6) return 1;
-    if (windKmh < 12) return 2;
-    if (windKmh < 20) return 3;
-    if (windKmh < 29) return 4;
-    if (windKmh < 39) return 5;
-    if (windKmh < 50) return 6;
-    if (windKmh < 62) return 7;
-    if (windKmh < 75) return 8;
-    if (windKmh < 89) return 9;
-    if (windKmh < 103) return 10;
-    if (windKmh < 118) return 11;
-    return 12;
-}
-
-/**
- * Convert wind direction from degrees to cardinal direction
- */
-function degreeToCardinal(degree) {
-    if (degree === null || degree === undefined) {
-        return null;
-    }
-    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
-    const index = Math.round(degree / 22.5) % 16;
-    return directions[index];
-}
 
 /**
  * Fetch current weather from Open-Meteo API (Météo France data)
@@ -52,9 +20,11 @@ export default async function scrapeMeteoLaRochelle(url = null, opts = {}) {
     try {
         console.log("[MeteoService] Fetching real-time data from Open-Meteo API (Météo France)...");
 
+        const location = await getLocation();
+
         const params = new URLSearchParams({
-            latitude: CHATELAILLON_COORDS.latitude.toString(),
-            longitude: CHATELAILLON_COORDS.longitude.toString(),
+            latitude: location.latitude.toString(),
+            longitude: location.longitude.toString(),
             current: [
                 "temperature_2m",
                 "relative_humidity_2m",
@@ -98,7 +68,7 @@ export default async function scrapeMeteoLaRochelle(url = null, opts = {}) {
 
         const parsed = {
             wind: windSpeedKmh,
-            direction: windDirection ? degreeToCardinal(windDirection) : null,
+            direction: windDirection ? degreeToDirection(windDirection) : null,
             directionDegrees: windDirection,
             beaufort: windSpeedKmh ? calculateBeaufort(windSpeedKmh) : null,
             gust: windGustKmh,
@@ -119,9 +89,9 @@ export default async function scrapeMeteoLaRochelle(url = null, opts = {}) {
             source: "Open-Meteo (Météo France)",
             fetchedAt: current.time || new Date().toISOString(),
             location: {
-                latitude: CHATELAILLON_COORDS.latitude,
-                longitude: CHATELAILLON_COORDS.longitude,
-                name: "Châtelaillon-Plage"
+                latitude: location.latitude,
+                longitude: location.longitude,
+                name: location.name
             },
             parsed,
             rawData: data

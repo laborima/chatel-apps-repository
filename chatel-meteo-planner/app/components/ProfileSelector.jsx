@@ -19,11 +19,11 @@ export default function ProfileSelector({ sailors, selectedSailor, onSelectSailo
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {sailors.map((sailor) => {
-                    const isSelected = selectedSailor?.name === sailor.name;
+                    const isSelected = selectedSailor?.id === sailor.id;
                     
                     return (
                         <button
-                            key={sailor.name}
+                            key={sailor.id}
                             onClick={() => onSelectSailor(sailor)}
                             className={`p-4 rounded-lg border-2 transition-all ${
                                 isSelected
@@ -33,11 +33,11 @@ export default function ProfileSelector({ sailors, selectedSailor, onSelectSailo
                         >
                             <div className="text-center">
                                 <div className="text-4xl mb-2">
-                                    {sailor.name === "christophe" && "👨"}
-                                    {sailor.name === "constance" && "👩"}
-                                    {sailor.name === "matthieu" && "🧑"}
-                                    {sailor.name === "theo" && "👨‍🦱"}
-                                    {sailor.name === "anna" && "👩‍🦰"}
+                                    {sailor.id === "christophe" && "👨"}
+                                    {sailor.id === "constance" && "👩"}
+                                    {sailor.id === "matthieu" && "🧑"}
+                                    {sailor.id === "theo" && "👨‍🦱"}
+                                    {sailor.id === "anna" && "👩‍🦰"}
                                 </div>
                                 <p className="font-semibold text-zinc-900 dark:text-zinc-50 capitalize">
                                     {sailor.name}

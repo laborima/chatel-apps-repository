@@ -4,73 +4,59 @@
  * Documentation: https://open-meteo.com/en/docs/meteofrance-api
  */
 
-const CHATELAILLON_COORDS = {
-    latitude: 46.0747,
-    longitude: -1.0881
-};
+import { calculateSunTimes, degreeToDirection } from "./utils";
+import { getLocation } from "./configService";
 
 const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/meteofrance";
-
-/**
- * Calculate sunrise and sunset times for a given date and location
- * Using simplified solar calculation algorithm
- */
-function calculateSunTimes(date, latitude, longitude) {
-    const rad = Math.PI / 180;
-    const deg = 180 / Math.PI;
-    
-    // Julian date
-    const jd = date.getTime() / 86400000 + 2440587.5;
-    const n = jd - 2451545.0;
-    
-    // Mean solar noon
-    const J = n - longitude / 360;
-    
-    // Solar mean anomaly
-    const M = (357.5291 + 0.98560028 * J) % 360;
-    
-    // Equation of center
-    const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
-    
-    // Ecliptic longitude
-    const lambda = (M + C + 180 + 102.9372) % 360;
-    
-    // Solar transit
-    const Jtransit = 2451545.0 + J + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad);
-    
-    // Declination of the sun
-    const delta = Math.asin(Math.sin(lambda * rad) * Math.sin(23.44 * rad)) * deg;
-    
-    // Hour angle
-    const omega = Math.acos((Math.sin(-0.83 * rad) - Math.sin(latitude * rad) * Math.sin(delta * rad)) / 
-                           (Math.cos(latitude * rad) * Math.cos(delta * rad))) * deg;
-    
-    // Sunrise and sunset
-    const Jrise = Jtransit - omega / 360;
-    const Jset = Jtransit + omega / 360;
-    
-    // Convert to JavaScript Date objects
-    const sunrise = new Date((Jrise - 2440587.5) * 86400000);
-    const sunset = new Date((Jset - 2440587.5) * 86400000);
-    
-    return { sunrise, sunset };
-}
 
 const toFloat = (value) => {
     const numeric = typeof value === "number" ? value : parseFloat(value);
     return Number.isFinite(numeric) ? numeric : null;
 };
 
-/**
- * Convert wind direction from degrees to cardinal direction
- */
-const degreeToCardinal = (degree) => {
-    if (degree === null || degree === undefined) {
+const appendTimeZoneOffset = (dateTime, timeZone) => {
+    if (!dateTime) {
         return null;
     }
-    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
-    const index = Math.round(degree / 22.5) % 16;
-    return directions[index];
+
+    const hasOffset = /[+-]\d{2}:\d{2}$/.test(dateTime) || dateTime.endsWith("Z");
+    if (hasOffset) {
+        return dateTime;
+    }
+
+    const normalized = dateTime.length === 16 ? `${dateTime}:00` : dateTime;
+
+    if (!timeZone) {
+        return `${normalized}+00:00`;
+    }
+
+    try {
+        const baseDate = new Date(`${normalized}Z`);
+        const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            timeZoneName: "shortOffset",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+
+        const tzValue = formatter.formatToParts(baseDate).find((part) => part.type === "timeZoneName")?.value;
+        const match = tzValue?.match(/GMT([+-]?)(\d{1,2})(?::?(\d{2}))?/);
+
+        if (!match) {
+            return `${normalized}+00:00`;
+        }
+
+        const sign = match[1] === "-" ? "-" : "+";
+        const hours = match[2].padStart(2, "0");
+        const minutes = (match[3] ?? "00").padStart(2, "0");
+
+        return `${normalized}${sign}${hours}:${minutes}`;
+    } catch (error) {
+        console.error("[ForecastService] Failed to append timezone offset", error);
+        return `${normalized}+00:00`;
+    }
 };
 
 /**
@@ -93,7 +79,7 @@ const groupForecastsByDay = (hourlyData) => {
             windSpeed: toFloat(hourlyData.wind_speed_10m[i]),
             windGust: toFloat(hourlyData.wind_gusts_10m?.[i]),
             windDirection: hourlyData.wind_direction_10m?.[i] ?? null,
-            windDirectionCardinal: degreeToCardinal(hourlyData.wind_direction_10m?.[i]),
+            windDirectionCardinal: degreeToDirection(hourlyData.wind_direction_10m?.[i]),
             precipitation: toFloat(hourlyData.precipitation[i]),
             precipitationProbability: toFloat(hourlyData.precipitation_probability?.[i]),
             weatherCode: hourlyData.weather_code?.[i] ?? null
@@ -171,8 +157,10 @@ export const fetchFiveDayForecast = async (options = {}) => {
     try {
         console.log("[ForecastService] Fetching forecast from Open-Meteo (Météo France)...");
 
-        const lat = options.lat ?? CHATELAILLON_COORDS.latitude;
-        const lon = options.lon ?? CHATELAILLON_COORDS.longitude;
+        const location = await getLocation();
+
+        const lat = options.lat ?? location.latitude;
+        const lon = options.lon ?? location.longitude;
 
         const params = new URLSearchParams({
             latitude: lat.toString(),
@@ -236,14 +224,12 @@ export const fetchFiveDayForecast = async (options = {}) => {
             if (data.daily && data.daily.time && data.daily.sunrise && data.daily.sunset) {
                 const dailyIndex = data.daily.time.indexOf(forecast.date);
                 if (dailyIndex !== -1) {
-                    // API returns partial ISO format like "2025-10-24T08:34"
-                    // Add seconds and timezone for complete ISO format
                     const sunriseStr = data.daily.sunrise[dailyIndex];
                     const sunsetStr = data.daily.sunset[dailyIndex];
-                    
-                    // Convert to full ISO string with timezone
-                    sunrise = sunriseStr.length === 16 ? `${sunriseStr}:00+02:00` : sunriseStr;
-                    sunset = sunsetStr.length === 16 ? `${sunsetStr}:00+02:00` : sunsetStr;
+                    const tz = location.timezone || data.timezone;
+
+                    sunrise = appendTimeZoneOffset(sunriseStr, tz);
+                    sunset = appendTimeZoneOffset(sunsetStr, tz);
                     
                     console.log(`[ForecastService] ${forecast.date}: sunrise ${sunrise}, sunset ${sunset}`);
                 } else {
@@ -261,14 +247,14 @@ export const fetchFiveDayForecast = async (options = {}) => {
 
         return {
             location: {
-                name: "Châtelaillon-Plage",
+                name: location.name,
                 country: "FR",
                 coordinates: {
                     latitude: data.latitude,
                     longitude: data.longitude
                 },
                 elevation: data.elevation,
-                timezone: data.timezone
+                timezone: location.timezone || data.timezone
             },
             forecasts: forecasts
         };

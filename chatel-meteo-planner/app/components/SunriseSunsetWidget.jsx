@@ -46,7 +46,7 @@ const getWeatherTheme = (weatherCode) => {
  * SunriseSunsetWidget Component
  * Displays sunrise and sunset times with visual indicator
  */
-export default function SunriseSunsetWidget({ forecast, className = "" }) {
+export default function SunriseSunsetWidget({ forecast, className = "", timeZone }) {
     if (!forecast || !forecast.forecasts || forecast.forecasts.length === 0) {
         return (
             <div className={`bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg shadow-lg p-6 text-white ${className}`}>
@@ -60,6 +60,7 @@ export default function SunriseSunsetWidget({ forecast, className = "" }) {
 
     // Get today's forecast data
     const today = forecast.forecasts[0];
+    const resolvedTimeZone = timeZone || forecast?.location?.timezone || "UTC";
     
     console.log("[SunriseSunsetWidget] Today data:", today);
     console.log("[SunriseSunsetWidget] Sunrise:", today.sunrise);
@@ -89,7 +90,11 @@ export default function SunriseSunsetWidget({ forecast, className = "" }) {
     const dayProgress = isDaytime ? (elapsed / dayDuration) * 100 : (now < sunrise ? 0 : 100);
 
     const formatTime = (date) => {
-        return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        return date.toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: resolvedTimeZone
+        });
     };
 
     // Get current weather from periods (average weather code around noon)

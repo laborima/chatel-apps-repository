@@ -6,15 +6,16 @@ import WeatherCard from "./WeatherCard";
 import TideWidget from "./TideWidget";
 import ActivityCard from "./ActivityCard";
 import ProfileSelector from "./ProfileSelector";
-import WindGauge from "./WindGauge";
 import DirectionCompass from "./DirectionCompass";
 import WebcamWidget from "./WebcamWidget";
 import ForecastCard from "./ForecastCard";
 import NotificationCenter from "./NotificationCenter";
 import WatchPreview from "./WatchPreview";
 import SunriseSunsetWidget from "./SunriseSunsetWidget";
+import DayDetailsModal from "./DayDetailsModal";
+import DayForecastDashlet from "./DayForecastDashlet";
 import Image from "next/image";
-import { getFullPlanningData, getRecommendations } from "../services/plannerService";
+import { getFullPlanningData } from "../services/plannerService";
 
 /**
  * Main Dashboard Component
@@ -28,9 +29,12 @@ export default function Dashboard() {
     const [sailors, setSailors] = useState([]);
     const [selectedSailor, setSelectedSailor] = useState(null);
     const [recommendations, setRecommendations] = useState(null);
+    const [planning5Day, setPlanning5Day] = useState(null);
     const [lastUpdate, setLastUpdate] = useState(null);
     const [nextRefresh, setNextRefresh] = useState(120); // 2 minutes in seconds
     const [showGear, setShowGear] = useState(false);
+    const [selectedDay, setSelectedDay] = useState(null);
+    const [showDayDetails, setShowDayDetails] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -51,10 +55,10 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
-        if (selectedSailor && currentConditions) {
-            fetchRecommendations();
+        if (selectedSailor) {
+            fetchData();
         }
-    }, [selectedSailor, currentConditions]);
+    }, [selectedSailor?.id]);
 
     const fetchData = async () => {
         try {
@@ -63,12 +67,19 @@ export default function Dashboard() {
 
             console.log("[Dashboard] Fetching data from Open-Meteo (free API)...");
 
-            const data = await getFullPlanningData();
+            const profileId = selectedSailor?.id || null;
+            const data = await getFullPlanningData(profileId);
             console.log("[Dashboard] Data received successfully");
 
             setCurrentConditions(data.currentConditions);
             setForecast(data.forecast);
             setSailors(data.sailors || []);
+            setPlanning5Day(data.planning5Day);
+            setRecommendations(data.recommendations);
+            console.log("[Dashboard] planning5Day:", data.planning5Day);
+            if (data.planning5Day?.planning?.[0]) {
+                console.log("[Dashboard] First day planning:", data.planning5Day.planning[0]);
+            }
             setLastUpdate(new Date());
 
             if (data.sailors && data.sailors.length > 0 && !selectedSailor) {
@@ -80,19 +91,6 @@ export default function Dashboard() {
             console.error("Error fetching data:", err);
             setError(err.message);
             setLoading(false);
-        }
-    };
-
-    const fetchRecommendations = async () => {
-        if (!selectedSailor || !currentConditions) {
-            return;
-        }
-
-        try {
-            const data = await getRecommendations(selectedSailor.name, currentConditions);
-            setRecommendations(data);
-        } catch (err) {
-            console.error("Error fetching recommendations:", err);
         }
     };
 
@@ -165,16 +163,16 @@ export default function Dashboard() {
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <select
-                                        value={selectedSailor?.name || ""}
+                                        value={selectedSailor?.id || ""}
                                         onChange={(e) => {
-                                            const sailor = sailors.find(s => s.name === e.target.value);
+                                            const sailor = sailors.find(s => s.id === e.target.value);
                                             setSelectedSailor(sailor || null);
                                         }}
                                         className="w-full px-4 py-3 bg-white/95 backdrop-blur-sm text-zinc-900 rounded-lg font-semibold shadow-lg border-2 border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
                                     >
                                         <option value="">Sélectionner un profil</option>
                                         {sailors.map((sailor) => (
-                                            <option key={sailor.name} value={sailor.name}>
+                                            <option key={sailor.id} value={sailor.id}>
                                                 {sailor.name.charAt(0).toUpperCase() + sailor.name.slice(1)} • {sailor.heightCm}cm • {sailor.weightKg}kg
                                             </option>
                                         ))}
@@ -229,58 +227,11 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 mt-4">
-                                <button
-                                    onClick={fetchData}
-                                    disabled={loading}
-                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-zinc-400/20 backdrop-blur-sm text-white rounded-lg font-semibold transition-colors flex items-center gap-2 border border-white/30"
-                                >
-                                    <span className={loading ? "animate-spin" : ""}>🔄</span>
-                                    {t("actions.refresh")}
-                                </button>
-                                
-                                {lastUpdate && (
-                                    <div className="flex items-center gap-4">
-                                        <p className="text-xs text-white/80">
-                                            {t("status.lastUpdate")}: {lastUpdate.toLocaleTimeString("fr-FR")}
-                                        </p>
-                                        <p className="text-xs text-white font-medium bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                                            ⏱️ Prochain : {Math.floor(nextRefresh / 60)}:{String(nextRefresh % 60).padStart(2, '0')}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
                 </div>
             </header>
 
             <main className="container mx-auto px-4 py-8">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-                            <WeatherCard wind={currentConditions?.wind} />
-                            <TideWidget 
-                                tide={currentConditions?.tide}
-                                activities={recommendations?.activities}
-                                selectedSailor={selectedSailor}
-                            />
-                            <SunriseSunsetWidget forecast={forecast} />
-                            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6">
-                                <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-50">
-                                    {t("weather.wind")}
-                                </h3>
-                                <WindGauge
-                                    windKnots={currentConditions?.wind?.speedKnots}
-                                    beaufort={currentConditions?.wind?.beaufort}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-md overflow-hidden">
-                                <DirectionCompass direction={currentConditions?.wind?.direction} />
-                            </div>
-                            <WebcamWidget />
-                        </div>
-
-                        {recommendations?.activities && recommendations.activities.length > 0 && (
+                        {(recommendations?.activities?.length > 0 || planning5Day?.planning?.[0]?.mergedActivities?.length > 0) && (
                             <div className="mb-8">
                                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">
                                     {t("activities.recommended")}
@@ -290,11 +241,130 @@ export default function Dashboard() {
                                         </span>
                                     )}
                                 </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {recommendations.activities.map((activity, idx) => (
-                                        <ActivityCard key={idx} activity={activity} />
-                                    ))}
-                                </div>
+                                
+                                {/* Merged activities - Current 3 hours + Rest of day */}
+                                {(() => {
+                                    // Get current recommendations (next 3 hours) - these are valid NOW
+                                    const currentActivities = recommendations?.activities || [];
+                                    const currentActivityIds = new Set(currentActivities.map(a => a.id));
+                                    
+                                    // Get all day activities from planning
+                                    const allDayActivities = planning5Day?.planning?.[0]?.mergedActivities || [];
+                                    
+                                    // Merge: activities valid NOW + activities available later in the day
+                                    const mergedActivitiesMap = new Map();
+                                    
+                                    // 1. Add activities valid NOW with their full day range
+                                    currentActivities.forEach(currentActivity => {
+                                        // Find the full day activity from planning
+                                        const fullDayActivity = allDayActivities.find(a => a.id === currentActivity.id);
+                                        
+                                        if (fullDayActivity) {
+                                            // Use full day range, but keep current activity's evaluation
+                                            mergedActivitiesMap.set(currentActivity.id, {
+                                                ...fullDayActivity,
+                                                evaluation: currentActivity.evaluation,
+                                                gearMatches: currentActivity.gearMatches,
+                                                period: 'current'
+                                            });
+                                        } else {
+                                            // Activity only in current recommendations
+                                            mergedActivitiesMap.set(currentActivity.id, {
+                                                ...currentActivity,
+                                                period: 'current'
+                                            });
+                                        }
+                                    });
+                                    
+                                    // 2. Add activities available later in the day (not valid NOW but valid later)
+                                    allDayActivities.forEach(dayActivity => {
+                                        if (!currentActivityIds.has(dayActivity.id)) {
+                                            // This activity is not valid NOW, but is available later
+                                            mergedActivitiesMap.set(dayActivity.id, {
+                                                ...dayActivity,
+                                                period: 'rest'
+                                            });
+                                        }
+                                    });
+                                    
+                                    // Convert to array and sort by score
+                                    const allActivities = Array.from(mergedActivitiesMap.values())
+                                        .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0));
+                                    
+                                    return allActivities.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {allActivities.map((activity, idx) => (
+                                                <div key={idx}>
+                                                    {activity.period === 'current' ? (
+                                                        <ActivityCard 
+                                                            activity={activity} 
+                                                            currentConditions={currentConditions}
+                                                        />
+                                                    ) : (
+                                                        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                                                            <div className="flex items-start justify-between mb-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-4xl">
+                                                                        {activity.type === 'sailboat' ? '⛵' : 
+                                                                         activity.type === 'windsurf' ? '🏄' :
+                                                                         activity.type === 'wingfoil' ? '🪁' :
+                                                                         activity.type === 'speedsail' ? '🚀' :
+                                                                         activity.type === 'sup' ? '🏄‍♂️' : '🌊'}
+                                                                    </span>
+                                                                    <div>
+                                                                        <h4 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 capitalize">
+                                                                            {activity.name}
+                                                                        </h4>
+                                                                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{activity.type}</p>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {activity.evaluation?.score && (
+                                                                    <div className={`px-4 py-2 rounded-lg ${
+                                                                        activity.evaluation.score >= 90 ? 'bg-green-100 dark:bg-green-900/30' :
+                                                                        activity.evaluation.score >= 70 ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                                                        activity.evaluation.score >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                                                                        'bg-orange-100 dark:bg-orange-900/30'
+                                                                    }`}>
+                                                                        <p className={`text-2xl font-bold ${
+                                                                            activity.evaluation.score >= 90 ? 'text-green-600 dark:text-green-400' :
+                                                                            activity.evaluation.score >= 70 ? 'text-blue-600 dark:text-blue-400' :
+                                                                            activity.evaluation.score >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
+                                                                            'text-orange-600 dark:text-orange-400'
+                                                                        }`}>
+                                                                            {activity.evaluation.score}
+                                                                        </p>
+                                                                        <p className="text-xs text-zinc-600 dark:text-zinc-400">Score</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {activity.timeRanges && activity.timeRanges.length > 0 && (
+                                                                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border-l-4 border-blue-500">
+                                                                    {activity.timeRanges.map((range, rIdx) => (
+                                                                        <div key={rIdx} className="mb-3 last:mb-0">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <span className="text-lg">🕒</span>
+                                                                                <p className="text-base font-bold text-blue-900 dark:text-blue-100">
+                                                                                    {range.display} ({range.tideStart}m→{range.tideEnd}m)
+                                                                                </p>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 text-sm ml-6">
+                                                                                <span className="text-zinc-600 dark:text-zinc-400">
+                                                                                    💨 {range.avgWind} kts
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null;
+                                })()}
                             </div>
                         )}
 
@@ -309,15 +379,73 @@ export default function Dashboard() {
                             </div>
                         )}
 
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                            <WeatherCard
+                                wind={currentConditions?.wind}
+                                onRefresh={fetchData}
+                                loading={loading}
+                                lastUpdate={lastUpdate}
+                                nextRefresh={nextRefresh}
+                            />
+                            <TideWidget 
+                                tide={currentConditions?.tide}
+                                activities={recommendations?.activities}
+                                selectedSailor={selectedSailor}
+                            />
+                            <SunriseSunsetWidget
+                                forecast={forecast}
+                                timeZone={forecast?.location?.timezone}
+                            />
+                            <DayForecastDashlet
+                                forecast={forecast?.forecasts?.[0]}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-md overflow-hidden">
+                                <DirectionCompass direction={currentConditions?.wind?.direction} />
+                            </div>
+                            <WebcamWidget />
+                        </div>
+
                         {forecast?.forecasts && forecast.forecasts.length > 0 && (
                             <div className="mb-8">
                                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">
                                     {t("planner.title")}
+                                    {selectedSailor && (
+                                        <span className="text-blue-600 dark:text-blue-400 ml-2 capitalize text-lg">
+                                            pour {selectedSailor.name}
+                                        </span>
+                                    )}
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto pb-4">
-                                    {forecast.forecasts.map((day, idx) => (
-                                        <ForecastCard key={idx} forecast={day} />
-                                    ))}
+                                    {forecast.forecasts.slice(1, 6).map((day, idx) => {
+                                        const dayPlanning = planning5Day?.planning?.find(p => p.date === day.date);
+                                        const mergedActivities = dayPlanning?.mergedActivities || [];
+                                        const bestActivities = dayPlanning?.slots
+                                            ?.flatMap(slot => slot.activities || [])
+                                            .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))
+                                            .filter((activity, index, self) => 
+                                                index === self.findIndex(a => a.id === activity.id)
+                                            ) || [];
+                                        
+                                        return (
+                                            <ForecastCard 
+                                                key={idx} 
+                                                forecast={day} 
+                                                activities={bestActivities}
+                                                mergedActivities={mergedActivities}
+                                                daySlots={dayPlanning?.slots || []}
+                                                onCardClick={() => {
+                                                    console.log("[Dashboard] Clicked on day:", day.date);
+                                                    console.log("[Dashboard] dayPlanning:", dayPlanning);
+                                                    console.log("[Dashboard] dayPlanning?.slots:", dayPlanning?.slots);
+                                                    setSelectedDay({ forecast: day, daySlots: dayPlanning?.slots || [], activities: bestActivities });
+                                                    setShowDayDetails(true);
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -360,6 +488,15 @@ export default function Dashboard() {
                             </div>
                         </div>
                     </footer>
+
+                    {/* Day Details Modal */}
+                    <DayDetailsModal
+                        isOpen={showDayDetails}
+                        onClose={() => setShowDayDetails(false)}
+                        forecast={selectedDay?.forecast}
+                        daySlots={selectedDay?.daySlots || []}
+                        activities={selectedDay?.activities || []}
+                    />
         </div>
     );
 }

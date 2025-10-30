@@ -4,14 +4,28 @@ import { t } from "../lib/i18n";
 
 /**
  * ActivityCard Component
- * Displays an activity with its conditions, gear, and suitability score
+ * Displays an activity with its conditions, gear, suitability score, and recommended time window with tide and wind info
  */
-export default function ActivityCard({ activity, className = "" }) {
+export default function ActivityCard({ activity, showTimeWindow = true, currentConditions = null, className = "" }) {
     const getScoreColor = (score) => {
         if (score >= 90) return "text-green-600 dark:text-green-400";
         if (score >= 70) return "text-blue-600 dark:text-blue-400";
         if (score >= 50) return "text-yellow-600 dark:text-yellow-400";
         return "text-orange-600 dark:text-orange-400";
+    };
+
+    const getRecommendedTimeWindow = () => {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const endHour = Math.min(currentHour + 3, 21);
+        return `${currentHour}h-${endHour}h`;
+    };
+
+    const estimateTideHeight = (currentHeight, isRising, hoursFromNow) => {
+        if (!currentHeight) return null;
+        const changeRate = isRising ? 0.3 : -0.3;
+        const estimatedHeight = currentHeight + (changeRate * hoursFromNow);
+        return Math.max(0, Math.min(6, estimatedHeight));
     };
 
     const getScoreBg = (score) => {
@@ -53,6 +67,64 @@ export default function ActivityCard({ activity, className = "" }) {
                     </div>
                 )}
             </div>
+
+            {showTimeWindow && (
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border-l-4 border-blue-500">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">🕒</span>
+                        <div className="flex-1">
+                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                                {t("activities.timeWindow")}
+                            </p>
+                            <p className="text-base font-bold text-blue-900 dark:text-blue-100">
+                                {getRecommendedTimeWindow()}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {currentConditions && (
+                        <div className="grid grid-cols-2 gap-3 mt-2 pt-3 border-t border-blue-200 dark:border-blue-800">
+                            {currentConditions.tide && (
+                                <div className="flex items-start gap-2">
+                                    <span className="text-sm">🌊</span>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            Marée
+                                        </p>
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+                                            {currentConditions.tide.heightNow?.toFixed(1)}m → {estimateTideHeight(
+                                                currentConditions.tide.heightNow,
+                                                currentConditions.tide.isRising,
+                                                3
+                                            )?.toFixed(1)}m
+                                        </p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                                            {currentConditions.tide.isRising ? '↑ Montante' : '↓ Descendante'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {currentConditions.wind && (
+                                <div className="flex items-start gap-2">
+                                    <span className="text-sm">💨</span>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            Vent moyen
+                                        </p>
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+                                            {currentConditions.wind.speedKnots?.toFixed(1)} noeuds
+                                        </p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                                            {currentConditions.wind.direction || 'Variable'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {activity.conditions && (
                 <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg">

@@ -27,6 +27,7 @@
         "pressure": "Pression",
         "precipitation": "Précipitations",
         "rain": "Pluie",
+        "overview": "Vue d'ensemble",
         "realTime": "Temps réel",
         "forecast": "Prévisions",
         "webcam": "Webcam du port"
@@ -60,7 +61,18 @@
         "gear": "Matériel",
         "suggestedGear": "Matériel suggéré",
         "score": "Score",
-        "reasons": "Raisons"
+        "reasons": "Raisons",
+        "timeWindow": "Créneau recommandé",
+        "cirrus_sailing": "Sortie Voile Cirrus",
+        "windsurf_session": "Session Planche à Voile",
+        "wingfoil_session": "Session Wing Foil",
+        "speedsail_on_beach": "Speed Sail sur Plage",
+        "paddle_cruise": "Balade Stand Up Paddle",
+        "Cirrus Sailing": "Sortie Voile Cirrus",
+        "Windsurf Session": "Session Planche à Voile",
+        "Wingfoil Session": "Session Wing Foil",
+        "Speedsail on Beach": "Speed Sail sur Plage",
+        "Paddle Cruise": "Balade Stand Up Paddle"
     },
     "sailors": {
         "title": "Profils marins",
@@ -101,7 +113,10 @@
         "forecast": "Prévisions",
         "bestTime": "Meilleur moment",
         "conditions": "Conditions",
-        "noData": "Aucune donnée disponible"
+        "noData": "Aucune donnée disponible",
+        "possibleActivities": "Activités possibles",
+        "noActivities": "Aucune activité possible",
+        "score": "Score"
     },
     "notifications": {
         "title": "Notifications",

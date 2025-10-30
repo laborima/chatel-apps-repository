@@ -1,307 +1,683 @@
 {
-    "sailors": [
-        {
-            "name": "christophe",
-            "heightCm": 182,
-            "weightKg": 82,
-            "favoriteGear": {
-                "board": "JP Magic Ride 110",
-                "sail": "Duotone Warp 7.2",
-                "wing": "Gong Wing 5.0",
-                "speedsail": "Norbert Blanc Sports",
-                "boat": "Dufour 310 Grand Large"
-            },
-            "windRanges": {
-                "Duotone Warp 7.2": {
-                    "minKnots": 12,
-                    "maxKnots": 22
-                },
-                "Gaastra Matrix 6.0": {
-                    "minKnots": 14,
-                    "maxKnots": 24
-                },
-                "JP Magic Ride 110": {
-                    "minKnots": 12,
-                    "maxKnots": 25
-                },
-                "Gong Wing 5.0": {
-                    "minKnots": 12,
-                    "maxKnots": 22
-                }
-            }
-        },
-        {
-            "name": "constance",
-            "heightCm": 170,
-            "weightKg": 62,
-            "favoriteGear": {
-                "board": "GONG SUP Inflatable HIPE 5'5",
-                "sail": "Duotone Idol LTD 5.0",
-                "wing": "Slingshot Slingwing V2 4.4",
-                "speedsail": null,
-                "boat": "Dufour 310 Grand Large"
-            },
-            "windRanges": {
-                "Duotone Idol LTD 5.0": {
-                    "minKnots": 15,
-                    "maxKnots": 25
-                },
-                "NeilPryde Wizard 3.6": {
-                    "minKnots": 18,
-                    "maxKnots": 28
-                },
-                "Slingshot Slingwing V2 4.4": {
-                    "minKnots": 16,
-                    "maxKnots": 26
-                },
-                "GONG SUP Inflatable HIPE 5'5": {
-                    "minKnots": 12,
-                    "maxKnots": 20
-                }
-            }
-        },
-        {
-            "name": "matthieu",
-            "heightCm": 178,
-            "weightKg": 78,
-            "favoriteGear": {
-                "board": "RRD 150",
-                "sail": "Gaastra Matrix 6.0",
-                "wing": "Cabrinha Mantis 6.0",
-                "speedsail": "Norbert Blanc Sports",
-                "boat": "Dufour 310 Grand Large"
-            },
-            "windRanges": {
-                "Gaastra Matrix 6.0": {
-                    "minKnots": 14,
-                    "maxKnots": 24
-                },
-                "Duotone Warp 7.2": {
-                    "minKnots": 12,
-                    "maxKnots": 22
-                },
-                "Cabrinha Mantis 6.0": {
-                    "minKnots": 10,
-                    "maxKnots": 18
-                },
-                "RRD 150": {
-                    "minKnots": 12,
-                    "maxKnots": 24
-                },
-                "Norbert Blanc Sports": {
-                    "minKnots": 20,
-                    "maxKnots": 40
-                }
-            }
-        },
-        {
-            "name": "theo",
-            "heightCm": 185,
-            "weightKg": 90,
-            "favoriteGear": {
-                "board": "Bic Techno 293",
-                "sail": "Duotone Warp 7.2",
-                "wing": "Gong Wing 5.0",
-                "speedsail": "Norbert Blanc Sports",
-                "boat": "Dufour 310 Grand Large"
-            },
-            "windRanges": {
-                "Duotone Warp 7.2": {
-                    "minKnots": 12,
-                    "maxKnots": 22
-                },
-                "Gaastra Matrix 6.0": {
-                    "minKnots": 14,
-                    "maxKnots": 24
-                },
-                "Gong Wing 5.0": {
-                    "minKnots": 12,
-                    "maxKnots": 22
-                },
-                "Bic Techno 293": {
-                    "minKnots": 10,
-                    "maxKnots": 24
-                },
-                "Norbert Blanc Sports": {
-                    "minKnots": 20,
-                    "maxKnots": 40
-                }
-            }
-        },
-        {
-            "name": "anna",
-            "heightCm": 168,
-            "weightKg": 58,
-            "favoriteGear": {
-                "board": "JP Magic Ride 110",
-                "sail": "NeilPryde Wizard 3.6",
-                "wing": "Slingshot Slingwing V2 4.4",
-                "speedsail": null,
-                "boat": "Dufour 310 Grand Large"
-            },
-            "windRanges": {
-                "NeilPryde Wizard 3.6": {
-                    "minKnots": 18,
-                    "maxKnots": 30
-                },
-                "Duotone Idol LTD 5.0": {
-                    "minKnots": 15,
-                    "maxKnots": 25
-                },
-                "Slingshot Slingwing V2 4.4": {
-                    "minKnots": 16,
-                    "maxKnots": 26
-                },
-                "JP Magic Ride 110": {
-                    "minKnots": 12,
-                    "maxKnots": 25
-                }
-            }
-        }
-    ],
-    "gearLibrary": {
-        "boards": [
-            "JP Magic Ride 110",
-            "Bic Techno 293",
-            "RRD 150",
-            "GONG SUP Inflatable HIPE 5'5"
+  "profiles": [
+    {
+      "id": "matthieu",
+      "name": "Matthieu",
+      "height": 178,
+      "weight": 78,
+      "skill_level": "advanced",
+      "favorite_gear": [
+        "dufour_310",
+        "jp_magic_ride_110",
+        "rrd_evolution_360",
+        "gaastra_matrix_60",
+        "duotone_super_star_50",
+        "duotone_warp_72",
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "gong_wing_50",
+        "slingshot_slingwing_44",
+        "norbert_blanc_sports"
+      ],
+      "preferred_conditions": {
+        "wind_range": [
+          14,
+          25
         ],
-        "sails": [
-            "Gaastra Matrix 6.0",
-            "Duotone Idol LTD 5.0",
-            "NeilPryde Wizard 3.6",
-            "Duotone Warp 7.2"
+        "wave_height_max": 2,
+        "tide_min": 3,
+        "wind_direction": [
+          "W",
+          "SW"
         ],
-        "wings": [
-            "Cabrinha Mantis 6.0",
-            "Gong Wing 5.0",
-            "Slingshot Slingwing V2 4.4"
-        ],
-        "speedsails": [
-            "Norbert Blanc Sports"
-        ],
-        "boats": [
-            "Dufour 310 Grand Large"
-        ],
-        "foils": [
-            "GONG Wing Foil Allvator V2 X-Over Alu XL"
+        "weather": [
+          "sunny"
         ]
-    },
-    "activities": [
-        {
-            "name": "cirrus",
-            "type": "bateau",
-            "conditions": {
-                "tideMinMeters": 2.0,
-                "windMinKnots": 5,
-                "windMaxKnots": 20,
-                "swellMaxMeters": 3.0,
-                "allowRain": false,
-                "minimalDurationHours": 2
-            },
-            "preferredDirections": ["S", "SO", "O", "NO"],
-            "idealDirection": "O",
-            "timeConstraints": {
-                "weekendOnly": false,
-                "after18h": false,
-                "daylightOnly": true
-            },
-            "suggestedGear": {
-                "boats": ["Dufour 310 Grand Large"],
-                "boards": [],
-                "sails": [],
-                "wings": [],
-                "speedsails": []
-            }
-        },
-        {
-            "name": "windsurf",
-            "type": "windsurf",
-            "conditions": {
-                "tideMinMeters": 3.0,
-                "windMinKnots": 15,
-                "windMaxKnots": 25,
-                "swellMaxMeters": null,
-                "allowRain": false,
-                "minimalDurationHours": 2
-            },
-            "preferredDirections": ["SO", "O", "NO"],
-            "idealDirection": "O",
-            "timeConstraints": {
-                "weekendOnly": true,
-                "after18h": true,
-                "daylightOnly": true
-            },
-            "suggestedGear": {
-                "boards": ["JP Magic Ride 110", "Bic Techno 293", "RRD 150"],
-                "sails": [
-                    "Gaastra Matrix 6.0",
-                    "Duotone Idol LTD 5.0",
-                    "NeilPryde Wizard 3.6",
-                    "Duotone Warp 7.2"
-                ],
-                "wings": [],
-                "speedsails": []
-            }
-        },
-        {
-            "name": "wing",
-            "type": "wing",
-            "conditions": {
-                "tideMinMeters": 4.0,
-                "windMinKnots": 10,
-                "windMaxKnots": 18,
-                "swellMaxMeters": 1.0,
-                "allowRain": false,
-                "minimalDurationHours": 2
-            },
-            "preferredDirections": ["SO", "O", "NO"],
-            "idealDirection": "O",
-            "timeConstraints": {
-                "weekendOnly": true,
-                "after18h": true,
-                "daylightOnly": true
-            },
-            "suggestedGear": {
-                "boards": ["GONG SUP Inflatable HIPE 5'5"],
-                "foils": ["GONG Wing Foil Allvator V2 X-Over Alu XL"],
-                "sails": [],
-                "wings": [
-                    "Cabrinha Mantis 6.0",
-                    "Gong Wing 5.0",
-                    "Slingshot Slingwing V2 4.4"
-                ],
-                "speedsails": []
-            }
-        },
-        {
-            "name": "speedsail",
-            "type": "speedsail",
-            "conditions": {
-                "tideMaxMeters": 4.0,
-                "windMinKnots": 15,
-                "windMaxKnots": 40,
-                "swellMaxMeters": null,
-                "allowRain": false,
-                "minimalDurationHours": 2
-            },
-            "preferredDirections": ["SO", "O"],
-            "idealDirection": "O",
-            "timeConstraints": {
-                "weekendOnly": true,
-                "after18h": true,
-                "daylightOnly": true
-            },
-            "suggestedGear": {
-                "boards": [],
-                "sails": [],
-                 "wings": [
-                    "Cabrinha Mantis 6.0",
-                    "Gong Wing 5.0",
-                    "Slingshot Slingwing V2 4.4"
-                ],
-                "speedsails": ["Norbert Blanc Sports"]
-            }
+      },
+      "availability": {
+        "non_working_hours": {
+          "weekdays": "18:00-23:00",
+          "weekends": "available",
+          "holidays": "available",
+          "school_holidays": "unavailable"
         }
-    ]
+      }
+    },
+    {
+      "id": "christophe",
+      "name": "Christophe",
+      "height": 182,
+      "weight": 82,
+      "skill_level": "intermediate",
+      "favorite_gear": [
+        "dufour_310",
+        "jp_magic_ride_110",
+        "rrd_evolution_360",
+        "duotone_warp_72",
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "gong_wing_50",
+        "gaastra_matrix_60"
+      ],
+      "preferred_conditions": {
+        "wind_range": [
+          12,
+          22
+        ],
+        "wave_height_max": 1.5,
+        "tide_min": 3,
+        "wind_direction": [
+          "W"
+        ],
+        "weather": [
+          "stable"
+        ]
+      },
+      "availability": {
+        "non_working_hours": {
+          "weekdays": "08:00-18:00",
+          "weekends": "available",
+          "holidays": "available"
+        }
+      }
+    },
+    {
+      "id": "constance",
+      "name": "Constance",
+      "height": 168,
+      "weight": 62,
+      "skill_level": "beginner",
+      "favorite_gear": [
+        "bic_beach_185",
+        "rrd_evolution_360",
+        "cabrinha_mantis_62",
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "slingshot_slingwing_44",
+        "bombard_ax_240",
+        "norbert_blanc_sports"
+      ],
+      "preferred_conditions": {
+        "wind_range": [
+          8,
+          18
+        ],
+        "wave_height_max": 1,
+        "tide_min": 2,
+        "wind_direction": [
+          "W",
+          "SW"
+        ],
+        "weather": [
+          "sunny",
+          "calm"
+        ]
+      },
+      "availability": {
+        "non_working_hours": {
+          "weekdays": "18:00-23:00",
+          "weekends": "available",
+          "holidays": "available"
+        }
+      }
+    },
+    {
+      "id": "theo",
+      "name": "Th\u00e9o",
+      "height": 170,
+      "weight": 62,
+      "skill_level": "intermediate",
+      "favorite_gear": [
+        "bic_beach_185",
+        "rrd_evolution_360",
+        "cabrinha_mantis_62",
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "gong_wing_50",
+        "norbert_blanc_sports"
+      ],
+      "preferred_conditions": {
+        "wind_range": [
+          10,
+          25
+        ],
+        "wave_height_max": 1,
+        "tide_range": [
+          3,
+          4
+        ],
+        "wind_direction": [
+          "W",
+          "SW"
+        ]
+      },
+      "availability": {
+        "non_working_hours": {
+          "weekdays": "18:00-23:00",
+          "weekends": "available",
+          "holidays": "available"
+        }
+      }
+    },
+    {
+      "id": "anna",
+      "name": "Anna",
+      "height": 150,
+      "weight": 58,
+      "skill_level": "advanced",
+      "favorite_gear": [
+        "jp_magic_ride_110",
+        "bic_beach_185",
+        "rrd_evolution_360",
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "slingshot_slingwing_44",
+        "bombard_ax_240",
+        "duotone_super_star_50",
+        "neilpryde_wizard_36",
+        "norbert_blanc_sports"
+      ],
+      "preferred_conditions": {
+        "wind_range": [
+          8,
+          25
+        ],
+        "wave_height_max": 1.5,
+        "tide_min": 2,
+        "wind_direction": [
+          "W",
+          "SW",
+          "NW"
+        ],
+        "weather": [
+          "stable"
+        ]
+      },
+      "availability": {
+        "non_working_hours": {
+          "weekdays": "18:00-23:00",
+          "weekends": "available",
+          "holidays": "available"
+        }
+      }
+    }
+  ],
+  "activities": [
+    {
+      "id": "cirrus_sailing",
+      "name": "Cirrus Sailing",
+      "type": "sailboat",
+      "description": "Dufour 310 sailing session",
+      "duration_min": 120,
+      "ideal_conditions": {
+        "tide_min": 1,
+        "wind_range": [
+          5,
+          18
+        ],
+        "wind_direction": [
+          "any"
+        ],
+        "wave_height_max": 3,
+        "no_storm": true,
+        "no_rain": true,
+        "daylight_only": true,
+        "visibility_min": 3,
+        "temperature_min": 10
+      },
+      "required_gear": [
+        "dufour_310"
+      ],
+      "suitable_for": [
+        "matthieu",
+        "christophe",
+        "constance",
+        "theo",
+        "anna"
+      ],
+      "skill_level_required": "intermediate"
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf Session",
+      "type": "windsurf",
+      "description": "Windsurfing session",
+      "duration_min": 90,
+      "ideal_conditions": {
+        "tide_min": 3,
+        "wind_range": [
+          15,
+          25
+        ],
+        "wind_direction": [
+          "SW",
+          "W",
+          "NW"
+        ],
+        "wind_direction_ideal": [
+          "W"
+        ],
+        "wave_height_max": 2,
+        "daylight_only": true
+      },
+      "required_gear": [
+        "windsurf_board",
+        "windsurf_sail"
+      ],
+      "suitable_for": [
+        "matthieu",
+        "christophe",
+        "constance",
+        "theo",
+        "anna"
+      ],
+      "skill_level_required": "beginner",
+      "availability_note": "Respects profile non_working_hours"
+    },
+    {
+      "id": "wingfoil",
+      "name": "Wingfoil Session",
+      "type": "wingfoil",
+      "description": "Wing foiling session",
+      "duration_min": 90,
+      "ideal_conditions": {
+        "tide_min": 4,
+        "wind_range": [
+          10,
+          20
+        ],
+        "wind_direction": [
+          "SW",
+          "W",
+          "NW"
+        ],
+        "wind_direction_ideal": [
+          "W"
+        ],
+        "wave_height_max": 1,
+        "no_storm": true,
+        "daylight_only": true
+      },
+      "required_gear": [
+        "gong_hipe_55",
+        "gong_allvator_xl",
+        "wing"
+      ],
+      "suitable_for": [
+        "matthieu",
+        "christophe",
+        "constance",
+        "theo",
+        "anna"
+      ],
+      "skill_level_required": "intermediate",
+      "availability_note": "Respects profile non_working_hours"
+    },
+    {
+      "id": "speedsail",
+      "name": "Speedsail on Beach",
+      "type": "speedsail",
+      "description": "Land/hard sand speedsailing",
+      "duration_min": 60,
+      "ideal_conditions": {
+        "tide_max": 3.5,
+        "wind_min": 15,
+        "wind_direction": [
+          "SW",
+          "W"
+        ],
+        "wind_direction_ideal": [
+          "W"
+        ],
+        "daylight_only": true,
+        "time_slots": [
+          "weekend"
+        ]
+      },
+      "required_gear": [
+        "norbert_blanc_sports"
+      ],
+      "suitable_for": [
+        "matthieu",
+        "theo",
+        "constance",
+        "anna"
+      ],
+      "skill_level_required": "intermediate"
+    },
+    {
+      "id": "paddle_cruise",
+      "name": "Paddle Cruise",
+      "type": "sup",
+      "description": "Relaxing SUP session",
+      "duration_min": 60,
+      "ideal_conditions": {
+        "tide_min": 4,
+        "wind_max": 10,
+        "wave_height_max": 0.8,
+        "weather": [
+          "stable"
+        ],
+        "tide_phase": "rising",
+        "daylight_only": true
+      },
+      "required_gear": [
+        "gong_hipe_55"
+      ],
+      "suitable_for": [
+        "matthieu",
+        "christophe",
+        "constance",
+        "theo",
+        "anna"
+      ],
+      "skill_level_required": "beginner",
+      "availability_note": "Respects profile non_working_hours"
+    }
+  ],
+  "equipment": [
+    {
+      "id": "dufour_310",
+      "name": "Dufour 310 Grand Large (Cirrus)",
+      "type": "sailboat",
+      "volume": null,
+      "weight": 4700,
+      "wind_range": [
+        0,
+        35
+      ],
+      "skill_level": "advanced",
+      "users": [
+        "matthieu",
+        "all"
+      ]
+    },
+    {
+      "id": "jp_magic_ride_110",
+      "name": "JP Magic Ride 110",
+      "type": "windsurf_board",
+      "volume": 110,
+      "weight": 7.5,
+      "wind_range": [
+        14,
+        25
+      ],
+      "skill_level": "intermediate",
+      "users": [
+        "matthieu",
+        "anna"
+      ]
+    },
+    {
+      "id": "bic_beach_185",
+      "name": "Bic Beach 185",
+      "type": "windsurf_board",
+      "volume": 185,
+      "weight": 10.5,
+      "wind_range": [
+        8,
+        18
+      ],
+      "skill_level": "beginner",
+      "users": [
+        "theo",
+        "constance",
+        "anna",
+        "christophe"
+      ]
+    },
+    {
+      "id": "rrd_evolution_360",
+      "name": "RRD Evolution 360 XS",
+      "type": "windsurf_board",
+      "volume": 158,
+      "weight": 8.8,
+      "wind_range": [
+        10,
+        20
+      ],
+      "skill_level": "beginner",
+      "users": [
+        "anna",
+        "christophe",
+        "constance"
+      ]
+    },
+    {
+      "id": "gaastra_matrix_60",
+      "name": "Gaastra Matrix 6.0",
+      "type": "windsurf_sail",
+      "volume": null,
+      "weight": 4.3,
+      "wind_range": [
+        14,
+        22
+      ],
+      "skill_level": "intermediate",
+      "users": [
+        "matthieu",
+        "christophe",
+        "constance"
+      ]
+    },
+    {
+      "id": "duotone_super_star_50",
+      "name": "Duotone Super Star 5.0",
+      "type": "windsurf_sail",
+      "volume": null,
+      "weight": 3.5,
+      "wind_range": [
+        18,
+        28
+      ],
+      "skill_level": "advanced",
+      "users": [
+        "anna",
+        "matthieu"
+      ]
+    },
+    {
+      "id": "neilpryde_wizard_36",
+      "name": "NeilPryde Wizard 3.6",
+      "type": "windsurf_sail",
+      "volume": null,
+      "weight": 2.9,
+      "wind_range": [
+        25,
+        40
+      ],
+      "skill_level": "expert",
+      "users": [
+        "anna"
+      ]
+    },
+    {
+      "id": "duotone_warp_72",
+      "name": "Duotone Warp 7.2",
+      "type": "windsurf_sail",
+      "volume": null,
+      "weight": 5.0,
+      "wind_range": [
+        12,
+        20
+      ],
+      "skill_level": "advanced",
+      "users": [
+        "matthieu"
+      ]
+    },
+    {
+      "id": "gong_hipe_55",
+      "name": "GONG HIPE 5'5 (Inflatable)",
+      "type": "wing_board",
+      "volume": 110,
+      "weight": 7.5,
+      "wind_range": [
+        12,
+        25
+      ],
+      "skill_level": "beginner",
+      "users": [
+        "all"
+      ]
+    },
+    {
+      "id": "gong_allvator_xl",
+      "name": "GONG Allvator V2 X-Over Alu - XL",
+      "type": "foil",
+      "volume": null,
+      "weight": 6.0,
+      "wind_range": [
+        10,
+        22
+      ],
+      "skill_level": "intermediate",
+      "users": [
+        "all"
+      ]
+    },
+    {
+      "id": "cabrinha_mantis_62",
+      "name": "Cabrinha Mantis 6.2 (2021)",
+      "type": "wing",
+      "volume": null,
+      "weight": 3.2,
+      "wind_range": [
+        10,
+        18
+      ],
+      "skill_level": "beginner",
+      "users": [
+        "all"
+      ]
+    },
+    {
+      "id": "gong_wing_50",
+      "name": "GONG Wing 5.0",
+      "type": "wing",
+      "volume": null,
+      "weight": 2.8,
+      "wind_range": [
+        14,
+        25
+      ],
+      "skill_level": "intermediate",
+      "users": [
+        "theo",
+        "constance"
+      ]
+    },
+    {
+      "id": "slingshot_slingwing_44",
+      "name": "Slingshot SlingWing V2 4.4 (2021)",
+      "type": "wing",
+      "volume": null,
+      "weight": 2.6,
+      "wind_range": [
+        16,
+        30
+      ],
+      "skill_level": "advanced",
+      "users": [
+        "matthieu",
+        "anna"
+      ]
+    },
+    {
+      "id": "norbert_blanc_sports",
+      "name": "Norbert Blanc Sports",
+      "type": "speedsail",
+      "volume": null,
+      "weight": 12,
+      "wind_range": [
+        10,
+        25
+      ],
+      "skill_level": "intermediate",
+      "users": [
+        "matthieu",
+        "theo",
+        "constance",
+        "anna"
+      ]
+    },
+    {
+      "id": "bombard_ax_240",
+      "name": "Bombard AX 240",
+      "type": "dinghy",
+      "volume": null,
+      "weight": null,
+      "wind_range": [
+        0,
+        15
+      ],
+      "skill_level": "beginner",
+      "users": [
+        "constance",
+        "anna"
+      ]
+    }
+  ],
+  "planning_config": {
+    "forecast_days": 5,
+    "recommendation_window_hours": 3,
+    "location": {
+      "name": "Chatelaillon-Plage",
+      "latitude": 46.06226032691301,
+      "longitude": -1.0947554170040406,
+      "timezone": "Europe/Paris"
+    },
+    "scoring_weights": {
+      "wind_match": 0.3,
+      "tide_match": 0.25,
+      "wave_match": 0.2,
+      "weather_match": 0.15,
+      "time_slot_match": 0.1
+    }
+  },
+  "calendar": {
+    "french_holidays": [
+      "2025-01-01",
+      "2025-04-21",
+      "2025-05-01",
+      "2025-05-08",
+      "2025-05-29",
+      "2025-06-09",
+      "2025-07-14",
+      "2025-08-15",
+      "2025-11-01",
+      "2025-11-11",
+      "2025-12-25"
+    ],
+    "school_holidays_zone_b": {
+      "description": "Zone B (Acad\u00e9mies de Bordeaux, Clermont-Ferrand, Dijon, Limoges, Lyon, Poitiers)",
+      "2024_2025": [
+        {
+          "name": "Toussaint",
+          "start": "2024-10-19",
+          "end": "2024-11-04"
+        },
+        {
+          "name": "No\u00ebl",
+          "start": "2024-12-21",
+          "end": "2025-01-06"
+        },
+        {
+          "name": "Hiver",
+          "start": "2025-02-08",
+          "end": "2025-02-24"
+        },
+        {
+          "name": "Printemps",
+          "start": "2025-04-05",
+          "end": "2025-04-21"
+        },
+        {
+          "name": "\u00c9t\u00e9",
+          "start": "2025-07-05",
+          "end": "2025-09-01"
+        }
+      ]
+    }
+  }
 }

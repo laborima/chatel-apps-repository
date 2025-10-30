@@ -91,41 +91,51 @@ Source principale :
 
 ### Fichier : `/public/activities/activities.json`
 
-Contient :
-
-1. **5 profils de marins**
-2. **4 types d’activités**
-3. **Matériels suggérés selon profil et conditions**
-
 ### 👥 Profils marins
 
-Chaque profil contient :
 
-* `name` : prénom
-* `height` : taille (cm)
-* `weight` : poids (kg)
-* `favoriteGear` : liste de matériels préférés (boards, sails, wings, boats)
-* `preferredConditions` : plages de vent, houle ou marée idéales
+| Name           | Height (cm) | Weight (kg) | FavoriteGear                                                                                                                                                                                                                 | PreferredConditions                                             |
+| -------------- | ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **Matthieu**   | 178         | 78          | Dufour 310 *Cirrus*, JP Magic Ride 110, RRD Evolution 360 XS, Gaastra Matrix 6.0, Duotone Super Star 5.0, Duotone Warp 7.2, GONG HIPE 5'5, GONG Allvator XL, GONG Wing 5.0, Slingshot SlingWing V2 4.4, Norbert Blanc Sports | 14–25 nds, houle < 2 m, marée > 3 m, O–SO, soleil               |
+| **Christophe** | 182         | 82          | Dufour 310 *Cirrus*, JP Magic Ride 110, RRD Evolution 360 XS, Duotone Warp 7.2, GONG HIPE 5'5, GONG Allvator XL, GONG Wing 5.0, Gaastra Matrix 6.0                                                                           | 12–22 nds, houle < 1.5 m, marée > 3 m, Ouest stable             |
+| **Constance**  | 168         | 62          | Bic Beach 185, RRD Evolution 360 XS, Cabrinha Mantis 6.2, GONG HIPE 5'5, GONG Allvator XL, Slingshot SlingWing V2 4.4, Bombard AX 240, Norbert Blanc Sports                                                                  | 8–18 nds, houle < 1 m, marée > 2 m, soleil calme                |
+| **Théo**       | 170         | 62          | Bic Beach 185, RRD Evolution 360 XS, Cabrinha Mantis 6.2, GONG HIPE 5'5, GONG Allvator XL, GONG Wing 5.0, Norbert Blanc Sports                                                                                               | 10–25 nds, houle < 1 m, marée 3–4 m, O–SO                       |
+| **Anna**       | 150         | 58          | JP Magic Ride 110, Bic Beach 185, RRD Evolution 360 XS, GONG HIPE 5'5, GONG Allvator XL, Slingshot SlingWing V2 4.4, Bombard AX 240, Duotone Super Star 5.0, NeilPryde Wizard 3.6, Norbert Blanc Sports                      | 8–25 nds, mer plate ou houle < 1.5 m, marée > 2 m, météo stable |
 
-Exemples de profils :
-`Christophe`, `Constance`, `Matthieu`, `Théo`, `Anna`.
+
 
 ### 🏖️ Activités
 
-| Nom           | Type      | Conditions                                                                                                    | Durée min | Matériel suggéré     |
-| ------------- | --------- | ------------------------------------------------------------------------------------------------------------- | --------- | -------------------- |
-| **Cirrus**    | bateau    | marée > 2m, vent 5–20 nds, houle < 3m, pas de pluie                                                           | 2h        | bateau, gilet        |
-| **Windsurf**  | windsurf  | marée > 3m, vent 15–25 nds, direction SO/O/NO (idéal O), soleil non couché, week-end ou après 18h             | 2h        | 3 planches, 5 voiles |
-| **Wing**      | wingfoil  | marée > 4m, vent 10–18 nds, direction SO/O/NO (idéal O), houle < 1m, soleil non couché, week-end ou après 18h | 2h        | 1 planche, 3 wings   |
-| **Speedsail** | speedsail | marée < 4m, vent > 15 nds, direction SO/O (idéal O), soleil non couché, week-end ou après 18h                 | 2h        | 1 speedsail, 3 wings |
+| Nom                    | Type                        | Conditions idéales                                                                                                                   | Durée min | Matériel suggéré                                     |
+| ---------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------- | ---------------------------------------------------- |
+| **Cirrus**             | Bateau (voilier)            | marée > 1 m • vent 5–20 nds • houle < 3 m • pas d’orage/pluie • visibilité > 3 km • température > 10 °C                              | 2 h       | Dufour 310 GL, gilets, GPS, VHF                      |
+| **Windsurf**           | Windsurf                    | marée > 3 m • vent 15–25 nds • direction SO/O/NO *(idéal : O)* • houle < 2 m • soleil levé • week-end ou après 18 h pour matthieu / théo / constance, Tous les jours avant 18H pour christophe               | 1h30–2h   | JP 110 L / Bic 185 L / RRD 158 L + voiles 3.6–7.2 m² |
+| **Wingfoil**           | Wingfoil                    | marée > 4 m • vent 10–20 nds • direction SO/O/NO *(idéal : O)* • houle < 1 m • pas d’orage • soleil levé • week-end ou après 18 h pour matthieu / théo / constance, Tous les jours avant 18H pour christophe  | 1h30–2h   | GONG HIPE 5'5 + Foil XL + wings 4.4/5.0/6.2          |
+| **Speedsail**          | Speedsail (terre/sable dur) | marée < 3.5 m *(plage dégagée)* • vent > 15 nds • direction SO/O *(idéal : O)* • sable sec • soleil levé • week-end | 1h        | Norbert Blanc Sports + voile 5.0–6.0 m²              |
+| **Balade Paddle**      | SUP / détente               | marée > 4 m • vent < 10 nds • houle < 0.8 m • météo stable • marée montante si possible • week-end ou après 18 h pour matthieu / théo / constance, Tous les jours avant 18H pour christophe                          | 1h        | GONG HIPE 5'5 sans foil, pagaie                      |
 
 
-Bateau :  (Cirrus) Dufour 310 grand large (3 ris dans la grand voile)
-Windsurf BOARD: JP Magic ride 110L, Bic techno 293L, RRD 150L
-SAIL windsurf: gastra matrix 6.0, duotone idol ltd 5.0, neelpryde wizard 3.6, Duotone wrap 7.2
-Wing Board and foil : GONG SUP INFLATABLE HIPE - 5'5  GONG WING FOIL ALLVATOR V2 X-OVER ALU - XL 
-Wing : CABRINHA MANTIS 6.2 2021 , Gong wing 5.0, Wing Slingshot Slingwing V2 2021 - Taille : 4.4M- Couleur : ORANGE
-Speedsail : norbert blanc sports
+
+### ⛵️ **Matériel nautique – Inventaire**
+
+| Type                | Marque / Modèle                   | Volume (L) | Poids (kg) | Wind Range (nœuds) | Marin                    | Utilisateurs             |
+| ------------------- | --------------------------------- | ---------- | ---------- | ------------------ | ------------------------ | ------------------------ |
+| **Bateau**          | Dufour 310 Grand Large (Cirrus)   | –          | ~4 700     | 0–35               | Skipper confirmé         | **Matthieu** , Tous |
+| **Windsurf Board**  | JP Magic Ride 110                 | 110        | 7.5        | 14–25              | Intermédiaire / Confirmé | **Matthieu**, Anna |
+| **Windsurf Board**  | Bic Beach 185                     | 185        | 10.5       | 8–18               | Débutant                 | Théo, Constance, Anna, **Christophe**    |
+| **Windsurf Board**  | RRD Evolution 360 XS              | 158        | 8.8        | 10–20              | Débutant / Intermédiaire | **Anna**, Christophe, Constance       |
+| **Windsurf Sail**   | Gaastra Matrix 6.0                | –          | ~4.3       | 14–22              | Intermédiaire            | **Matthieu**, Christophe, Constance |
+| **Windsurf Sail**   | Duotone Super Star 5.0            | –          | ~3.5       | 18–28              | Confirmé                 | **Anna**, Matthieu |
+| **Windsurf Sail**   | NeilPryde Wizard 3.6              | –          | ~2.9       | 25–40              | Expert                   | **Anna**             |
+| **Windsurf Sail**   | Duotone Warp 7.2                  | –          | ~5.0       | 12–20              | Confirmé (slalom)        | **Matthieu**             |
+| **Wing Board**      | GONG HIPE 5'5 (Inflatable)        | 110        | 7.5        | 12–25              | Débutant / Intermédiaire | **Tous** |
+| **Foil**            | GONG Allvator V2 X-Over Alu – XL  | –          | ~6.0       | 10–22              | Intermédiaire            | **Tous**             |
+| **Wing**            | Cabrinha Mantis 6.2 (2021)        | –          | ~3.2       | 10–18              | Débutant / Lightwind     | **Tous**         |
+| **Wing**            | GONG Wing 5.0                     | –          | ~2.8       | 14–25              | Intermédiaire            | **Théo**, Constance |
+| **Wing**            | Slingshot SlingWing V2 4.4 (2021) | –          | ~2.6       | 16–30              | Confirmé                 | **Matthieu**, Anna             |
+| **Speedsail**       | Norbert Blanc Sports              | –          | ~12        | 10–25              | Intermédiaire / Confirmé | **Matthieu**, Théo, Constance, Anna      |
+
+
 
 ---
 
