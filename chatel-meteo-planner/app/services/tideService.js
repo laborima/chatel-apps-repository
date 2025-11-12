@@ -1,4 +1,4 @@
-const TIDE_FILE_DIRECTORY = "/tides/larochelle";
+const TIDE_FILE_DIRECTORY = "tides/larochelle";
 const MINUTES_PER_DAY = 24 * 60;
 const RULE_OF_TWELFTHS_PATTERN = [1, 2, 3, 3, 2, 1];
 
