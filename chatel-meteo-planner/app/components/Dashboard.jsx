@@ -36,6 +36,27 @@ export default function Dashboard() {
     const [selectedDay, setSelectedDay] = useState(null);
     const [showDayDetails, setShowDayDetails] = useState(false);
 
+    // Load saved sailor from localStorage
+    useEffect(() => {
+        const savedSailorId = localStorage.getItem('selectedSailorId');
+        if (savedSailorId && sailors.length > 0) {
+            const savedSailor = sailors.find(s => s.id === savedSailorId);
+            if (savedSailor) {
+                setSelectedSailor(savedSailor);
+            }
+        }
+    }, [sailors]);
+
+    // Save sailor to localStorage when changed
+    const handleSailorChange = (sailor) => {
+        setSelectedSailor(sailor);
+        if (sailor) {
+            localStorage.setItem('selectedSailorId', sailor.id);
+        } else {
+            localStorage.removeItem('selectedSailorId');
+        }
+    };
+
     useEffect(() => {
         fetchData();
         // Refresh every 2 minutes for real-time updates
@@ -128,105 +149,89 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-zinc-900 dark:to-zinc-800">
-            <header className="bg-gradient-to-r from-blue-600 to-cyan-500 shadow-lg">
-                <div className="container mx-auto px-4 py-6">
-                    <div className="flex items-center justify-between gap-4 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="relative h-12 w-12">
-                                <Image src="/logo.svg" alt="Châtel Meteo Planner" fill priority sizes="48px" />
+            <header className="bg-white shadow-lg border-b border-gray-100">
+                <div className="container mx-auto px-4 py-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                            <div className="relative h-24 w-24 sm:h-32 sm:w-32">
+                                <Image src="/chatel-apps-repository/logo.png" alt="Châtel Météo Planner" fill priority sizes="128px" />
                             </div>
-                            <div>
-                                <h1 className="text-3xl font-bold text-white leading-tight">
+                            <div className="hidden sm:block">
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
                                     {t("app.title")}
                                 </h1>
-                                <p className="text-blue-100 text-sm">
+                                <p className="text-gray-600 text-xs sm:text-sm hidden md:block">
                                     {t("app.subtitle")}
                                 </p>
                             </div>
                         </div>
-                        <div className="hidden md:flex items-center gap-2 text-white/80 text-sm uppercase tracking-[0.2em]">
-                            <span>Châtel Meteo Planner</span>
-                        </div>
-                    </div>
 
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="flex-1">
-                            <h2 className="text-lg font-semibold text-white uppercase tracking-widest">
-                                {t("weather.overview")}
-                            </h2>
-                        </div>
-
-                        <div className="min-w-[280px]">
-                            <label className="block text-xs text-blue-100 mb-1 font-medium">
-                                👤 Profil Marin
-                            </label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <select
-                                        value={selectedSailor?.id || ""}
-                                        onChange={(e) => {
-                                            const sailor = sailors.find(s => s.id === e.target.value);
-                                            setSelectedSailor(sailor || null);
-                                        }}
-                                        className="w-full px-4 py-3 bg-white/95 backdrop-blur-sm text-zinc-900 rounded-lg font-semibold shadow-lg border-2 border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
-                                    >
-                                        <option value="">Sélectionner un profil</option>
-                                        {sailors.map((sailor) => (
-                                            <option key={sailor.id} value={sailor.id}>
-                                                {sailor.name.charAt(0).toUpperCase() + sailor.name.slice(1)} • {sailor.heightCm}cm • {sailor.weightKg}kg
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                        <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
+                        <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md">
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <label className="hidden sm:block text-xs text-blue-100 mb-1 font-medium">
+                                        👤 Profil
+                                    </label>
+                                    <div className="flex gap-1 sm:gap-2">
+                                        <div className="relative flex-1">
+                                            <select
+                                                value={selectedSailor?.id || ""}
+                                                onChange={(e) => {
+                                                    const sailor = sailors.find(s => s.id === e.target.value);
+                                                    handleSailorChange(sailor || null);
+                                                }}
+                                                className="w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-white/95 backdrop-blur-sm text-black rounded-lg font-medium text-xs sm:text-sm shadow-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
+                                            >
+                                                <option value="">{t("profile.select")}</option>
+                                                {sailors.map((sailor) => (
+                                                    <option key={sailor.id} value={sailor.id}>
+                                                        {sailor.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <label className="text-xs font-medium text-black">
+                                                {t("profile.label")}
+                                            </label>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Toggle Gear Button */}
+                                        {selectedSailor && selectedSailor.favoriteGear && (
+                                            <button
+                                                onClick={() => setShowGear(!showGear)}
+                                                className="px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 hover:bg-white backdrop-blur-sm text-zinc-900 rounded-lg font-medium shadow-lg border border-white/20 transition-all flex-shrink-0"
+                                                title={showGear ? "Matériel" : "Matériel"}
+                                            >
+                                                {showGear ? "🎯" : "🎒"}
+                                            </button>
+                                        )}
                                     </div>
+                                    
+                                    {/* Gear Display - Collapsible */}
+                                    {selectedSailor && selectedSailor.favoriteGear && showGear && (
+                                        <div className="mt-2 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg animate-fade-in">
+                                            <div className="flex flex-wrap gap-1">
+                                                {selectedSailor.favoriteGear.sail && selectedSailor.favoriteGear.board && (
+                                                    <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs rounded-full font-medium">
+                                                        🏄 {selectedSailor.favoriteGear.board}
+                                                    </span>
+                                                )}
+                                                {selectedSailor.favoriteGear.wing && (
+                                                    <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full font-medium">
+                                                        🪁 {selectedSailor.favoriteGear.wing}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                
-                                {/* Toggle Gear Button */}
-                                {selectedSailor && selectedSailor.favoriteGear && (
-                                    <button
-                                        onClick={() => setShowGear(!showGear)}
-                                        className="px-3 py-3 bg-white/95 hover:bg-white backdrop-blur-sm text-zinc-900 rounded-lg font-semibold shadow-lg border-2 border-white/20 transition-all"
-                                        title={showGear ? "Masquer le matériel" : "Afficher le matériel"}
-                                    >
-                                        {showGear ? "🎯" : "🎒"}
-                                    </button>
-                                )}
                             </div>
-                            
-                            {/* Gear Display - Collapsible */}
-                            {selectedSailor && selectedSailor.favoriteGear && showGear && (
-                                <div className="mt-2 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg animate-fade-in">
-                                    <p className="text-xs font-medium text-zinc-600 mb-2">🎯 Matériel favori :</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedSailor.favoriteGear.sail && selectedSailor.favoriteGear.board && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs rounded-full font-medium shadow-sm">
-                                                🏄 {selectedSailor.favoriteGear.board} + {selectedSailor.favoriteGear.sail}
-                                            </span>
-                                        )}
-                                        {selectedSailor.favoriteGear.wing && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full font-medium shadow-sm">
-                                                🪁 {selectedSailor.favoriteGear.wing}
-                                            </span>
-                                        )}
-                                        {selectedSailor.favoriteGear.boat && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-teal-500 to-blue-500 text-white text-xs rounded-full font-medium shadow-sm">
-                                                ⛵ {selectedSailor.favoriteGear.boat}
-                                            </span>
-                                        )}
-                                        {selectedSailor.favoriteGear.speedsail && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs rounded-full font-medium shadow-sm">
-                                                🚀 {selectedSailor.favoriteGear.speedsail}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
-
                 </div>
             </header>
 

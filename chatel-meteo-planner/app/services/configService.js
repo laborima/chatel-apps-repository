@@ -38,7 +38,7 @@ export const loadActivitiesData = async () => {
         }
     }
 
-    const response = await fetch("activities/activities.json", { cache: "no-store" });
+    const response = await fetch("/chatel-apps-repository/activities/activities.json", { cache: "no-store" });
     if (!response.ok) {
         throw new Error("Failed to fetch activities data");
     }

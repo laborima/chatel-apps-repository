@@ -1,4 +1,4 @@
-const TIDE_FILE_DIRECTORY = "tides/larochelle";
+const TIDE_FILE_DIRECTORY = "/chatel-apps-repository/tides/larochelle";
 const MINUTES_PER_DAY = 24 * 60;
 const RULE_OF_TWELFTHS_PATTERN = [1, 2, 3, 3, 2, 1];
 
@@ -257,7 +257,7 @@ export const fetchTideData = async () => {
         }
     } else {
         // Client-side: fetch from public folder
-        const filePath = `${TIDE_FILE_DIRECTORY}/${fileName}`;
+        const filePath = `/chatel-apps-repository/tides/larochelle/${fileName}`;
         const response = await fetch(filePath);
         if (!response.ok) {
             console.warn("[TideService] No tide data found at:", filePath);

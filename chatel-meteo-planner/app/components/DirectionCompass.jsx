@@ -74,31 +74,9 @@ export default function DirectionCompass({ direction, className = "" }) {
                             <div className="w-4 h-4 bg-blue-500 rounded-full shadow-lg z-10" />
                         </div>
                         
-                        {/* Cardinal directions */}
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-sm font-bold text-white drop-shadow-lg">
-                            N
-                        </div>
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-sm font-bold text-white/70 drop-shadow-lg">
-                            S
-                        </div>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-bold text-white/70 drop-shadow-lg">
-                            E
-                        </div>
-                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-bold text-white drop-shadow-lg">
-                            O
-                        </div>
                     </div>
                 </div>
                 
-                {/* Direction info overlay */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-xl border-2 border-blue-500">
-                    <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 text-center">
-                        {typeof direction === "string" ? direction.toUpperCase() : `${degrees}°`}
-                    </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 text-center mt-1">
-                        {t("weather.direction")}
-                    </p>
-                </div>
             </div>
         </div>
     );

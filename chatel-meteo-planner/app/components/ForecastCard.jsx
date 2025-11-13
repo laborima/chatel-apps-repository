@@ -111,15 +111,15 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
             </div>
 
             {mergedActivities && mergedActivities.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-                    <p className="text-sm font-semibold mb-4 text-zinc-900 dark:text-zinc-50">
+                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50 ml-4">
                         Activités possibles
                     </p>
-                    <div className="space-y-3">
+                    <div className="space-y-3 px-4">
                         {mergedActivities.slice(0, 3).map((activity, idx) => (
                             <div 
                                 key={idx}
-                                className="bg-violet-50 dark:bg-violet-900/20 rounded px-4 py-3"
+                                className="bg-violet-50 dark:bg-violet-900/20 rounded-xl px-4 py-4 m-1 shadow-md border border-violet-100 dark:border-violet-800/30 hover:shadow-lg transition-shadow"
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-base">{getActivityIcon(activity.type)}</span>
@@ -217,8 +217,8 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                         .map(item => item.period);
 
                     return bestPeriods.length > 0 ? (
-                        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-                            <p className="text-sm font-semibold mb-4 text-zinc-900 dark:text-zinc-50">
+                        <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50 ml-4">
                                 Meilleur créneau
                             </p>
                             <div className="flex gap-2 overflow-x-auto pb-2">
