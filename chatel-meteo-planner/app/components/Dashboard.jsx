@@ -169,29 +169,25 @@ export default function Dashboard() {
                         <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md">
                             <div className="flex items-center gap-2">
                                 <div className="flex-1 min-w-0">
-                                    <label className="hidden sm:block text-xs text-blue-100 mb-1 font-medium">
-                                        👤 Profil
-                                    </label>
+                                    
                                     <div className="flex gap-1 sm:gap-2">
                                         <div className="relative flex-1">
                                             <select
-                                                value={selectedSailor?.id || ""}
+                                                value={selectedSailor?.name || ""}
                                                 onChange={(e) => {
-                                                    const sailor = sailors.find(s => s.id === e.target.value);
+                                                    const sailor = sailors.find(s => s.name === e.target.value);
                                                     handleSailorChange(sailor || null);
                                                 }}
                                                 className="w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-white/95 backdrop-blur-sm text-black rounded-lg font-medium text-xs sm:text-sm shadow-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
                                             >
-                                                <option value="">{t("profile.select")}</option>
+                                                <option value="">{t("sailors.selectProfile")}</option>
                                                 {sailors.map((sailor) => (
-                                                    <option key={sailor.id} value={sailor.id}>
+                                                    <option key={sailor.id} value={sailor.name}>
                                                         {sailor.name}
                                                     </option>
                                                 ))}
                                             </select>
-                                            <label className="text-xs font-medium text-black">
-                                                {t("profile.label")}
-                                            </label>
+                                      
                                             <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
                                                 <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -373,7 +369,10 @@ export default function Dashboard() {
                             </div>
                         )}
 
-                        {recommendations?.activities && recommendations.activities.length === 0 && (
+                        {(
+                            (!recommendations?.activities || recommendations.activities.length === 0) &&
+                            (!planning5Day?.planning?.[0]?.mergedActivities || planning5Day.planning[0].mergedActivities.length === 0)
+                        ) && (
                             <div className="mb-8 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-8 text-center">
                                 <p className="text-xl text-zinc-600 dark:text-zinc-400">
                                     {t("activities.notAvailable")}
@@ -396,6 +395,7 @@ export default function Dashboard() {
                                 tide={currentConditions?.tide}
                                 activities={recommendations?.activities}
                                 selectedSailor={selectedSailor}
+                                dayPlanning={planning5Day?.planning?.[0]}
                             />
                             <SunriseSunsetWidget
                                 forecast={forecast}

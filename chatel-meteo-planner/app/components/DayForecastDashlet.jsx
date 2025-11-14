@@ -97,78 +97,100 @@ export default function DayForecastDashlet({ forecast, className = "" }) {
         return "🌤️";
     };
 
+    const getDirectionArrow = (direction) => {
+        if (!direction) {
+            return "";
+        }
+        const dir = direction.toUpperCase();
+        if (dir.includes("NE")) return "↗"; // North-East
+        if (dir.includes("SE")) return "↘"; // South-East
+        if (dir.includes("SW")) return "↙"; // South-West
+        if (dir.includes("NW")) return "↖"; // North-West
+        if (dir.startsWith("N")) return "↑";
+        if (dir.startsWith("S")) return "↓";
+        if (dir.startsWith("E")) return "→";
+        if (dir.startsWith("W")) return "←";
+        return "‽";
+    };
 
     return (
         <div className={`bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 text-white ${className}`}>
-            <h3 className="text-lg font-semibold mb-4">
-                {t("weather.forecast")}
-            </h3>
+            <h3 className="text-xl font-semibold mb-4">{t("weather.forecast")}</h3>
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                    <p className="text-xs opacity-75 mb-1">🌡️ Température</p>
-                    <p className="text-base font-bold">
-                        {forecast.temperatureMin?.toFixed(0)}°/{forecast.temperatureMax?.toFixed(0)}°C
-                    </p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                    <p className="text-xs opacity-75 mb-1">💨 Vent max</p>
-                    <p className="text-base font-bold">
-                        {forecast.windSpeedMaxKnots?.toFixed(1)} kts
-                    </p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                    <p className="text-xs opacity-75 mb-1">💧 Pluie</p>
-                    <p className="text-base font-bold">
-                        {typeof forecast.precipitationProbability === "number"
-                            ? `${(forecast.precipitationProbability * 100).toFixed(0)}%`
-                            : "—"}
-                    </p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                    <p className="text-xs opacity-75 mb-1">💦 Humidité</p>
-                    <p className="text-base font-bold">
-                        {forecast.humidity?.toFixed(0)}%
-                    </p>
-                </div>
-            </div>
-
-            {/* 3-Hour Wind Forecast */}
-            {groupedPeriods.length > 0 && (
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
-                    <p className="text-sm font-semibold mb-3">
-                        Vent par créneau (3h)
-                    </p>
-                    <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(groupedPeriods.length, 5)}, 1fr)` }}>
-                        {groupedPeriods.slice(0, 5).map((group, idx) => {
-                            const hour = group.hour;
-                            const wind = group.windSpeedKnots;
-                            const direction = group.windDirectionCardinal;
-                            const weatherIcon = getWeatherIcon(group.weatherCode);
-                            return (
-                                <div
-                                    key={idx}
-                                    className="bg-white/20 backdrop-blur-sm rounded p-2 text-center text-xs transition-all hover:shadow-sm"
-                                >
-                                    <p className="font-semibold mb-1">
-                                        {hour}h-{(hour + 3) % 24}h
-                                    </p>
-                                    <p className="text-sm mb-1">
-                                        {weatherIcon}
-                                    </p>
-                                    <p className="font-bold mb-1">
-                                        {wind?.toFixed(0) || "—"} kts
-                                    </p>
-                                    <p className="font-medium opacity-90">
-                                        {direction}
-                                    </p>
-                                </div>
-                            );
-                        })}
+            <div className="space-y-4">
+                {/* Summary Stats, simple layout like WeatherCard */}
+                <div className="grid grid-cols-2 gap-4 text-base">
+                    <div>
+                        <p className="text-sm opacity-90">Température</p>
+                        <p className="text-3xl font-bold">
+                            {forecast.temperatureMin?.toFixed(0)}°/{forecast.temperatureMax?.toFixed(0)}°C
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-sm opacity-90">Vent max</p>
+                        <p className="text-2xl font-bold">
+                            {forecast.windSpeedMaxKnots?.toFixed(1)} kts
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-sm opacity-90">Pluie</p>
+                        <p className="text-xl font-semibold">
+                            {typeof forecast.precipitationProbability === "number"
+                                ? `${(forecast.precipitationProbability * 100).toFixed(0)}%`
+                                : "—"}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-sm opacity-90">Humidité</p>
+                        <p className="text-xl font-semibold">
+                            {forecast.humidity?.toFixed(0)}%
+                        </p>
                     </div>
                 </div>
-            )}
+
+                {/* 3-Hour Wind Forecast */}
+                {groupedPeriods.length > 0 && (
+                    <div className="border-t border-white/20 pt-4">
+                        <p className="text-base opacity-90 mb-3">Vent par créneau (3h)</p>
+                        <div
+                            className="grid gap-3"
+                            style={{ gridTemplateColumns: `repeat(${Math.min(groupedPeriods.length, 5)}, 1fr)` }}
+                        >
+                            {groupedPeriods.slice(0, 5).map((group, idx) => {
+                                const hour = group.hour;
+                                const wind = group.windSpeedKnots;
+                                const direction = group.windDirectionCardinal;
+                                const directionArrow = getDirectionArrow(direction);
+                                const weatherIcon = getWeatherIcon(group.weatherCode);
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="text-center text-sm"
+                                    >
+                                        <p className="font-semibold mb-1">
+                                            {hour}h-{(hour + 3) % 24}h
+                                        </p>
+                                        <p className="text-lg mb-1">
+                                            {weatherIcon}
+                                        </p>
+                                        <p className="text-xl font-bold mb-1">
+                                            {wind?.toFixed(0) || "—"} kts
+                                        </p>
+                                        <p className="text-2xl mb-0">
+                                            {directionArrow}
+                                        </p>
+                                        {direction && (
+                                            <p className="text-xs opacity-80 mt-1">
+                                                {direction}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

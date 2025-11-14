@@ -519,7 +519,7 @@ const transformProfileToSailor = (profile, equipment) => {
 
     return {
         id: profile.id,
-        name: profile.name.toLowerCase(),
+        name: profile.name,
         heightCm: profile.height,
         weightKg: profile.weight,
         skillLevel: profile.skill_level,

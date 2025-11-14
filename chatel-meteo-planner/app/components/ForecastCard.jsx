@@ -54,72 +54,73 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
     };
 
     return (
-        <div 
-            className={`bg-white dark:bg-zinc-800 rounded-lg shadow-lg overflow-hidden min-w-[280px] cursor-pointer hover:shadow-xl hover:scale-105 transition-all ${className}`}
+        <div
+            className={`bg-gradient-to-br from-sky-500 to-indigo-600 rounded-lg shadow-lg min-w-[280px] cursor-pointer hover:shadow-xl hover:scale-105 transition-all text-white ${className}`}
             onClick={handleClick}
         >
-            {/* Color header with day name */}
-            <div className="bg-gradient-to-r from-violet-500 to-indigo-600 p-4 text-white">
-                <p className="text-lg font-bold capitalize">
-                    {dayName}
-                </p>
-                <p className="text-sm opacity-90">
-                    {dayNumber} {month}
-                </p>
+            {/* Header with day name and date */}
+            <div className="flex items-center justify-between mb-4 px-6 pt-5">
+                <div>
+                    <p className="text-sm uppercase tracking-wide opacity-80">
+                        {dayName}
+                    </p>
+                    <p className="text-2xl font-bold">
+                        {dayNumber} {month}
+                    </p>
+                </div>
             </div>
 
-            {/* White content area */}
-            <div className="p-8">
-            <div className="space-y-2">
-                {forecast.temperatureMin !== null && forecast.temperatureMin !== undefined && 
-                 forecast.temperatureMax !== null && forecast.temperatureMax !== undefined && (
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-zinc-600 dark:text-zinc-400">🌡️ Température</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-                            {forecast.temperatureMin.toFixed(0)}° / {forecast.temperatureMax.toFixed(0)}°C
-                        </span>
-                    </div>
-                )}
+            <div className="px-6 pb-5">
+                <div className="space-y-3">
+                    {forecast.temperatureMin !== null && forecast.temperatureMin !== undefined &&
+                        forecast.temperatureMax !== null && forecast.temperatureMax !== undefined && (
+                            <div className="flex items-center justify-between text-base">
+                                <p className="text-sm opacity-90">Température</p>
+                                <p className="text-xl font-semibold">
+                                    {forecast.temperatureMin.toFixed(0)}° / {forecast.temperatureMax.toFixed(0)}°C
+                                </p>
+                            </div>
+                        )}
 
-                {forecast.windSpeedMaxKnots !== null && forecast.windSpeedMaxKnots !== undefined && (
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-zinc-600 dark:text-zinc-400">💨 Vent max</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-                            {forecast.windSpeedMaxKnots.toFixed(1)} {t("weather.knots")}
-                        </span>
-                    </div>
-                )}
+                    {forecast.windSpeedMaxKnots !== null && forecast.windSpeedMaxKnots !== undefined && (
+                        <div className="flex items-center justify-between text-base">
+                            <p className="text-sm opacity-90">Vent max</p>
+                            <p className="text-xl font-semibold">
+                                {forecast.windSpeedMaxKnots.toFixed(1)} {t("weather.knots")}
+                            </p>
+                        </div>
+                    )}
 
-                {forecast.precipitationProbability !== null && forecast.precipitationProbability !== undefined && (
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-zinc-600 dark:text-zinc-400">💧 Pluie</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-                            {(forecast.precipitationProbability * 100).toFixed(0)}%
-                        </span>
-                    </div>
-                )}
+                    {forecast.precipitationProbability !== null && forecast.precipitationProbability !== undefined && (
+                        <div className="flex items-center justify-between text-base">
+                            <p className="text-sm opacity-90">Pluie</p>
+                            <p className="text-lg font-semibold">
+                                {(forecast.precipitationProbability * 100).toFixed(0)}%
+                            </p>
+                        </div>
+                    )}
 
-                {forecast.humidity !== null && forecast.humidity !== undefined && (
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-zinc-600 dark:text-zinc-400">💦 Humidité</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-                            {forecast.humidity.toFixed(0)}%
-                        </span>
-                    </div>
-                )}
-            </div>
+                    {forecast.humidity !== null && forecast.humidity !== undefined && (
+                        <div className="flex items-center justify-between text-base">
+                            <p className="text-sm opacity-90">Humidité</p>
+                            <p className="text-lg font-semibold">
+                                {forecast.humidity.toFixed(0)}%
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {mergedActivities && mergedActivities.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                    <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50 ml-4">
+                <div className="border-t border-white/20 pt-4 pb-4 px-6">
+                    <p className="text-sm font-semibold mb-3">
                         Activités possibles
                     </p>
-                    <div className="space-y-3 px-4">
+                    <div className="space-y-3">
                         {mergedActivities.slice(0, 3).map((activity, idx) => (
-                            <div 
+                            <div
                                 key={idx}
-                                className="bg-violet-50 dark:bg-violet-900/20 rounded-xl px-4 py-4 m-1 shadow-md border border-violet-100 dark:border-violet-800/30 hover:shadow-lg transition-shadow"
+                                className="bg-white/15 rounded-xl px-4 py-3 shadow-sm border border-white/10 hover:shadow-md transition-shadow"
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-base">{getActivityIcon(activity.type)}</span>
@@ -217,8 +218,8 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                         .map(item => item.period);
 
                     return bestPeriods.length > 0 ? (
-                        <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                            <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50 ml-4">
+                        <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 px-6">
+                            <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50">
                                 Meilleur créneau
                             </p>
                             <div className="flex gap-2 overflow-x-auto pb-2">
