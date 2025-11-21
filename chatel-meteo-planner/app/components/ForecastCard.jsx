@@ -1,6 +1,7 @@
 "use client";
 
 import { t } from "../lib/i18n";
+import { getActivityIconComponent } from "./ActivityIcons";
 
 /**
  * ForecastCard Component
@@ -16,18 +17,6 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
         if (onCardClick) {
             onCardClick();
         }
-    };
-
-    const getActivityIcon = (activityType) => {
-        const icons = {
-            sailboat: "⛵",
-            windsurf: "🏄",
-            wingfoil: "🪁",
-            speedsail: "🚀",
-            sup: "🏄‍♂️",
-            default: "🌊"
-        };
-        return icons[activityType] || icons.default;
     };
 
     const getActivityName = (activity) => {
@@ -123,7 +112,9 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                                 className="bg-white/15 rounded-xl px-4 py-3 shadow-sm border border-white/10 hover:shadow-md transition-shadow"
                             >
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-base">{getActivityIcon(activity.type)}</span>
+                                    <span className="text-base">
+                                        {getActivityIconComponent(activity.type, "w-6 h-6 text-white")}
+                                    </span>
                                     <span className="text-xs font-semibold flex-1">
                                         {getActivityName(activity)}
                                     </span>
@@ -164,8 +155,8 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
             )}
 
             {activities && activities.length === 0 && (
-                <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-                    <p className="text-sm text-center italic text-zinc-600 dark:text-zinc-400">
+                <div className="border-t border-white/20 pt-4 pb-4 px-6 mt-2">
+                    <p className="text-sm text-center italic text-white/80">
                         Aucune activité disponible
                     </p>
                 </div>
@@ -218,8 +209,8 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                         .map(item => item.period);
 
                     return bestPeriods.length > 0 ? (
-                        <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 px-6">
-                            <p className="text-sm font-semibold mb-3 text-zinc-900 dark:text-zinc-50">
+                        <div className="mt-4 pt-4 border-t border-white/20 px-6">
+                            <p className="text-sm font-semibold mb-3">
                                 Meilleur créneau
                             </p>
                             <div className="flex gap-2 overflow-x-auto pb-2">
@@ -241,20 +232,20 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                                     return (
                                         <div 
                                             key={idx}
-                                            className="flex-shrink-0 text-center bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2"
+                                            className="flex-shrink-0 text-center bg-white/15 rounded-lg p-2"
                                         >
-                                            <p className="text-xs font-semibold mb-1 text-zinc-900 dark:text-zinc-50">
+                                            <p className="text-xs font-semibold mb-1">
                                                 {hour}h
                                             </p>
                                             <p className="text-sm mb-1">
                                                 {getWeatherIcon(weatherCode)}
                                             </p>
                                             {wind && (
-                                                <p className="text-xs font-bold mb-1 text-zinc-900 dark:text-zinc-50">
+                                                <p className="text-xs font-bold mb-1">
                                                     {wind.toFixed(0)} kts
                                                 </p>
                                             )}
-                                            <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                                            <p className="text-xs text-white/80">
                                                 {direction}
                                             </p>
                                         </div>

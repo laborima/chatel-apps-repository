@@ -480,7 +480,16 @@ const transformProfileToSailor = (profile, equipment) => {
         return null;
     }
 
-    const favoriteGear = {};
+    const favoriteGear = {
+        boards: [],
+        sails: [],
+        wings: [],
+        foils: [],
+        boats: [],
+        speedsails: [],
+        dinghies: [],
+        paddles: []
+    };
     
     if (profile.favorite_gear && Array.isArray(profile.favorite_gear)) {
         for (const gearId of profile.favorite_gear) {
@@ -488,34 +497,41 @@ const transformProfileToSailor = (profile, equipment) => {
             if (gear) {
                 switch (gear.type) {
                     case "windsurf_board":
-                        if (!favoriteGear.board) {
-                            favoriteGear.board = gear.name;
-                        }
+                        favoriteGear.boards.push(gear.name);
                         break;
                     case "windsurf_sail":
-                        if (!favoriteGear.sail) {
-                            favoriteGear.sail = gear.name;
-                        }
+                        favoriteGear.sails.push(gear.name);
                         break;
                     case "wing":
-                        if (!favoriteGear.wing) {
-                            favoriteGear.wing = gear.name;
-                        }
+                    case "wing_board":
+                        favoriteGear.wings.push(gear.name);
+                        break;
+                    case "foil":
+                        favoriteGear.foils.push(gear.name);
                         break;
                     case "sailboat":
-                        if (!favoriteGear.boat) {
-                            favoriteGear.boat = gear.name;
-                        }
+                        favoriteGear.boats.push(gear.name);
                         break;
                     case "speedsail":
-                        if (!favoriteGear.speedsail) {
-                            favoriteGear.speedsail = gear.name;
-                        }
+                        favoriteGear.speedsails.push(gear.name);
+                        break;
+                    case "dinghy":
+                        favoriteGear.dinghies.push(gear.name);
+                        break;
+                    case "sup_board":
+                        favoriteGear.paddles.push(gear.name);
                         break;
                 }
             }
         }
     }
+
+    // Clean up empty arrays
+    Object.keys(favoriteGear).forEach(key => {
+        if (favoriteGear[key].length === 0) {
+            delete favoriteGear[key];
+        }
+    });
 
     return {
         id: profile.id,
@@ -1047,9 +1063,9 @@ export const getFullPlanningData = async (profileId) => {
                                 // Handle generic gear types (e.g., "wing", "board", "sail")
                                 if (gearType === 'wing') {
                                     activityGear.wings.push(...(recommendedGear.wings || []));
-                                } else if (gearType === 'board') {
+                                } else if (gearType === 'board' || gearType === 'windsurf_board') {
                                     activityGear.boards.push(...(recommendedGear.boards || []));
-                                } else if (gearType === 'sail') {
+                                } else if (gearType === 'sail' || gearType === 'windsurf_sail') {
                                     activityGear.sails.push(...(recommendedGear.sails || []));
                                 } else if (gearType === 'foil') {
                                     activityGear.foils.push(...(recommendedGear.foils || []));
@@ -1071,17 +1087,18 @@ export const getFullPlanningData = async (profileId) => {
                                                findGearInCategory('speedsails');
                                     
                                     if (gear) {
-                                        if (gearType.includes('board') || gearType.includes('bic') || gearType.includes('jp')) {
+                                        // Use gear.type for accurate categorization
+                                        if (['windsurf_board', 'wing_board', 'sup_board', 'board'].includes(gear.type)) {
                                             activityGear.boards.push(gear);
-                                        } else if (gearType.includes('sail') || gearType.includes('gaastra') || gearType.includes('duotone')) {
+                                        } else if (['windsurf_sail', 'sail'].includes(gear.type)) {
                                             activityGear.sails.push(gear);
-                                        } else if (gearType.includes('wing') || gearType.includes('gong') || gearType.includes('slingshot')) {
+                                        } else if (['wing'].includes(gear.type)) {
                                             activityGear.wings.push(gear);
-                                        } else if (gearType.includes('foil')) {
+                                        } else if (['foil'].includes(gear.type)) {
                                             activityGear.foils.push(gear);
-                                        } else if (gearType.includes('dufour') || gearType.includes('bombard')) {
+                                        } else if (['sailboat', 'boat'].includes(gear.type)) {
                                             activityGear.boats.push(gear);
-                                        } else if (gearType.includes('norbert') || gearType.includes('speedsail')) {
+                                        } else if (['speedsail'].includes(gear.type)) {
                                             activityGear.speedsails.push(gear);
                                         }
                                     }
@@ -1089,9 +1106,11 @@ export const getFullPlanningData = async (profileId) => {
                             });
                         }
                         
+                        const hasGear = Object.values(activityGear).some(arr => arr.length > 0);
+
                         return {
                             ...activity,
-                            gearMatches: activityGear
+                            gearMatches: hasGear ? activityGear : null
                         };
                     });
 

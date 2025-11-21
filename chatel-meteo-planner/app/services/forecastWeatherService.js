@@ -65,9 +65,25 @@ const appendTimeZoneOffset = (dateTime, timeZone) => {
 const groupForecastsByDay = (hourlyData) => {
     const buckets = new Map();
 
+    // Debug: Log available keys in hourlyData
+    console.log("[ForecastService] groupForecastsByDay - hourlyData keys:", Object.keys(hourlyData));
+    if (hourlyData.precipitation_probability) {
+        console.log("[ForecastService] precipitation_probability first 5 values:", hourlyData.precipitation_probability.slice(0, 5));
+    } else {
+        console.warn("[ForecastService] precipitation_probability is MISSING in hourlyData");
+    }
+
     for (let i = 0; i < hourlyData.time.length; i++) {
         const dateTime = hourlyData.time[i];
         const dateKey = dateTime.slice(0, 10);
+
+        // Fallback: if probability is missing but precipitation is 0, assume 0% probability
+        let precipProb = toFloat(hourlyData.precipitation_probability?.[i]);
+        const precipAmount = toFloat(hourlyData.precipitation?.[i]);
+        
+        if (precipProb === null && precipAmount === 0) {
+            precipProb = 0;
+        }
 
         const period = {
             timestamp: new Date(dateTime).getTime(),
@@ -80,8 +96,8 @@ const groupForecastsByDay = (hourlyData) => {
             windGust: toFloat(hourlyData.wind_gusts_10m?.[i]),
             windDirection: hourlyData.wind_direction_10m?.[i] ?? null,
             windDirectionCardinal: degreeToDirection(hourlyData.wind_direction_10m?.[i]),
-            precipitation: toFloat(hourlyData.precipitation[i]),
-            precipitationProbability: toFloat(hourlyData.precipitation_probability?.[i]),
+            precipitation: precipAmount,
+            precipitationProbability: precipProb,
             weatherCode: hourlyData.weather_code?.[i] ?? null
         };
 

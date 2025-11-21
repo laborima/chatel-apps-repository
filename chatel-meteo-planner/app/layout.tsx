@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -35,9 +35,14 @@ export const metadata: Metadata = {
     apple: [
       { url: "/chatel-apps-repository/icons/ios/180.png", sizes: "180x180", type: "image/png" }
     ]
-  },
+  }
+};
+
+export const viewport: Viewport = {
   themeColor: "#0066cc",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1"
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1
 };
 
 export default function RootLayout({

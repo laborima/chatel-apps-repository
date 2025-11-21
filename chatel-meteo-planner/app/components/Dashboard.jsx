@@ -5,6 +5,7 @@ import { t } from "../lib/i18n";
 import WeatherCard from "./WeatherCard";
 import TideWidget from "./TideWidget";
 import ActivityCard from "./ActivityCard";
+import ScoreBadge from "./ScoreBadge";
 import ProfileSelector from "./ProfileSelector";
 import DirectionCompass from "./DirectionCompass";
 import WebcamWidget from "./WebcamWidget";
@@ -16,6 +17,7 @@ import DayDetailsModal from "./DayDetailsModal";
 import DayForecastDashlet from "./DayForecastDashlet";
 import Image from "next/image";
 import { getFullPlanningData } from "../services/plannerService";
+import { getActivityIconComponent } from "./ActivityIcons";
 
 /**
  * Main Dashboard Component
@@ -56,6 +58,17 @@ export default function Dashboard() {
             localStorage.removeItem('selectedSailorId');
         }
     };
+
+    const favoriteGearCategories = [
+        { key: "boats", label: "Bateaux", icon: "⛵" },
+        { key: "boards", label: "Planches Windsurf", icon: "🏄" },
+        { key: "sails", label: "Voiles", icon: "🎏" },
+        { key: "wings", label: "Wings", icon: "🪁" },
+        { key: "foils", label: "Foils", icon: "🛸" },
+        { key: "speedsails", label: "Speedsails", icon: "🚀" },
+        { key: "dinghies", label: "Annexes", icon: "🛶" },
+        { key: "paddles", label: "Paddles / SUP", icon: "🏄‍♂️" }
+    ];
 
     useEffect(() => {
         fetchData();
@@ -170,7 +183,7 @@ export default function Dashboard() {
                             <div className="flex items-center gap-2">
                                 <div className="flex-1 min-w-0">
                                     
-                                    <div className="flex gap-1 sm:gap-2">
+                                    <div className="flex gap-2 items-center">
                                         <div className="relative flex-1">
                                             <select
                                                 value={selectedSailor?.name || ""}
@@ -178,7 +191,7 @@ export default function Dashboard() {
                                                     const sailor = sailors.find(s => s.name === e.target.value);
                                                     handleSailorChange(sailor || null);
                                                 }}
-                                                className="w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-white/95 backdrop-blur-sm text-black rounded-lg font-medium text-xs sm:text-sm shadow-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
+                                                className="w-full h-10 pl-3 pr-8 bg-white/95 backdrop-blur-sm text-black rounded-lg font-medium text-sm shadow-sm border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none transition-colors hover:bg-white"
                                             >
                                                 <option value="">{t("sailors.selectProfile")}</option>
                                                 {sailors.map((sailor) => (
@@ -188,8 +201,8 @@ export default function Dashboard() {
                                                 ))}
                                             </select>
                                       
-                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                                 </svg>
                                             </div>
@@ -199,28 +212,42 @@ export default function Dashboard() {
                                         {selectedSailor && selectedSailor.favoriteGear && (
                                             <button
                                                 onClick={() => setShowGear(!showGear)}
-                                                className="px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 hover:bg-white backdrop-blur-sm text-zinc-900 rounded-lg font-medium shadow-lg border border-white/20 transition-all flex-shrink-0"
-                                                title={showGear ? "Matériel" : "Matériel"}
+                                                className={`h-10 px-3 flex items-center justify-center bg-white/95 hover:bg-white backdrop-blur-sm text-zinc-700 rounded-lg font-medium shadow-sm border border-zinc-200 transition-all flex-shrink-0 ${showGear ? 'ring-2 ring-blue-500 text-blue-600 bg-blue-50' : ''}`}
+                                                title={showGear ? "Masquer le matériel" : "Voir le matériel"}
                                             >
-                                                {showGear ? "🎯" : "🎒"}
+                                                <span className="text-lg">{showGear ? "🎯" : "🎒"}</span>
                                             </button>
                                         )}
                                     </div>
                                     
                                     {/* Gear Display - Collapsible */}
                                     {selectedSailor && selectedSailor.favoriteGear && showGear && (
-                                        <div className="mt-2 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg animate-fade-in">
-                                            <div className="flex flex-wrap gap-1">
-                                                {selectedSailor.favoriteGear.sail && selectedSailor.favoriteGear.board && (
-                                                    <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs rounded-full font-medium">
-                                                        🏄 {selectedSailor.favoriteGear.board}
-                                                    </span>
-                                                )}
-                                                {selectedSailor.favoriteGear.wing && (
-                                                    <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full font-medium">
-                                                        🪁 {selectedSailor.favoriteGear.wing}
-                                                    </span>
-                                                )}
+                                        <div className="mt-3 bg-white/95 dark:bg-zinc-900/80 backdrop-blur-sm rounded-xl p-3 shadow-lg animate-fade-in border border-white/40 dark:border-zinc-700">
+                                            <div className="space-y-3">
+                                                {favoriteGearCategories.map(({ key, label, icon }) => {
+                                                    const gearList = selectedSailor.favoriteGear[key];
+                                                    if (!gearList || gearList.length === 0) {
+                                                        return null;
+                                                    }
+                                                    return (
+                                                        <div key={key}>
+                                                            <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 flex items-center gap-1">
+                                                                <span>{icon}</span>
+                                                                {label}
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {gearList.map((gearName, idx) => (
+                                                                    <span
+                                                                        key={`${key}-${gearName}-${idx}`}
+                                                                        className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 text-xs rounded-full border border-zinc-200 dark:border-zinc-700"
+                                                                    >
+                                                                        {gearName}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -306,11 +333,7 @@ export default function Dashboard() {
                                                             <div className="flex items-start justify-between mb-4">
                                                                 <div className="flex items-center gap-3">
                                                                     <span className="text-4xl">
-                                                                        {activity.type === 'sailboat' ? '⛵' : 
-                                                                         activity.type === 'windsurf' ? '🏄' :
-                                                                         activity.type === 'wingfoil' ? '🪁' :
-                                                                         activity.type === 'speedsail' ? '🚀' :
-                                                                         activity.type === 'sup' ? '🏄‍♂️' : '🌊'}
+                                                                        {getActivityIconComponent(activity.type, "w-10 h-10 text-zinc-700 dark:text-zinc-200")}
                                                                     </span>
                                                                     <div>
                                                                         <h4 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 capitalize">
@@ -320,23 +343,8 @@ export default function Dashboard() {
                                                                     </div>
                                                                 </div>
                                                                 
-                                                                {activity.evaluation?.score && (
-                                                                    <div className={`px-4 py-2 rounded-lg ${
-                                                                        activity.evaluation.score >= 90 ? 'bg-green-100 dark:bg-green-900/30' :
-                                                                        activity.evaluation.score >= 70 ? 'bg-blue-100 dark:bg-blue-900/30' :
-                                                                        activity.evaluation.score >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30' :
-                                                                        'bg-orange-100 dark:bg-orange-900/30'
-                                                                    }`}>
-                                                                        <p className={`text-2xl font-bold ${
-                                                                            activity.evaluation.score >= 90 ? 'text-green-600 dark:text-green-400' :
-                                                                            activity.evaluation.score >= 70 ? 'text-blue-600 dark:text-blue-400' :
-                                                                            activity.evaluation.score >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
-                                                                            'text-orange-600 dark:text-orange-400'
-                                                                        }`}>
-                                                                            {activity.evaluation.score}
-                                                                        </p>
-                                                                        <p className="text-xs text-zinc-600 dark:text-zinc-400">Score</p>
-                                                                    </div>
+                                                                {activity.evaluation && (
+                                                                    <ScoreBadge evaluation={activity.evaluation} />
                                                                 )}
                                                             </div>
                                                             

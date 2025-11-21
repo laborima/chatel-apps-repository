@@ -15,7 +15,8 @@
         "duotone_warp_72",
         "gong_hipe_55",
         "gong_allvator_xl",
-        "gong_wing_50",
+        "cabrinha_mantis_62",
+        "decathlon_paddle_10",
         "slingshot_slingwing_44",
         "norbert_blanc_sports"
       ],
@@ -56,8 +57,9 @@
         "duotone_warp_72",
         "gong_hipe_55",
         "gong_allvator_xl",
-        "gong_wing_50",
-        "gaastra_matrix_60"
+        "cabrinha_mantis_62",
+        "gaastra_matrix_60",
+        "decathlon_paddle_10"
       ],
       "preferred_conditions": {
         "wind_range": [
@@ -88,14 +90,15 @@
       "weight": 62,
       "skill_level": "beginner",
       "favorite_gear": [
+        "dufour_310",
         "bic_beach_185",
         "rrd_evolution_360",
-        "cabrinha_mantis_62",
+        "gong_wing_50",
         "gong_hipe_55",
         "gong_allvator_xl",
         "slingshot_slingwing_44",
-        "bombard_ax_240",
-        "norbert_blanc_sports"
+        "norbert_blanc_sports",
+        "decathlon_paddle_10"
       ],
       "preferred_conditions": {
         "wind_range": [
@@ -134,7 +137,8 @@
         "gong_hipe_55",
         "gong_allvator_xl",
         "gong_wing_50",
-        "norbert_blanc_sports"
+        "norbert_blanc_sports",
+        "decathlon_paddle_10"
       ],
       "preferred_conditions": {
         "wind_range": [
@@ -172,7 +176,7 @@
         "gong_hipe_55",
         "gong_allvator_xl",
         "slingshot_slingwing_44",
-        "bombard_ax_240",
+        "decathlon_paddle_10",
         "duotone_super_star_50",
         "neilpryde_wizard_36",
         "norbert_blanc_sports"
@@ -602,18 +606,21 @@
       ]
     },
     {
-      "id": "bombard_ax_240",
-      "name": "Bombard AX 240",
-      "type": "dinghy",
-      "volume": null,
-      "weight": null,
+      "id": "decathlon_paddle_10",
+      "name": "Decathlon Itiwit Paddle 10'",
+      "type": "sup_board",
+      "volume": 230,
+      "weight": 8.0,
       "wind_range": [
         0,
-        15
+        12
       ],
       "skill_level": "beginner",
       "users": [
+        "matthieu",
+        "christophe",
         "constance",
+        "theo",
         "anna"
       ]
     }

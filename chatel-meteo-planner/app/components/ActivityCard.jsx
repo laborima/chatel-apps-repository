@@ -1,19 +1,14 @@
 "use client";
 
 import { t } from "../lib/i18n";
+import { getActivityIconComponent } from "./ActivityIcons";
+import ScoreBadge from "./ScoreBadge";
 
 /**
  * ActivityCard Component
  * Displays an activity with its conditions, gear, suitability score, and recommended time window with tide and wind info
  */
 export default function ActivityCard({ activity, showTimeWindow = true, currentConditions = null, className = "" }) {
-    const getScoreColor = (score) => {
-        if (score >= 90) return "text-green-600 dark:text-green-400";
-        if (score >= 70) return "text-blue-600 dark:text-blue-400";
-        if (score >= 50) return "text-yellow-600 dark:text-yellow-400";
-        return "text-orange-600 dark:text-orange-400";
-    };
-
     const getRecommendedTimeWindow = () => {
         const now = new Date();
         const currentHour = now.getHours();
@@ -28,28 +23,13 @@ export default function ActivityCard({ activity, showTimeWindow = true, currentC
         return Math.max(0, Math.min(6, estimatedHeight));
     };
 
-    const getScoreBg = (score) => {
-        if (score >= 90) return "bg-green-100 dark:bg-green-900/30";
-        if (score >= 70) return "bg-blue-100 dark:bg-blue-900/30";
-        if (score >= 50) return "bg-yellow-100 dark:bg-yellow-900/30";
-        return "bg-orange-100 dark:bg-orange-900/30";
-    };
-
-    const getActivityIcon = (type) => {
-        switch (type) {
-            case "bateau": return "⛵";
-            case "windsurf": return "🏄";
-            case "wing": return "🪁";
-            case "speedsail": return "🚀";
-            default: return "🌊";
-        }
-    };
-
     return (
         <div className={`bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow ${className}`}>
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <span className="text-4xl">{getActivityIcon(activity.type)}</span>
+                    <span className="text-4xl">
+                        {getActivityIconComponent(activity.type, "w-10 h-10 text-zinc-700 dark:text-zinc-200")}
+                    </span>
                     <div>
                         <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 capitalize">
                             {t(`activities.${activity.name}`)}
@@ -59,12 +39,7 @@ export default function ActivityCard({ activity, showTimeWindow = true, currentC
                 </div>
                 
                 {activity.evaluation && (
-                    <div className={`px-4 py-2 rounded-lg ${getScoreBg(activity.evaluation.score)}`}>
-                        <p className={`text-2xl font-bold ${getScoreColor(activity.evaluation.score)}`}>
-                            {activity.evaluation.score}
-                        </p>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400">{t("activities.score")}</p>
-                    </div>
+                    <ScoreBadge evaluation={activity.evaluation} />
                 )}
             </div>
 

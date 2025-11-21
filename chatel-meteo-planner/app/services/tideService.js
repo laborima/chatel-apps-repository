@@ -2,6 +2,9 @@ const TIDE_FILE_DIRECTORY = "/chatel-apps-repository/tides/larochelle";
 const MINUTES_PER_DAY = 24 * 60;
 const RULE_OF_TWELFTHS_PATTERN = [1, 2, 3, 3, 2, 1];
 
+// Cache for loaded tide data
+const tideDataCache = new Map();
+
 const toTwoDigits = (value) => value.toString().padStart(2, "0");
 
 const convertTimeToMinutes = (timeString) => {
@@ -113,36 +116,43 @@ export const calculateTideHeightForDateTime = async (targetDate) => {
 
     let data;
 
-    // Server-side: read from filesystem
-    if (typeof window === "undefined") {
-        try {
-            const [{ readFile }, path] = await Promise.all([
-                import("fs/promises"),
-                import("path")
-            ]);
-
-            const filePath = path.join(
-                process.cwd(),
-                "public",
-                "tides",
-                "larochelle",
-                fileName
-            );
-
-            const fileContent = await readFile(filePath, "utf-8");
-            data = JSON.parse(fileContent);
-        } catch (error) {
-            console.error("[TideService] Failed to read tide data:", error.message);
-            return null;
-        }
+    // Check cache first
+    if (tideDataCache.has(fileName)) {
+        data = tideDataCache.get(fileName);
     } else {
-        // Client-side: fetch from public folder
-        const filePath = `${TIDE_FILE_DIRECTORY}/${fileName}`;
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            return null;
+        // Server-side: read from filesystem
+        if (typeof window === "undefined") {
+            try {
+                const [{ readFile }, path] = await Promise.all([
+                    import("fs/promises"),
+                    import("path")
+                ]);
+
+                const filePath = path.join(
+                    process.cwd(),
+                    "public",
+                    "tides",
+                    "larochelle",
+                    fileName
+                );
+
+                const fileContent = await readFile(filePath, "utf-8");
+                data = JSON.parse(fileContent);
+                tideDataCache.set(fileName, data);
+            } catch (error) {
+                console.error("[TideService] Failed to read tide data:", error.message);
+                return null;
+            }
+        } else {
+            // Client-side: fetch from public folder
+            const filePath = `${TIDE_FILE_DIRECTORY}/${fileName}`;
+            const response = await fetch(filePath);
+            if (!response.ok) {
+                return null;
+            }
+            data = await response.json();
+            tideDataCache.set(fileName, data);
         }
-        data = await response.json();
     }
 
     const dateKey = targetDate.toISOString().split("T")[0];
@@ -232,38 +242,45 @@ export const fetchTideData = async () => {
 
     let data;
 
-    // Server-side: read from filesystem
-    if (typeof window === "undefined") {
-        try {
-            const [{ readFile }, path] = await Promise.all([
-                import("fs/promises"),
-                import("path")
-            ]);
-
-            const filePath = path.join(
-                process.cwd(),
-                "public",
-                "tides",
-                "larochelle",
-                fileName
-            );
-
-            console.log("[TideService] Reading tide data from:", filePath);
-            const fileContent = await readFile(filePath, "utf-8");
-            data = JSON.parse(fileContent);
-        } catch (error) {
-            console.error("[TideService] Failed to read tide data from filesystem:", error.message);
-            return null;
-        }
+    // Check cache first
+    if (tideDataCache.has(fileName)) {
+        data = tideDataCache.get(fileName);
     } else {
-        // Client-side: fetch from public folder
-        const filePath = `/chatel-apps-repository/tides/larochelle/${fileName}`;
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            console.warn("[TideService] No tide data found at:", filePath);
-            return null;
+        // Server-side: read from filesystem
+        if (typeof window === "undefined") {
+            try {
+                const [{ readFile }, path] = await Promise.all([
+                    import("fs/promises"),
+                    import("path")
+                ]);
+
+                const filePath = path.join(
+                    process.cwd(),
+                    "public",
+                    "tides",
+                    "larochelle",
+                    fileName
+                );
+
+                console.log("[TideService] Reading tide data from:", filePath);
+                const fileContent = await readFile(filePath, "utf-8");
+                data = JSON.parse(fileContent);
+                tideDataCache.set(fileName, data);
+            } catch (error) {
+                console.error("[TideService] Failed to read tide data from filesystem:", error.message);
+                return null;
+            }
+        } else {
+            // Client-side: fetch from public folder
+            const filePath = `/chatel-apps-repository/tides/larochelle/${fileName}`;
+            const response = await fetch(filePath);
+            if (!response.ok) {
+                console.warn("[TideService] No tide data found at:", filePath);
+                return null;
+            }
+            data = await response.json();
+            tideDataCache.set(fileName, data);
         }
-        data = await response.json();
     }
 
     const todayKey = now.toISOString().split("T")[0];

@@ -16,9 +16,29 @@ export default function NotificationCenter({ activities, className = "" }) {
     useEffect(() => {
         if ("Notification" in window) {
             setNotificationPermission(Notification.permission);
-            setNotificationsEnabled(Notification.permission === "granted");
+            const savedEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+            setNotificationsEnabled(Notification.permission === "granted" && savedEnabled);
         }
     }, []);
+
+    useEffect(() => {
+        if (notificationsEnabled && activities?.length > 0) {
+            // Vérifier si on a déjà notifié aujourd'hui
+            const lastNotification = localStorage.getItem('lastNotificationDate');
+            const today = new Date().toDateString();
+            
+            if (lastNotification !== today) {
+                const bestActivity = activities.find(a => a.evaluation?.score >= 80);
+                if (bestActivity) {
+                    new Notification(t("app.title"), {
+                        body: `Conditions excellentes pour ${t(`activities.${bestActivity.name}`)} ! (Score: ${bestActivity.evaluation.score})`,
+                        icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png"
+                    });
+                    localStorage.setItem('lastNotificationDate', today);
+                }
+            }
+        }
+    }, [notificationsEnabled, activities]);
 
     const requestNotificationPermission = async () => {
         if (!("Notification" in window)) {
@@ -32,14 +52,17 @@ export default function NotificationCenter({ activities, className = "" }) {
             
             if (permission === "granted") {
                 setNotificationsEnabled(true);
+                localStorage.setItem('notificationsEnabled', 'true');
                 showNotificationToast(t("notifications.toast.enabled"));
                 
                 new Notification(t("app.title"), {
                     body: "Vous recevrez des alertes pour les conditions idéales !",
-                    icon: "/favicon.ico"
+                    icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png"
                 });
             } else {
                 showNotificationToast(t("notifications.toast.disabled"));
+                setNotificationsEnabled(false);
+                localStorage.setItem('notificationsEnabled', 'false');
             }
         } catch (error) {
             console.error("Error requesting notification permission:", error);
@@ -50,7 +73,21 @@ export default function NotificationCenter({ activities, className = "" }) {
     const toggleNotifications = () => {
         if (notificationsEnabled) {
             setNotificationsEnabled(false);
+            localStorage.setItem('notificationsEnabled', 'false');
             showNotificationToast(t("notifications.toast.disabled"));
+        } else {
+            requestNotificationPermission();
+        }
+    };
+
+    const sendActivityNotification = (activity) => {
+        if (Notification.permission === "granted") {
+            new Notification(t("app.title"), {
+                body: `Rappel activé pour ${t(`activities.${activity.name}`)}. Score actuel : ${activity.evaluation.score}/100`,
+                icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png",
+                tag: `activity-${activity.name}`
+            });
+            showNotificationToast(`Rappel activé pour ${t(`activities.${activity.name}`)}`);
         } else {
             requestNotificationPermission();
         }
@@ -126,13 +163,7 @@ export default function NotificationCenter({ activities, className = "" }) {
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                if (notificationsEnabled) {
-                                                    showNotificationToast(`Rappel activé pour ${activity.name}`);
-                                                } else {
-                                                    requestNotificationPermission();
-                                                }
-                                            }}
+                                            onClick={() => sendActivityNotification(activity)}
                                             className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
                                         >
                                             {t("actions.notify")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { t } from "../lib/i18n";
+import { getActivityIconComponent } from "./ActivityIcons";
 
 /**
  * DayDetailsModal Component
@@ -29,18 +30,6 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
         return "text-orange-600 dark:text-orange-400";
     };
 
-    const getActivityIcon = (activityType) => {
-        const icons = {
-            sailboat: "⛵",
-            windsurf: "🏄",
-            wingfoil: "🪁",
-            speedsail: "🚀",
-            sup: "🏄‍♂️",
-            default: "🌊"
-        };
-        return icons[activityType] || icons.default;
-    };
-
     const getActivityName = (activity) => {
         const translations = {
             "Cirrus Sailing": "Voile",
@@ -51,6 +40,27 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
         };
         return translations[activity.name] || activity.name;
     };
+
+    // Filter slots to only show daylight hours
+    const filteredSlots = daySlots.filter(slot => {
+        if (!forecast.sunrise || !forecast.sunset) return true;
+
+        const sunrise = new Date(forecast.sunrise);
+        const sunset = new Date(forecast.sunset);
+        let slotTime;
+
+        if (slot.time) {
+            slotTime = new Date(slot.time);
+        } else if (slot.hour !== undefined) {
+            const baseDate = new Date(forecast.date);
+            slotTime = new Date(baseDate);
+            slotTime.setHours(slot.hour, 0, 0, 0);
+        }
+
+        if (!slotTime) return true;
+
+        return slotTime >= sunrise && slotTime <= sunset;
+    });
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -133,7 +143,7 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {daySlots.map((slot, idx) => {
+                                    {filteredSlots.map((slot, idx) => {
                                         // Extract hour with multiple fallbacks
                                         let hour = '-';
                                         if (slot.hour !== undefined && slot.hour !== null && !isNaN(slot.hour)) {
@@ -173,7 +183,7 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
                                                                 className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded text-xs font-medium"
                                                                 title={activity.name}
                                                             >
-                                                                {getActivityIcon(activity.type)}
+                                                                {getActivityIconComponent(activity.type, "w-4 h-4 text-blue-700 dark:text-blue-200")}
                                                                 <span className="hidden sm:inline">{getActivityName(activity)}</span>
                                                             </span>
                                                         ))
@@ -194,7 +204,7 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
                             </table>
                         </div>
 
-                        {(!daySlots || daySlots.length === 0) && (
+                        {(!filteredSlots || filteredSlots.length === 0) && (
                             <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                                 <p>Aucune donnée horaire disponible pour ce jour</p>
                             </div>
