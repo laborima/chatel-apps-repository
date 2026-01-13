@@ -80,16 +80,25 @@ export default function ForecastCard({ forecast, activities = [], daySlots = [],
                         </div>
                     )}
 
-                    {forecast.precipitationProbability !== null && forecast.precipitationProbability !== undefined && (
+                    {(Number.isFinite(forecast.precipitationProbability) || (forecast.precipitationTotal !== null && forecast.precipitationTotal > 0)) && (
                         <div className="flex items-center justify-between text-base">
                             <p className="text-sm opacity-90">Pluie</p>
-                            <p className="text-lg font-semibold">
-                                {(forecast.precipitationProbability * 100).toFixed(0)}%
-                            </p>
+                            <div className="text-right">
+                                {Number.isFinite(forecast.precipitationProbability) && (
+                                    <p className="text-lg font-semibold">
+                                        {(forecast.precipitationProbability * 100).toFixed(0)}%
+                                    </p>
+                                )}
+                                {forecast.precipitationTotal > 0 && (
+                                    <p className="text-xs opacity-90">
+                                        {forecast.precipitationTotal.toFixed(1)} mm
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    {forecast.humidity !== null && forecast.humidity !== undefined && (
+                    {Number.isFinite(forecast.humidity) && (
                         <div className="flex items-center justify-between text-base">
                             <p className="text-sm opacity-90">Humidité</p>
                             <p className="text-lg font-semibold">

@@ -110,7 +110,7 @@ export default function DayDetailsModal({ isOpen, onClose, forecast, daySlots = 
                             <div className="text-center">
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Précipitations</p>
                                 <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                    {typeof forecast.precipitationProbability === "number"
+                                    {Number.isFinite(forecast.precipitationProbability)
                                         ? `${(forecast.precipitationProbability * 100).toFixed(0)}%`
                                         : "—"}
                                 </p>

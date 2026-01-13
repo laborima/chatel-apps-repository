@@ -102,14 +102,16 @@ export default function DayForecastDashlet({ forecast, className = "" }) {
             return "";
         }
         const dir = direction.toUpperCase();
-        if (dir.includes("NE")) return "↗"; // North-East
-        if (dir.includes("SE")) return "↘"; // South-East
-        if (dir.includes("SW")) return "↙"; // South-West
-        if (dir.includes("NW")) return "↖"; // North-West
-        if (dir.startsWith("N")) return "↑";
-        if (dir.startsWith("S")) return "↓";
-        if (dir.startsWith("E")) return "→";
-        if (dir.startsWith("W")) return "←";
+        // Invert directions to point WITH the wind (flow direction)
+        // Instead of pointing to the source (e.g., N points South)
+        if (dir.includes("NE")) return "↙"; // From NE, blows to SW
+        if (dir.includes("SE")) return "↖"; // From SE, blows to NW
+        if (dir.includes("SW")) return "↗"; // From SW, blows to NE
+        if (dir.includes("NW")) return "↘"; // From NW, blows to SE
+        if (dir.startsWith("N")) return "↓"; // From N, blows to S
+        if (dir.startsWith("S")) return "↑"; // From S, blows to N
+        if (dir.startsWith("E")) return "←"; // From E, blows to W
+        if (dir.startsWith("W")) return "→"; // From W, blows to E
         return "‽";
     };
 
@@ -134,16 +136,23 @@ export default function DayForecastDashlet({ forecast, className = "" }) {
                     </div>
                     <div>
                         <p className="text-sm opacity-90">Pluie</p>
-                        <p className="text-xl font-semibold">
-                            {typeof forecast.precipitationProbability === "number"
-                                ? `${(forecast.precipitationProbability * 100).toFixed(0)}%`
-                                : "—"}
-                        </p>
+                        <div className="flex flex-col items-start">
+                            <p className="text-xl font-semibold">
+                                {Number.isFinite(forecast.precipitationProbability)
+                                    ? `${(forecast.precipitationProbability * 100).toFixed(0)}%`
+                                    : "—"}
+                            </p>
+                            {forecast.precipitationTotal > 0 && (
+                                <p className="text-xs opacity-80">
+                                    {forecast.precipitationTotal.toFixed(1)} mm
+                                </p>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <p className="text-sm opacity-90">Humidité</p>
                         <p className="text-xl font-semibold">
-                            {forecast.humidity?.toFixed(0)}%
+                            {Number.isFinite(forecast.humidity) ? `${forecast.humidity.toFixed(0)}%` : "—"}
                         </p>
                     </div>
                 </div>

@@ -50,13 +50,13 @@ export default function DirectionCompass({ direction, className = "" }) {
                 
                 {/* Compass overlay in center */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <div className="relative w-40 h-40 bg-white/30 dark:bg-zinc-900/30 rounded-full shadow-2xl backdrop-blur-md border-2 border-white/50">
+                    <div className="relative w-40 h-40">
                         <div className="absolute inset-0 flex items-center justify-center">
                             {/* Wind direction arrow - properly centered */}
                             <div 
                                 className="absolute w-0 h-0 transition-transform duration-500"
                                 style={{ 
-                                    transform: `rotate(${degrees}deg)`,
+                                    transform: `rotate(${degrees + 180}deg)`,
                                     transformOrigin: "center center"
                                 }}
                             >
