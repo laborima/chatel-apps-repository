@@ -1,28 +1,34 @@
+[![License](https://img.shields.io/badge/License-Apache%202.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+[![SignalK](https://img.shields.io/badge/SignalK-plugin-blue.svg)](https://signalk.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-plugin-green.svg)](https://nodejs.org/)
+
+🌍 *[Français](README.fr.md)*
+
 # SignalK Meteo La Rochelle Provider
 
-Plugin SignalK qui scrape les donnees meteo temps reel depuis [meteolarochelle.fr](https://www.meteolarochelle.fr) (station Chatelaillon) et les publie dans SignalK.
+SignalK plugin that scrapes real-time weather data from [meteolarochelle.fr](https://www.meteolarochelle.fr) (Chatelaillon station) and publishes it to SignalK.
 
-## Donnees publiees
+## Published Data
 
-| Path SignalK | Description |
+| SignalK Path | Description |
 |---|---|
-| `environment.wind.speedTrueGround` | Vitesse du vent (m/s) |
-| `environment.wind.angleTrueGround` | Direction du vent (rad) |
-| `environment.wind.gustTrueGround` | Rafales (m/s) |
+| `environment.wind.speedTrueGround` | Wind speed (m/s) |
+| `environment.wind.angleTrueGround` | Wind direction (rad) |
+| `environment.wind.gustTrueGround` | Gusts (m/s) |
 | `environment.outside.temperature` | Temperature (K) |
-| `environment.outside.pressure` | Pression (Pa) |
-| `environment.outside.relativeHumidity` | Humidite relative (ratio) |
-| `navigation.position` | Position du vessel (Chatelaillon-Plage) |
+| `environment.outside.pressure` | Pressure (Pa) |
+| `environment.outside.relativeHumidity` | Relative humidity (ratio) |
+| `navigation.position` | Vessel position (Chatelaillon-Plage) |
 
 ## Installation
 
-Copier le dossier dans le repertoire des plugins SignalK :
+Copy the folder to the SignalK plugins directory:
 
 ```bash
 cp -r chatel-signalk-weatherprovider/ ~/.signalk/node_modules/signalk-meteolarochelle-provider/
 ```
 
-Ou utiliser le script de deploiement :
+Or use the deploy script:
 
 ```bash
 ./deploy-signalk.sh --weather
@@ -30,42 +36,44 @@ Ou utiliser le script de deploiement :
 
 ## Configuration
 
-Le plugin se configure via l'interface SignalK (Admin UI > Server > Plugin Config) :
+The plugin is configured via the SignalK interface (Admin UI > Server > Plugin Config):
 
-| Parametre | Defaut | Description |
+| Parameter | Default | Description |
 |---|---|---|
-| `refreshRate` | 60 | Intervalle de rafraichissement (secondes) |
-| `stationName` | Meteo La Rochelle | Nom de la station |
-| `latitude` | 46.062 | Latitude du vessel |
-| `longitude` | -1.095 | Longitude du vessel |
+| `refreshRate` | 60 | Refresh interval (seconds) |
+| `stationName` | Meteo La Rochelle | Station name |
+| `latitude` | 46.062 | Vessel latitude |
+| `longitude` | -1.095 | Vessel longitude |
 
-## Source de donnees
+## Data Source
 
-Les donnees proviennent du fichier `clientraw.txt` de la station meteolarochelle.fr (format Weather Display).
+Data comes from the `clientraw.txt` file of the meteolarochelle.fr station (Weather Display format).
 
-## Script de deploiement
+## Deploy Script
 
-Le fichier `deploy-signalk.sh` deploie l'ensemble des plugins et webapps sur le serveur SignalK distant via SSH :
+The `deploy-signalk.sh` script deploys all plugins and webapps to the remote SignalK server via SSH:
 
 ```bash
-./deploy-signalk.sh              # Deploie tout
-./deploy-signalk.sh --planner    # chatel-meteo-planner uniquement
-./deploy-signalk.sh --weather    # Ce plugin uniquement
-./deploy-signalk.sh --tides      # signalk-tides uniquement
-./deploy-signalk.sh --poi-lab    # POI Laboratory uniquement
-./deploy-signalk.sh --no-restart # Sans redemarrage SignalK
-./deploy-signalk.sh --host IP    # Specifier l'hote distant
+./deploy-signalk.sh              # Deploy all
+./deploy-signalk.sh --planner    # chatel-meteo-planner only
+./deploy-signalk.sh --weather    # This plugin only
+./deploy-signalk.sh --tides      # signalk-tides only
+./deploy-signalk.sh --poi-lab    # POI Laboratory only
+./deploy-signalk.sh --no-restart # Skip SignalK restart
+./deploy-signalk.sh --host IP    # Specify remote host
 ```
 
-## Fichiers
+SSH credentials are loaded from `.env` (see `.env.example`).
 
-| Fichier | Description |
+## Files
+
+| File | Description |
 |---|---|
-| `index.js` | Plugin principal (scraping + publication SignalK) |
-| `meteoService_locale.js` | Service meteo local (reference) |
-| `deploy-signalk.sh` | Script de deploiement SSH |
-| `signalk-data/` | Donnees de test SignalK (sample NMEA, settings) |
+| `index.js` | Main plugin (scraping + SignalK publishing) |
+| `meteoService_locale.js` | Local weather service (reference) |
+| `deploy-signalk.sh` | SSH deploy script |
+| `signalk-data/` | SignalK test data (sample NMEA, settings) |
 
-## Licence
+## License
 
 Apache-2.0
