@@ -1,13 +1,19 @@
 /**
  * Forecast Weather Service
- * Uses Open-Meteo Météo France API for weather forecasts
+ * 
+ * Primary source: SignalK Weather API (forecasts/point + forecasts/daily)
+ * Fallback: Open-Meteo Météo France API
+ * 
  * Documentation: https://open-meteo.com/en/docs/meteofrance-api
  */
 
-import { calculateSunTimes, degreeToDirection } from "./utils";
+import { degreeToDirection } from "./utils";
 import { getLocation } from "./configService";
+import { getWeatherForecast, getDailyWeatherForecast, checkWeatherApiAvailability } from "./signalkService";
 
 const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/meteofrance";
+
+let signalkForecastAvailable = null;
 
 const toFloat = (value) => {
     const numeric = typeof value === "number" ? value : parseFloat(value);
@@ -64,14 +70,6 @@ const appendTimeZoneOffset = (dateTime, timeZone) => {
  */
 const groupForecastsByDay = (hourlyData) => {
     const buckets = new Map();
-
-    // Debug: Log available keys in hourlyData
-    console.log("[ForecastService] groupForecastsByDay - hourlyData keys:", Object.keys(hourlyData));
-    if (hourlyData.precipitation_probability) {
-        console.log("[ForecastService] precipitation_probability first 5 values:", hourlyData.precipitation_probability.slice(0, 5));
-    } else {
-        console.warn("[ForecastService] precipitation_probability is MISSING in hourlyData");
-    }
 
     for (let i = 0; i < hourlyData.time.length; i++) {
         const dateTime = hourlyData.time[i];
@@ -166,13 +164,171 @@ const groupForecastsByDay = (hourlyData) => {
 };
 
 /**
- * Fetch 7-day weather forecast from Open-Meteo Météo France API
- * No API key required!
+ * Parse SignalK weather forecast into our format
+ * Combines hourly (point) and daily forecasts
+ */
+const parseSignalKForecast = (hourlyData, dailyData, location) => {
+    const buckets = new Map();
+
+    const KELVIN_OFFSET = 273.15;
+    const MS_TO_KMH = 3.6;
+    const RAD_TO_DEG = 180 / Math.PI;
+
+    for (const v of hourlyData) {
+        if (!v.date) continue;
+        
+        const d = new Date(v.date);
+        const dateKey = d.toISOString().split("T")[0];
+        
+        const temperature = v.outside?.temperature !== undefined ? v.outside.temperature - KELVIN_OFFSET : null;
+        const windSpeedMs = v.wind?.speedTrue ?? null;
+        const windSpeedKmh = windSpeedMs !== null ? windSpeedMs * MS_TO_KMH : null;
+        const windGustMs = v.wind?.gust ?? null;
+        const windGustKmh = windGustMs !== null ? windGustMs * MS_TO_KMH : null;
+        const windDirRad = v.wind?.directionTrue ?? null;
+        const windDirDeg = windDirRad !== null ? windDirRad * RAD_TO_DEG : null;
+        const humidity = v.outside?.absoluteHumidity !== undefined ? v.outside.absoluteHumidity * 100 : null;
+        
+        const period = {
+            timestamp: d.getTime(),
+            dateTime: v.date,
+            temperature,
+            feelsLike: v.outside?.feelsLikeTemperature !== undefined ? v.outside.feelsLikeTemperature - KELVIN_OFFSET : null,
+            humidity,
+            pressure: v.outside?.pressure ?? null,
+            windSpeed: windSpeedKmh,
+            windGust: windGustKmh,
+            windDirection: windDirDeg,
+            windDirectionCardinal: degreeToDirection(windDirDeg),
+            precipitation: null,
+            precipitationProbability: null,
+            weatherCode: null
+        };
+
+        const bucket = buckets.get(dateKey);
+        if (!bucket) {
+            buckets.set(dateKey, {
+                date: dateKey,
+                periods: [period],
+                temperatureMin: temperature,
+                temperatureMax: temperature,
+                windSpeedMax: windSpeedKmh,
+                precipitationProbabilityMax: null,
+                precipitationTotal: 0,
+                humidityTotal: humidity || 0,
+                humidityCount: humidity !== null ? 1 : 0
+            });
+        } else {
+            bucket.periods.push(period);
+            
+            if (typeof temperature === "number") {
+                if (typeof bucket.temperatureMin !== "number" || temperature < bucket.temperatureMin) {
+                    bucket.temperatureMin = temperature;
+                }
+                if (typeof bucket.temperatureMax !== "number" || temperature > bucket.temperatureMax) {
+                    bucket.temperatureMax = temperature;
+                }
+            }
+            
+            if (typeof windSpeedKmh === "number") {
+                if (typeof bucket.windSpeedMax !== "number" || windSpeedKmh > bucket.windSpeedMax) {
+                    bucket.windSpeedMax = windSpeedKmh;
+                }
+            }
+            
+            if (humidity !== null) {
+                bucket.humidityTotal += humidity;
+                bucket.humidityCount += 1;
+            }
+        }
+    }
+
+    const dailyMap = new Map();
+    if (dailyData && Array.isArray(dailyData)) {
+        for (const day of dailyData) {
+            if (day.date) {
+                const dateKey = new Date(day.date).toISOString().split("T")[0];
+                dailyMap.set(dateKey, day);
+            }
+        }
+    }
+
+    return Array.from(buckets.values()).map((bucket) => {
+        const daily = dailyMap.get(bucket.date);
+        return {
+            date: bucket.date,
+            temperatureMin: daily?.outside?.minTemperature !== undefined 
+                ? daily.outside.minTemperature - KELVIN_OFFSET 
+                : bucket.temperatureMin ?? null,
+            temperatureMax: daily?.outside?.maxTemperature !== undefined 
+                ? daily.outside.maxTemperature - KELVIN_OFFSET 
+                : bucket.temperatureMax ?? null,
+            windSpeedMax: bucket.windSpeedMax ?? null,
+            windSpeedMaxMs: bucket.windSpeedMax ? bucket.windSpeedMax / MS_TO_KMH : null,
+            precipitationProbability: null,
+            precipitationTotal: bucket.precipitationTotal,
+            humidity: bucket.humidityCount > 0 ? bucket.humidityTotal / bucket.humidityCount : null,
+            periods: bucket.periods.sort((left, right) => left.timestamp - right.timestamp),
+            sunrise: daily?.sun?.sunrise ?? null,
+            sunset: daily?.sun?.sunset ?? null
+        };
+    }).sort((left, right) => left.date.localeCompare(right.date));
+};
+
+/**
+ * Fetch 7-day weather forecast
+ * Primary source: SignalK Weather API
+ * Fallback: Open-Meteo Météo France API
  */
 export const fetchFiveDayForecast = async (options = {}) => {
-    try {
-        console.log("[ForecastService] Fetching forecast from Open-Meteo (Météo France)...");
+    const location = await getLocation();
+    const lat = options.lat ?? location.latitude;
+    const lon = options.lon ?? location.longitude;
 
+    if (typeof window !== "undefined") {
+        try {
+            if (signalkForecastAvailable === null) {
+                signalkForecastAvailable = await checkWeatherApiAvailability();
+            }
+
+            if (signalkForecastAvailable) {
+                const [hourlyData, dailyData] = await Promise.all([
+                    getWeatherForecast(lat, lon, 168),
+                    getDailyWeatherForecast(lat, lon, 7)
+                ]);
+                
+                if (hourlyData && Array.isArray(hourlyData) && hourlyData.length > 0) {
+                    const forecasts = parseSignalKForecast(hourlyData, dailyData, location);
+                    
+                    return {
+                        location: {
+                            name: location.name,
+                            country: "FR",
+                            coordinates: {
+                                latitude: lat,
+                                longitude: lon
+                            },
+                            timezone: location.timezone
+                        },
+                        forecasts,
+                        source: "signalk"
+                    };
+                }
+            }
+        } catch (error) {
+            console.warn("[ForecastService] SignalK forecast not available, falling back to Open-Meteo:", error.message);
+            signalkForecastAvailable = false;
+        }
+    }
+
+    return await fetchFromOpenMeteo(options);
+};
+
+/**
+ * Fetch 7-day weather forecast from Open-Meteo Météo France API
+ */
+const fetchFromOpenMeteo = async (options = {}) => {
+    try {
         const location = await getLocation();
 
         const lat = options.lat ?? location.latitude;
@@ -200,7 +356,6 @@ export const fetchFiveDayForecast = async (options = {}) => {
         });
 
         const requestUrl = `${OPEN_METEO_FORECAST_URL}?${params.toString()}`;
-        console.log("[ForecastService] Request URL:", requestUrl);
         
         const response = await fetch(requestUrl, {
             method: "GET",
@@ -215,22 +370,12 @@ export const fetchFiveDayForecast = async (options = {}) => {
         }
 
         const data = await response.json();
-        console.log("[ForecastService] Forecast data received from Open-Meteo");
-        console.log("[ForecastService] Full API response keys:", Object.keys(data));
-        console.log("[ForecastService] Has daily data?", !!data.daily);
-        
-        if (data.daily) {
-            console.log("[ForecastService] Daily data keys:", Object.keys(data.daily));
-            console.log("[ForecastService] Daily data:", JSON.stringify(data.daily, null, 2));
-        }
 
         if (!data.hourly) {
             throw new Error("Invalid Open-Meteo forecast payload");
         }
 
         const forecastsBase = groupForecastsByDay(data.hourly);
-        
-        console.log("[ForecastService] Adding sunrise/sunset data from API...");
         
         // Add sunrise/sunset data from API daily data - map to new objects to ensure properties are included
         const forecasts = forecastsBase.map((forecast) => {
@@ -246,8 +391,6 @@ export const fetchFiveDayForecast = async (options = {}) => {
 
                     sunrise = appendTimeZoneOffset(sunriseStr, tz);
                     sunset = appendTimeZoneOffset(sunsetStr, tz);
-                    
-                    console.log(`[ForecastService] ${forecast.date}: sunrise ${sunrise}, sunset ${sunset}`);
                 } else {
                     console.warn(`[ForecastService] No daily data found for ${forecast.date}`);
                 }

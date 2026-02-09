@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
       return; // Ne pas enregistrer en local
     }
 
-    navigator.serviceWorker.register('/chatel-apps-repository/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then((registration) => {
         console.log('SW enregistré: ', registration);
       })

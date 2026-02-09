@@ -109,50 +109,82 @@ export default function SunriseSunsetWidget({ forecast, className = "", timeZone
     
     const weatherTheme = getWeatherTheme(avgWeatherCode);
 
+    const bgGradient = isDaytime
+        ? `bg-gradient-to-br ${weatherTheme.gradient}`
+        : "bg-gradient-to-br from-indigo-900 via-slate-800 to-indigo-950";
+
+    const sunX = 10 + (180 * dayProgress / 100);
+    const sunY = 48 - (40 * Math.sin((dayProgress / 100) * Math.PI));
+
+    const generateArcPath = () => {
+        const points = [];
+        for (let i = 0; i <= 20; i++) {
+            const t = i / 20;
+            const x = 10 + 180 * t;
+            const y = 48 - (40 * Math.sin(t * Math.PI));
+            points.push(`${x},${y}`);
+        }
+        return `M ${points[0]} ` + points.slice(1).map(p => `L ${p}`).join(" ");
+    };
+
+    const generateFilledArcPath = () => {
+        const arcPath = generateArcPath();
+        return `${arcPath} L 190,55 L 10,55 Z`;
+    };
+
     return (
-        <div className={`bg-gradient-to-br ${weatherTheme.gradient} rounded-lg shadow-lg p-6 text-white ${className}`}>
+        <div className={`${bgGradient} rounded-lg shadow-lg p-6 text-white ${className}`}>
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{weatherTheme.icon} {weatherTheme.label}</h3>
+                <h3 className="text-lg font-semibold">
+                    {isDaytime ? weatherTheme.icon : "🌙"} {isDaytime ? weatherTheme.label : "Nuit"}
+                </h3>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    isDaytime ? "bg-white/30" : "bg-black/30"
+                    isDaytime ? "bg-white/30" : "bg-white/10"
                 }`}>
                     {isDaytime ? "🌞 Jour" : "🌙 Nuit"}
                 </span>
             </div>
 
             <div className="space-y-4">
-                {/* Sun position indicator */}
-                <div className="relative w-full h-24 flex items-end">
-                    {/* Arc representing day */}
-                    <svg className="w-full h-full" viewBox="0 0 200 50">
-                        {/* Day arc */}
-                        <path
-                            d="M 10 45 Q 100 5, 190 45"
-                            fill="none"
-                            stroke="rgba(255,255,255,0.3)"
-                            strokeWidth="2"
-                        />
-                        {/* Current sun position */}
-                        {isDaytime && (
-                            <circle
-                                cx={10 + (180 * dayProgress / 100)}
-                                cy={45 - (40 * Math.sin((dayProgress / 100) * Math.PI))}
-                                r="6"
-                                fill="white"
-                                className="drop-shadow-lg"
-                            >
-                                <animate
-                                    attributeName="r"
-                                    values="6;8;6"
-                                    dur="2s"
-                                    repeatCount="indefinite"
-                                />
-                            </circle>
+                <div className="relative w-full h-28 flex items-end">
+                    <svg className="w-full h-full" viewBox="0 0 200 60">
+                        <defs>
+                            <linearGradient id="arcFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={isDaytime ? "rgba(255,220,100,0.4)" : "rgba(100,120,200,0.2)"} />
+                                <stop offset="100%" stopColor={isDaytime ? "rgba(255,180,50,0.1)" : "rgba(50,60,120,0.05)"} />
+                            </linearGradient>
+                            <linearGradient id="arcStroke" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor={isDaytime ? "rgba(255,200,50,0.8)" : "rgba(150,160,220,0.5)"} />
+                                <stop offset="50%" stopColor={isDaytime ? "rgba(255,255,150,1)" : "rgba(180,190,240,0.7)"} />
+                                <stop offset="100%" stopColor={isDaytime ? "rgba(255,150,50,0.8)" : "rgba(150,160,220,0.5)"} />
+                            </linearGradient>
+                        </defs>
+
+                        <line x1="10" y1="48" x2="190" y2="48" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4,4" />
+
+                        <path d={generateFilledArcPath()} fill="url(#arcFill)" />
+                        <path d={generateArcPath()} fill="none" stroke="url(#arcStroke)" strokeWidth="2.5" />
+
+                        <text x="10" y="57" fill="rgba(255,255,255,0.5)" fontSize="6" textAnchor="middle">🌅</text>
+                        <text x="190" y="57" fill="rgba(255,255,255,0.5)" fontSize="6" textAnchor="middle">🌇</text>
+
+                        {isDaytime ? (
+                            <g>
+                                <circle cx={sunX} cy={sunY} r="10" fill="rgba(255,220,100,0.3)" />
+                                <circle cx={sunX} cy={sunY} r="7" fill="rgba(255,240,150,0.5)" />
+                                <circle cx={sunX} cy={sunY} r="5" fill="#FFD700">
+                                    <animate attributeName="r" values="5;6;5" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+                        ) : (
+                            <g>
+                                <circle cx="100" cy="20" r="6" fill="rgba(200,210,255,0.6)" />
+                                <circle cx="97" cy="18" r="5" fill={isDaytime ? "transparent" : "rgba(30,30,80,0.8)"} />
+                            </g>
                         )}
                     </svg>
                 </div>
 
-                {/* Sunrise and Sunset times */}
                 <div className="grid grid-cols-2 gap-4 border-t border-white/20 pt-4">
                     <div>
                         <p className="text-xs opacity-75">🌅 Lever</p>
@@ -164,7 +196,6 @@ export default function SunriseSunsetWidget({ forecast, className = "", timeZone
                     </div>
                 </div>
 
-                {/* Day duration */}
                 <div className="text-center pt-2 border-t border-white/20">
                     <p className="text-xs opacity-75">Durée du jour</p>
                     <p className="text-lg font-semibold">

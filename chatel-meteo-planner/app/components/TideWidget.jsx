@@ -51,15 +51,15 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
     let tideCurvePoints = "";
     const tideByHour = new Map();
     if (tidePointsRaw.length > 0) {
-        const minTide = tidePointsRaw.reduce((m, p) => Math.min(m, p.tide), tidePointsRaw[0].tide);
-        const maxTide = tidePointsRaw.reduce((m, p) => Math.max(m, p.tide), tidePointsRaw[0].tide);
+        const minTide = tide.heightLow ?? 0;
+        const maxTide = tide.heightHigh ?? 6;
         const tideRange = maxTide - minTide || 1;
 
         tideCurvePoints = tidePointsRaw
             .map((p) => {
                 tideByHour.set(p.hour, p.tide);
                 const x = ((p.hour - minHour) / totalSpan) * 100;
-                const norm = (p.tide - minTide) / tideRange;
+                const norm = Math.max(0, Math.min(1, (p.tide - minTide) / tideRange));
                 const y = (1 - norm) * 100;
                 return `${x},${y}`;
             })
@@ -256,12 +256,16 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
                 <div className="grid grid-cols-2 gap-4 border-t border-white/20 pt-4">
                     <div>
                         <p className="text-xs opacity-75">{t("tide.highTide")}</p>
-                        <p className="text-lg font-semibold">{tide.timeHigh}</p>
+                        <p className="text-lg font-semibold">
+                            {tide.timeHighDisplay || (tide.timeHigh ? new Date(tide.timeHigh).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—")}
+                        </p>
                         <p className="text-sm opacity-90">{tide.heightHigh.toFixed(2)}m</p>
                     </div>
                     <div>
                         <p className="text-xs opacity-75">{t("tide.lowTide")}</p>
-                        <p className="text-lg font-semibold">{tide.timeLow}</p>
+                        <p className="text-lg font-semibold">
+                            {tide.timeLowDisplay || (tide.timeLow ? new Date(tide.timeLow).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—")}
+                        </p>
                         <p className="text-sm opacity-90">{tide.heightLow.toFixed(2)}m</p>
                     </div>
                 </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { t } from "../lib/i18n";
 
 /**
@@ -7,6 +8,29 @@ import { t } from "../lib/i18n";
  * Visual compass showing wind direction with Châtelaillon-Plage beach map background
  */
 export default function DirectionCompass({ direction, className = "" }) {
+    const [isVisible, setIsVisible] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setIsVisible(true);
+                        observer.disconnect();
+                    }
+                });
+            },
+            { rootMargin: "50px" }
+        );
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
     if (!direction) {
         return null;
     }
@@ -15,35 +39,40 @@ export default function DirectionCompass({ direction, className = "" }) {
         N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
         E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
         S: 180, SSO: 202.5, SO: 225, OSO: 247.5,
-        O: 270, ONO: 292.5, NO: 315, NNO: 337.5
+        O: 270, ONO: 292.5, NO: 315, NNO: 337.5,
+        SSW: 202.5, SW: 225, WSW: 247.5,
+        W: 270, WNW: 292.5, NW: 315, NNW: 337.5
     };
 
-    const degrees = typeof direction === "number" ? direction : directionMap[direction.toUpperCase()] || 0;
+    const sourceDegrees = typeof direction === "number" ? direction : directionMap[direction.toUpperCase()] || 0;
+    const degrees = (sourceDegrees + 180) % 360;
 
-    // Châtelaillon-Plage coordinates centered on the port
     const mapUrl = `https://www.google.com/maps/embed/v1/view?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&center=46.06226032691301,-1.0947554170040406&zoom=15&maptype=satellite`;
 
     return (
-        <div className={className}>
-            {/* Title header like webcam */}
+        <div ref={containerRef} className={className}>
             <div className="p-4 bg-zinc-100 dark:bg-zinc-800">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                     Direction du vent
                 </h3>
             </div>
             
-            {/* Map background with compass overlay */}
             <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                {/* Google Maps iframe */}
-                <iframe
-                    src={mapUrl}
-                    className="absolute inset-0 w-full h-full"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Châtelaillon-Plage Map"
-                />
+                {isVisible ? (
+                    <iframe
+                        src={mapUrl}
+                        className="absolute inset-0 w-full h-full"
+                        style={{ border: 0 }}
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Châtelaillon-Plage Map"
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+                        <p className="text-zinc-500 dark:text-zinc-400">Chargement de la carte...</p>
+                    </div>
+                )}
                 
                 {/* Overlay gradient for better visibility */}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none" />
@@ -56,7 +85,7 @@ export default function DirectionCompass({ direction, className = "" }) {
                             <div 
                                 className="absolute w-0 h-0 transition-transform duration-500"
                                 style={{ 
-                                    transform: `rotate(${degrees + 180}deg)`,
+                                    transform: `rotate(${degrees}deg)`,
                                     transformOrigin: "center center"
                                 }}
                             >

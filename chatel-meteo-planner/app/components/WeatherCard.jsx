@@ -64,7 +64,33 @@ export default function WeatherCard({ wind, onRefresh, loading, lastUpdate, next
                     {wind.direction && (
                         <div className="text-right">
                             <p className="text-sm opacity-90">{t("weather.direction")}</p>
-                            <p className="text-3xl font-bold">{wind.direction}</p>
+                            <div className="flex items-center justify-end gap-2">
+                                <p className="text-lg font-semibold">{wind.direction}</p>
+                                <svg 
+                                    width="32" 
+                                    height="32" 
+                                    viewBox="0 0 32 32"
+                                    style={{ 
+                                        transform: `rotate(${((wind.degrees || 0) + 180) % 360}deg)`,
+                                        transition: 'transform 0.3s ease'
+                                    }}
+                                >
+                                    <path 
+                                        d="M16 4 L20 14 L16 12 L12 14 Z" 
+                                        fill="white" 
+                                        stroke="white" 
+                                        strokeWidth="1"
+                                    />
+                                    <line 
+                                        x1="16" 
+                                        y1="12" 
+                                        x2="16" 
+                                        y2="28" 
+                                        stroke="white" 
+                                        strokeWidth="2"
+                                    />
+                                </svg>
+                            </div>
                         </div>
                     )}
                 </div>

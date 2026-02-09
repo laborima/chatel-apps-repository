@@ -5,6 +5,8 @@
 
 let activitiesData = null;
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 /**
  * Load activities data from activities.json
  * Data is cached after first load to avoid redundant file reads/fetches
@@ -38,7 +40,7 @@ export const loadActivitiesData = async () => {
         }
     }
 
-    const response = await fetch("/chatel-apps-repository/activities/activities.json", { cache: "no-store" });
+    const response = await fetch(`${BASE_PATH}/activities/activities.json`, { cache: "no-store" });
     if (!response.ok) {
         throw new Error("Failed to fetch activities data");
     }

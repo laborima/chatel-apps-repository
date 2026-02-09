@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BASE_PATH = '/chatel-apps-repository';
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const SPRITE_IMAGE = `${BASE_PATH}/icons/icon_activities.png`;
 
 // Grid configuration based on user input: 2 rows and 3 columns

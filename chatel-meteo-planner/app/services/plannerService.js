@@ -6,9 +6,10 @@
 
 import { scrapeMeteoLaRochelle } from "./meteoService";
 import { fetchFiveDayForecast } from "./forecastWeatherService";
-import { fetchTideData, calculateTideHeightUsingTwelfths, calculateTideHeightForDateTime } from "./tideService";
+import { fetchTideData } from "./tideService";
 import { kmhToKnots, degreeToDirection, WIND_DIRECTIONS } from "./utils";
 import { getLocation, loadActivitiesData } from "./configService";
+import { getVesselPosition } from "./signalkService";
 
 // ============================================================================
 // ACTIVITIES SERVICE - Merged Functions
@@ -559,8 +560,6 @@ const transformProfilesToSailors = (profiles, equipment) => {
  */
 export const fetchCurrentConditions = async () => {
     try {
-        console.log("[PlannerService] Fetching current conditions...");
-        
         const [meteoData, tideData] = await Promise.all([
             scrapeMeteoLaRochelle().catch((error) => {
                 console.error("[PlannerService] Failed to scrape meteo data:", error.message);
@@ -594,6 +593,7 @@ export const fetchCurrentConditions = async () => {
                 speedKnots: windKnots,
                 speedKmh: windKmh,
                 direction: windDirection,
+                degrees: meteoData?.parsed?.directionDegrees || null,
                 beaufort: beaufort,
                 avg1minKnots: avg1min,
                 avg10minKnots: avg10min
@@ -656,19 +656,30 @@ export const fetchForecastConditions = async () => {
 
 /**
  * Converts current conditions to activity evaluation format
+ * @param {object} currentConditions - Current weather/tide conditions
+ * @param {object} todayForecast - Today's forecast with sunrise/sunset (optional)
  */
-const prepareConditionsForEvaluation = (currentConditions) => {
+const prepareConditionsForEvaluation = (currentConditions, todayForecast = null) => {
+    let currentIsDaylight = isDaylight();
+    if (todayForecast?.sunrise && todayForecast?.sunset) {
+        const now = new Date();
+        const sunrise = new Date(todayForecast.sunrise);
+        const sunset = new Date(todayForecast.sunset);
+        currentIsDaylight = now >= sunrise && now <= sunset;
+    }
+
     return {
         windKnots: currentConditions.wind.speedKnots || 0,
         windDirection: currentConditions.wind.direction,
         tideHeight: currentConditions.tide?.heightNow || 0,
         tidePhase: currentConditions.tide?.phase || "unknown",
-        swellHeight: null, // Not available in current data
-        isRaining: false, // Could be enhanced with weather data
+        swellHeight: null,
+        isRaining: false,
         isStorm: false,
-        isWet: false, // Could be enhanced with recent precipitation data
-        visibility: null, // Not available in current data
-        temperature: null // Not available in current data
+        isWet: false,
+        visibility: null,
+        temperature: null,
+        isDaylight: currentIsDaylight
     };
 };
 
@@ -786,17 +797,12 @@ const mergeActivityTimeSlots = (daySlots, sunrise, sunset) => {
         
         // Filter hours based on daylight requirement
         if (activityData.ideal_conditions?.daylight_only) {
-            const beforeFilter = uniqueHours.length;
             uniqueHours = uniqueHours.filter(hour => hour >= sunriseHour && hour < sunsetHour);
-            console.log(`[mergeActivityTimeSlots] ${activityData.name}: daylight_only, filtered ${beforeFilter} → ${uniqueHours.length} hours (sunrise: ${sunriseHour}h, sunset: ${sunsetHour}h)`);
         }
         
         if (uniqueHours.length === 0) {
-            console.log(`[mergeActivityTimeSlots] ${activityData.name}: no valid hours, skipped`);
             return;
         }
-        
-        console.log(`[mergeActivityTimeSlots] ${activityData.name}: ${uniqueHours.length} hours (${uniqueHours.join(', ')}h)`);
 
         // Build continuous ranges (gaps > 3 hours create new ranges)
         const ranges = [];
@@ -858,6 +864,68 @@ const mergeActivityTimeSlots = (daySlots, sunrise, sunset) => {
 };
 
 /**
+ * Estimate tide height at a specific time using sinusoidal interpolation
+ * Based on the next high and low tide times and heights
+ */
+const estimateTideHeightAt = (targetTime, tideData) => {
+    if (!tideData || !tideData.timeHigh || !tideData.timeLow || 
+        tideData.heightHigh === null || tideData.heightLow === null) {
+        return tideData?.heightNow || 3;
+    }
+
+    const targetMs = new Date(targetTime).getTime();
+    const highMs = new Date(tideData.timeHigh).getTime();
+    const lowMs = new Date(tideData.timeLow).getTime();
+    
+    const highHeight = tideData.heightHigh;
+    const lowHeight = tideData.heightLow;
+    
+    let startMs, endMs, startHeight, endHeight;
+    
+    if (highMs < lowMs) {
+        const prevLowMs = highMs - (12.42 * 60 * 60 * 1000);
+        if (targetMs <= highMs) {
+            startMs = prevLowMs;
+            endMs = highMs;
+            startHeight = lowHeight;
+            endHeight = highHeight;
+        } else {
+            startMs = highMs;
+            endMs = lowMs;
+            startHeight = highHeight;
+            endHeight = lowHeight;
+        }
+    } else {
+        const prevHighMs = lowMs - (12.42 * 60 * 60 * 1000);
+        if (targetMs <= lowMs) {
+            startMs = prevHighMs;
+            endMs = lowMs;
+            startHeight = highHeight;
+            endHeight = lowHeight;
+        } else {
+            startMs = lowMs;
+            endMs = highMs;
+            startHeight = lowHeight;
+            endHeight = highHeight;
+        }
+    }
+    
+    const cycleDuration = endMs - startMs;
+    if (cycleDuration <= 0) {
+        return tideData.heightNow || 3;
+    }
+    
+    const elapsed = targetMs - startMs;
+    const progress = Math.min(1, Math.max(0, elapsed / cycleDuration));
+    const angle = progress * Math.PI;
+    const sinProgress = (1 - Math.cos(angle)) / 2;
+    
+    const estimatedHeight = startHeight + (endHeight - startHeight) * sinProgress;
+    
+    return parseFloat(estimatedHeight.toFixed(2));
+};
+
+/**
  * Gets 5-day activity planning with time slots
  */
 export const get5DayPlanning = async (profileId) => {
@@ -869,22 +937,15 @@ export const get5DayPlanning = async (profileId) => {
         ]);
 
         const profile = getProfileById(activitiesData.profiles, profileId);
-        
-        console.log(`[get5DayPlanning] Looking for profile: ${profileId}`);
-        console.log(`[get5DayPlanning] Available profiles: ${activitiesData.profiles.map(p => p.id).join(', ')}`);
 
         if (!profile) {
             throw new Error(`Profile ${profileId} not found`);
         }
-        
-        console.log(`[get5DayPlanning] Found profile: ${profile.name}`);
 
         // Filter activities suitable for this profile
         const profileActivities = activitiesData.activities.filter((activity) => 
             canProfileDoActivity(profile, activity)
         );
-        
-        console.log(`[get5DayPlanning] Profile: ${profile.name}, Activities suitable: ${profileActivities.length}/${activitiesData.activities.length}`);
 
         const planning = [];
 
@@ -904,7 +965,7 @@ export const get5DayPlanning = async (profileId) => {
                 hourTime.setHours(hour, 0, 0, 0);
                 
                 // Check if this hour is during daylight
-                const isDaylight = (!sunriseDate || !sunsetDate) ? true : 
+                const isHourDuringDaylight = (!sunriseDate || !sunsetDate) ? true : 
                     (hourTime >= sunriseDate && hourTime < sunsetDate);
                 
                 // Find the corresponding 3-hour period for weather data
@@ -915,22 +976,29 @@ export const get5DayPlanning = async (profileId) => {
                     return hour >= pHour && hour < pHour + 3;
                 }) || dayForecast.periods[0]; // Fallback to first period
                 
-                // Calculate actual tide height for this specific hour
-                const tideInfo = await calculateTideHeightForDateTime(hourTime).catch(() => null);
-                const estimatedTide = tideInfo?.height || tideData?.heightNow || 3;
+                // Calculate tide height estimate for this specific hour
+                const estimatedTide = estimateTideHeightAt(hourTime, tideData);
+                
+                // Calculate tide phase dynamically for this hour
+                let hourTidePhase = "falling";
+                if (tideData?.timeHigh && tideData?.timeLow) {
+                    const nextHighTime = new Date(tideData.timeHigh);
+                    const nextLowTime = new Date(tideData.timeLow);
+                    hourTidePhase = nextHighTime < nextLowTime ? "rising" : "falling";
+                }
 
                 const conditions = {
                     windKnots: period.windSpeedKnots || 0,
                     windDirection: period.windDirectionCardinal,
                     tideHeight: estimatedTide,
-                    tidePhase: tideInfo?.isRising ? "rising" : "falling",
+                    tidePhase: hourTidePhase,
                     swellHeight: null,
                     isRaining: period.precipitationProbability > 50,
                     isStorm: period.windSpeedKnots > 35,
                     isWet: period.precipitationProbability > 30,
                     visibility: null,
                     temperature: period.temperature,
-                    isDaylight: isDaylight
+                    isDaylight: isHourDuringDaylight
                 };
 
                 const evaluatedActivities = evaluateAllActivities(
@@ -950,8 +1018,7 @@ export const get5DayPlanning = async (profileId) => {
                         windDirection: period.windDirectionCardinal,
                         temperature: period.temperature,
                         precipitationProbability: period.precipitationProbability,
-                        tideEstimate: estimatedTide,
-                        tideInfo: tideInfo
+                        tideEstimate: estimatedTide
                     },
                     activities: evaluatedActivities.filter(a => a.evaluation.isValid),
                     allActivities: evaluatedActivities
@@ -996,22 +1063,18 @@ export const get5DayPlanning = async (profileId) => {
  */
 export const getFullPlanningData = async (profileId) => {
     try {
-        console.log("[PlannerService] getFullPlanningData called", { profileId });
-        
-        const [activitiesData, currentConditions, forecastConditions] = await Promise.all([
+        const [activitiesData, currentConditions, forecastConditions, vesselPosition] = await Promise.all([
             fetchActivitiesData(),
             fetchCurrentConditions(),
             fetchForecastConditions().catch((error) => {
                 console.error("[PlannerService] Forecast fetch failed:", error.message);
                 return { location: null, forecasts: [] };
+            }),
+            getVesselPosition().catch((error) => {
+                console.warn("[PlannerService] Vessel position fetch failed:", error.message);
+                return null;
             })
         ]);
-
-        console.log("[PlannerService] Data fetched", {
-            profilesCount: activitiesData?.profiles?.length,
-            activitiesCount: activitiesData?.activities?.length,
-            equipmentCount: activitiesData?.equipment?.length
-        });
 
         let profile = null;
         let recommendations = null;
@@ -1019,7 +1082,6 @@ export const getFullPlanningData = async (profileId) => {
         
         // Use provided profileId or default to first profile
         const effectiveProfileId = profileId || (activitiesData.profiles?.[0]?.id);
-        console.log("[PlannerService] effectiveProfileId:", effectiveProfileId);
 
         if (effectiveProfileId) {
             profile = getProfileById(activitiesData.profiles, effectiveProfileId);
@@ -1027,7 +1089,8 @@ export const getFullPlanningData = async (profileId) => {
             if (profile) {
                 // Get immediate recommendations (next 3 hours)
                 if (currentConditions.wind.speedKnots && currentConditions.tide) {
-                    const conditions = prepareConditionsForEvaluation(currentConditions);
+                    const todayForecast = forecastConditions?.forecasts?.[0] || null;
+                    const conditions = prepareConditionsForEvaluation(currentConditions, todayForecast);
                     
                     const profileActivities = activitiesData.activities.filter((activity) => 
                         canProfileDoActivity(profile, activity)
@@ -1137,6 +1200,7 @@ export const getFullPlanningData = async (profileId) => {
             sailors: sailors,
             currentConditions,
             forecast: forecastConditions,
+            vesselPosition,
             recommendations,
             planning5Day,
             allActivities: activitiesData.activities,

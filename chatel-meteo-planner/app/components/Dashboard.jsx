@@ -11,13 +11,15 @@ import DirectionCompass from "./DirectionCompass";
 import WebcamWidget from "./WebcamWidget";
 import ForecastCard from "./ForecastCard";
 import NotificationCenter from "./NotificationCenter";
-import WatchPreview from "./WatchPreview";
 import SunriseSunsetWidget from "./SunriseSunsetWidget";
 import DayDetailsModal from "./DayDetailsModal";
 import DayForecastDashlet from "./DayForecastDashlet";
+import RadarDashlet from "./RadarDashlet";
 import Image from "next/image";
 import { getFullPlanningData } from "../services/plannerService";
 import { getActivityIconComponent } from "./ActivityIcons";
+
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 /**
  * Main Dashboard Component
@@ -37,6 +39,7 @@ export default function Dashboard() {
     const [showGear, setShowGear] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
     const [showDayDetails, setShowDayDetails] = useState(false);
+    const [vesselPosition, setVesselPosition] = useState(null);
 
     // Load saved sailor from localStorage
     useEffect(() => {
@@ -99,21 +102,15 @@ export default function Dashboard() {
             setLoading(true);
             setError(null);
 
-            console.log("[Dashboard] Fetching data from Open-Meteo (free API)...");
-
             const profileId = selectedSailor?.id || null;
             const data = await getFullPlanningData(profileId);
-            console.log("[Dashboard] Data received successfully");
 
             setCurrentConditions(data.currentConditions);
             setForecast(data.forecast);
             setSailors(data.sailors || []);
             setPlanning5Day(data.planning5Day);
             setRecommendations(data.recommendations);
-            console.log("[Dashboard] planning5Day:", data.planning5Day);
-            if (data.planning5Day?.planning?.[0]) {
-                console.log("[Dashboard] First day planning:", data.planning5Day.planning[0]);
-            }
+            setVesselPosition(data.vesselPosition || null);
             setLastUpdate(new Date());
 
             if (data.sailors && data.sailors.length > 0 && !selectedSailor) {
@@ -167,7 +164,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4 flex-shrink-0">
                             <div className="relative h-24 w-24 sm:h-32 sm:w-32">
-                                <Image src="/chatel-apps-repository/logo.png" alt="Châtel Météo Planner" fill priority sizes="128px" />
+                                <Image src={`${BASE_PATH}/logo.png`} alt="Châtel Météo Planner" fill priority sizes="128px" />
                             </div>
                             <div className="hidden sm:block">
                                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
@@ -450,9 +447,6 @@ export default function Dashboard() {
                                                 mergedActivities={mergedActivities}
                                                 daySlots={dayPlanning?.slots || []}
                                                 onCardClick={() => {
-                                                    console.log("[Dashboard] Clicked on day:", day.date);
-                                                    console.log("[Dashboard] dayPlanning:", dayPlanning);
-                                                    console.log("[Dashboard] dayPlanning?.slots:", dayPlanning?.slots);
                                                     setSelectedDay({ forecast: day, daySlots: dayPlanning?.slots || [], activities: bestActivities });
                                                     setShowDayDetails(true);
                                                 }}
@@ -463,13 +457,12 @@ export default function Dashboard() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div className="mb-8">
+                            <RadarDashlet position={vesselPosition} />
+                        </div>
+
+                        <div className="mb-8">
                             <NotificationCenter activities={recommendations?.activities || []} />
-                            <WatchPreview
-                                wind={currentConditions?.wind}
-                                tide={currentConditions?.tide}
-                                nextActivity={recommendations?.activities?.[0]}
-                            />
                         </div>
                     </main>
 

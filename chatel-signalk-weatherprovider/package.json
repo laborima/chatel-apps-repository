@@ -1,0 +1,18 @@
+{
+  "name": "signalk-meteolarochelle-provider",
+  "version": "1.1.0",
+  "description": "SignalK Weather Provider for Meteo La Rochelle - Provides real-time weather data from meteolarochelle.fr",
+  "main": "index.js",
+  "author": "Matthieu Laborie",
+  "license": "Apache-2.0",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-weather"
+  ],
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "signalk": {
+    "displayName": "Meteo La Rochelle Provider"
+  }
+}

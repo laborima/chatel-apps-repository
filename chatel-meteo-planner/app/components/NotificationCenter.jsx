@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { t } from "../lib/i18n";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 /**
  * NotificationCenter Component
  * Manages push notifications and upcoming activity alerts
@@ -32,7 +34,7 @@ export default function NotificationCenter({ activities, className = "" }) {
                 if (bestActivity) {
                     new Notification(t("app.title"), {
                         body: `Conditions excellentes pour ${t(`activities.${bestActivity.name}`)} ! (Score: ${bestActivity.evaluation.score})`,
-                        icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png"
+                        icon: `${BASE_PATH}/icons/android/android-launchericon-192-192.png`
                     });
                     localStorage.setItem('lastNotificationDate', today);
                 }
@@ -57,7 +59,7 @@ export default function NotificationCenter({ activities, className = "" }) {
                 
                 new Notification(t("app.title"), {
                     body: "Vous recevrez des alertes pour les conditions idéales !",
-                    icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png"
+                    icon: `${BASE_PATH}/icons/android/android-launchericon-192-192.png`
                 });
             } else {
                 showNotificationToast(t("notifications.toast.disabled"));
@@ -84,7 +86,7 @@ export default function NotificationCenter({ activities, className = "" }) {
         if (Notification.permission === "granted") {
             new Notification(t("app.title"), {
                 body: `Rappel activé pour ${t(`activities.${activity.name}`)}. Score actuel : ${activity.evaluation.score}/100`,
-                icon: "/chatel-apps-repository/icons/android/android-launchericon-192-192.png",
+                icon: `${BASE_PATH}/icons/android/android-launchericon-192-192.png`,
                 tag: `activity-${activity.name}`
             });
             showNotificationToast(`Rappel activé pour ${t(`activities.${activity.name}`)}`);

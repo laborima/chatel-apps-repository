@@ -1,22 +1,88 @@
 /**
  * Real-time Weather Service for Châtelaillon-Plage
- * Uses Open-Meteo API (Météo France data)
  * 
- * Note: The meteolarochelle.fr page uses AJAX/JavaScript to load data dynamically,
- * making traditional scraping impossible without a headless browser.
- * Using Open-Meteo API provides reliable real-time data from Météo France.
+ * Primary source: SignalK (chatel-signalk-weatherprovider plugin)
+ * Fallback: Open-Meteo API (Météo France data)
+ * 
+ * Configuration via environment variables:
+ * - NEXT_PUBLIC_SIGNALK_URL: Base URL of SignalK server
  */
 
 import { calculateBeaufort, degreeToDirection } from "./utils";
 import { getLocation } from "./configService";
+import { getCurrentWeather, checkServerAvailability } from "./signalkService";
 
 const OPEN_METEO_API_URL = "https://api.open-meteo.com/v1/meteofrance";
 
+// SignalK availability cache
+let signalkWeatherAvailable = null;
+
 /**
- * Fetch current weather from Open-Meteo API (Météo France data)
- * This replaces scraping since meteolarochelle.fr uses AJAX to load data dynamically
+ * Fetch current weather data
+ * Primary source: SignalK (chatel-signalk-weatherprovider plugin)
+ * Fallback: Open-Meteo API (Météo France data)
  */
 export default async function scrapeMeteoLaRochelle(url = null, opts = {}) {
+    // Try SignalK first (client-side only)
+    if (typeof window !== "undefined") {
+        try {
+            if (signalkWeatherAvailable === null) {
+                signalkWeatherAvailable = await checkServerAvailability();
+            }
+
+            if (signalkWeatherAvailable) {
+                const signalkData = await getCurrentWeather();
+                
+                if (signalkData && signalkData.wind !== null) {
+                    console.log("[MeteoService] Using SignalK weather data");
+                    
+                    const location = await getLocation();
+                    
+                    const parsed = {
+                        wind: signalkData.wind,
+                        direction: signalkData.directionDegrees ? degreeToDirection(signalkData.directionDegrees) : null,
+                        directionDegrees: signalkData.directionDegrees,
+                        beaufort: signalkData.wind ? calculateBeaufort(signalkData.wind) : null,
+                        gust: signalkData.gust,
+                        temperature: signalkData.temperature,
+                        apparentTemperature: null,
+                        humidity: signalkData.humidity,
+                        precipitation: null,
+                        rain: null,
+                        avg1min: signalkData.wind,
+                        avg10min: signalkData.wind
+                    };
+
+                    console.log("[MeteoService] Wind:", signalkData.wind?.toFixed(1), "km/h", parsed.direction, "Beaufort:", parsed.beaufort);
+
+                    return {
+                        sourceUrl: "signalk",
+                        source: "SignalK (Météo La Rochelle)",
+                        fetchedAt: new Date().toISOString(),
+                        location: {
+                            latitude: location.latitude,
+                            longitude: location.longitude,
+                            name: location.name
+                        },
+                        parsed,
+                        rawData: signalkData
+                    };
+                }
+            }
+        } catch (error) {
+            console.warn("[MeteoService] SignalK weather not available, falling back to Open-Meteo:", error.message);
+            signalkWeatherAvailable = false;
+        }
+    }
+
+    // Fallback to Open-Meteo API
+    return await fetchFromOpenMeteo();
+}
+
+/**
+ * Fetch current weather from Open-Meteo API (Météo France data)
+ */
+async function fetchFromOpenMeteo() {
     try {
         console.log("[MeteoService] Fetching real-time data from Open-Meteo API (Météo France)...");
 
@@ -77,7 +143,6 @@ export default async function scrapeMeteoLaRochelle(url = null, opts = {}) {
             humidity: current.relative_humidity_2m,
             precipitation: current.precipitation,
             rain: current.rain,
-            // Simulated averages (not available in current data, using instant value)
             avg1min: windSpeedKmh,
             avg10min: windSpeedKmh
         };

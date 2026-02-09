@@ -1,7 +1,15 @@
 {
   "name": "chatel-meteo-planner",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
+  "private": false,
+  "description": "Weather and activity planner for Châtelaillon-Plage with SignalK integration",
+  "author": "Matthieu Laborie",
+  "license": "Apache-2.0",
+  "keywords": [
+    "signalk-webapp",
+    "weather",
+    "planner"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -22,5 +30,9 @@
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "signalk": {
+    "appIcon": "./icons/icon.png",
+    "displayName": "Châtel Météo Planner"
   }
 }

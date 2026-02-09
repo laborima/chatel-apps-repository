@@ -1,4 +1,5 @@
 // Enregistrement du service worker
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // Désactiver le Service Worker en local pour éviter les problèmes de cache
@@ -13,7 +14,7 @@ if ('serviceWorker' in navigator) {
       return; // Ne pas enregistrer en local
     }
 
-    navigator.serviceWorker.register('/chatel-apps-repository/sw.js')
+    navigator.serviceWorker.register(`${BASE_PATH}/sw.js`)
       .then((registration) => {
         console.log('SW enregistré: ', registration);
       })

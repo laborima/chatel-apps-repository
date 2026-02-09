@@ -1,0 +1,353 @@
+{
+  "vessels": {
+    "self": {
+      "mmsi": {
+        "value": "227925790",
+        "$source": "demo.log",
+        "timestamp": "2023-03-27T07:00:00.000Z"
+      },
+      "uuid": {
+        "value": "urn:mrn:imo:mmsi:227925790",
+        "$source": "demo.log",
+        "timestamp": "2023-03-27T07:00:00.000Z"
+      },
+      "name": {
+        "value": "CIRRUS",
+        "$source": "demo.log",
+        "timestamp": "2023-03-27T07:00:00.000Z"
+      },
+      "design": {
+        "type": {
+          "value": "sailboat",
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "draft": {
+          "value": {
+            "maximum": 2.1,
+            "minimum": 0.95
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "displacement": {
+          "value": 4917,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "keel": {
+          "value": {
+            "type": "bulb",
+            "weight": 1650
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "sailArea": {
+          "value": {
+            "main": 32.7,
+            "genoa": 15.6,
+            "spinnakerAsym": 70.01
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      },
+      "navigation": {
+        "speedOverGround": {
+          "value": 7.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "speedThroughWater": {
+          "value": 6.8,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "courseOverGroundTrue": {
+          "value": 0.7853981633974483,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "headingTrue": {
+          "value": 0.7853981633974483,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "attitude": {
+          "value": {
+            "roll": 0.08726646259971647,
+            "pitch": 0.03490658503988659
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "position": {
+          "value": {
+            "longitude": -3.0,
+            "latitude": 50.0,
+            "altitude": 0.0
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "racing": {
+          "layline": {
+            "value": 0.17453292519943295,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "distance": {
+            "value": 100,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "time": {
+            "value": 180,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "timeToStart": {
+            "value": 120,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        },
+        "state": {
+          "value": "sailing",
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      },
+      "environment": {
+        "wind": {
+          "angleApparent": {
+            "value": 0.5235987755982988,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "speedApparent": {
+            "value": 7.0,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "angleTrueWater": {
+            "value": 0.7853981633974483,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "speedTrue": {
+            "value": 6.5,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "angleTrueGround": {
+            "value": 0.6108652381980153,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "speedOverGround": {
+            "value": 6.5,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "directionTrue": {
+            "value": 0.6981317007977318,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        },
+        "water": {
+          "temperature": {
+            "value": 290.15,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        },
+        "outside": {
+          "temperature": {
+            "value": 294.15,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "pressure": {
+            "value": 102300,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        },
+        "inside": {
+          "relativeHumidity": {
+            "value": 0.74,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "fridge": {
+            "temperature": {
+              "value": 277.15,
+              "$source": "demo.log",
+              "timestamp": "2023-03-27T07:00:00.000Z"
+            }
+          }
+        },
+        "depth": {
+          "belowKeel": {
+            "value": 5.0,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "belowTransducer": {
+            "value": 5.5,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "belowSurface": {
+            "value": 6.5,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        },
+        "current": {
+          "value": {
+            "drift": 0.5,
+            "setTrue": 0.17453292519943295
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      },
+      "sails": {
+        "area": {
+          "total": {
+            "value": 120.0,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          },
+          "active": {
+            "value": 100.0,
+            "$source": "demo.log",
+            "timestamp": "2023-03-27T07:00:00.000Z"
+          }
+        }
+      },
+      "performance": {
+        "polarSpeedRatio": {
+          "value": 0.95,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "polarSpeed": {
+          "value": 8.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "velocityMadeGood": {
+          "value": 5.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "polarVelocityMadeGood": {
+          "value": 6.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "polarVelocityMadeGoodRatio": {
+          "value": 0.9,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "beatAngle": {
+          "value": 0.7853981633974483,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "beatAngleVelocityMadeGood": {
+          "value": 6.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "gybeAngle": {
+          "value": 2.356194490192345,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "gybeAngleVelocityMadeGood": {
+          "value": 5.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "targetAngle": {
+          "value": 0.7853981633974483,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "vpp": {
+          "value": {
+            "angles": [52, 60, 75, 90, 110, 120, 135, 150],
+            "speeds": [6, 8, 10, 12, 14, 16, 20],
+            "52": [4.98, 5.86, 6.31, 6.45, 6.51, 6.52, 6.41],
+            "60": [5.25, 6.11, 6.56, 6.73, 6.79, 6.82, 6.79],
+            "75": [5.45, 6.33, 6.77, 7.01, 7.13, 7.2, 7.24],
+            "90": [5.66, 6.55, 7.0, 7.25, 7.38, 7.53, 7.7],
+            "110": [5.49, 6.49, 7.04, 7.4, 7.69, 7.97, 8.38],
+            "120": [5.32, 6.36, 6.97, 7.39, 7.77, 8.1, 8.6],
+            "135": [4.81, 5.92, 6.68, 7.15, 7.55, 7.95, 8.85],
+            "150": [4.09, 5.17, 6.04, 6.61, 6.99, 7.31, 7.93],
+            "beatAngle": [43.6, 42, 41.2, 41.2, 41.7, 42.1, 44.2],
+            "beatVMG": [3.26, 3.91, 4.24, 4.34, 4.36, 4.34, 4.16],
+            "runAngle": [144.8, 147.8, 148.5, 149.6, 171.8, 175.4, 177.2],
+            "runVMG": [3.54, 4.48, 5.23, 5.73, 6.17, 6.67, 7.36]
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      }
+    },
+    "urn:mrn:imo:mmsi:234567890": {
+      "name": "Demo AIS Target 1",
+      "navigation": {
+        "position": {
+          "value": {
+            "longitude": -3.02,
+            "latitude": 50.02
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "courseOverGroundTrue": {
+          "value": 2.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "speedOverGround": {
+          "value": 6.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      }
+    },
+    "urn:mrn:imo:mmsi:345678901": {
+      "name": "Demo AIS Target 2",
+      "navigation": {
+        "position": {
+          "value": {
+            "longitude": -2.98,
+            "latitude": 50.01
+          },
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "courseOverGroundTrue": {
+          "value": 4.0,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        },
+        "speedOverGround": {
+          "value": 4.5,
+          "$source": "demo.log",
+          "timestamp": "2023-03-27T07:00:00.000Z"
+        }
+      }
+    }
+  }
+}

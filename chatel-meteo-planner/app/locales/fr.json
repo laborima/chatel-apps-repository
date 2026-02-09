@@ -30,7 +30,8 @@
         "overview": "Vue d'ensemble",
         "realTime": "Temps réel",
         "forecast": "Prévisions",
-        "webcam": "Webcam du port"
+        "webcam": "Webcam du port",
+        "radar": "Radar météo"
     },
     "tide": {
         "title": "Marée",
