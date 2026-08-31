@@ -33,6 +33,7 @@ OCEARO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WEATHER_PROVIDER_DIR="${OCEARO_DIR}/chatel-signalk-weatherprovider"
 METEO_PLANNER_DIR="${OCEARO_DIR}/../chatel-apps-repository/chatel-meteo-planner"
 TIDES_DIR="$(cd "$(dirname "$0")/../../ocearo/signalk-tides" && pwd)"
+LOCAL_TIDE_DATA_DIR="$(cd "$(dirname "$0")/../../ocearo/cirrus/tides" && pwd)"
 POI_LAB_DIR="$(cd "$(dirname "$0")/../signalk-esp-pond-sensor/signalk-poi-lab" && pwd)"
 
 # Colors for output
@@ -157,7 +158,7 @@ deploy_meteo_planner() {
 deploy_tide_data() {
     log_info "Deploying local tide data files..."
     
-    local TIDE_DATA_DIR="${WEATHER_PROVIDER_DIR}/signalk-data/tides"
+    local TIDE_DATA_DIR="${LOCAL_TIDE_DATA_DIR}"
     local STAGING="${STAGING_DIR}/tides"
     local CONTAINER_DIR="${SIGNALK_DATA_DIR}/tides"
     
@@ -268,8 +269,8 @@ deploy_poi_lab() {
     log_info "Transferring files..."
     scp -P ${SSH_PORT} -r ${BUILD_DIR}/* ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/public/
     
-    # Copy package.json for SignalK webapp registration
-    scp -P ${SSH_PORT} "${POI_LAB_DIR}/package.json" ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/
+    # Copy package.json and plugin index.js for SignalK webapp + plugin registration
+    scp -P ${SSH_PORT} "${POI_LAB_DIR}/package.json" "${POI_LAB_DIR}/index.js" ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/
     
     # Copy icon
     scp -P ${SSH_PORT} "${POI_LAB_DIR}/public/fish.svg" ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/public/

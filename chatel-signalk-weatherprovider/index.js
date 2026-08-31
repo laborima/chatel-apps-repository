@@ -121,28 +121,31 @@ module.exports = function(app) {
          throw new Error('Invalid clientraw.txt format');
       }
 
-      // Parsing logic adapted from meteoService_locale.js
-      // Indices:
-      // 1: Avg Speed (knots)
-      // 2: Gust? Or Current? meteoService says 2 is Wind Speed, 1 is Avg.
-      // 3: Direction (deg)
-      // 4: Temp (C)
-      // 5: Humidity (%)
-      // 6: Pressure (hPa)
-      // 140: Gust (knots)
-      
-      const windKnots = parseFloat(clientraw[2]); 
+      // Champs clientraw.txt (spec Weather Display) :
+      // 1: vent moyen (nœuds)
+      // 2: rafale courante / vent instantané (nœuds)
+      // 3: direction (deg)
+      // 4: température (C)
+      // 5: humidité (%)
+      // 6: pression (hPa)
+      // 71: rafale max du jour (nœuds) — le "max atteint" de l'anémomètre
+      // NB: l'index 140 utilisé auparavant pour la rafale duplique en
+      // réalité le vent courant, d'où rafale == vent dans les affichages.
+
+      const windKnots = parseFloat(clientraw[1]);
+      const gustKnots = parseFloat(clientraw[2]);
       const directionDeg = parseInt(clientraw[3], 10);
       const tempC = parseFloat(clientraw[4]);
       const humidity = parseInt(clientraw[5], 10);
       const pressureHpa = parseFloat(clientraw[6]);
-      const gustKnots = parseFloat(clientraw[140]);
+      const maxGustTodayKnots = parseFloat(clientraw[71]);
 
       // Conversions
       const KNOTS_TO_MS = 0.514444;
-      
+
       const windSpeedMs = windKnots * KNOTS_TO_MS;
       const gustMs = gustKnots * KNOTS_TO_MS;
+      const maxGustTodayMs = maxGustTodayKnots * KNOTS_TO_MS;
       const tempK = tempC + 273.15;
       const pressurePa = pressureHpa * 100;
       const humidityRatio = humidity / 100;
@@ -151,13 +154,16 @@ module.exports = function(app) {
       const observations = [];
 
       if (!isNaN(windSpeedMs)) {
-        observations.push({ path: 'environment.wind.speedTrueGround', value: windSpeedMs });
+        observations.push({ path: 'environment.wind.speedOverGround', value: windSpeedMs });
       }
       if (!isNaN(directionRad)) {
-        observations.push({ path: 'environment.wind.angleTrueGround', value: directionRad });
+        observations.push({ path: 'environment.wind.directionTrue', value: directionRad });
       }
       if (!isNaN(gustMs)) {
-        observations.push({ path: 'environment.wind.gustTrueGround', value: gustMs });
+        observations.push({ path: 'environment.wind.gustOverGround', value: gustMs });
+      }
+      if (!isNaN(maxGustTodayMs)) {
+        observations.push({ path: 'environment.wind.maxGustToday', value: maxGustTodayMs });
       }
       if (!isNaN(tempK)) {
         observations.push({ path: 'environment.outside.temperature', value: tempK });
