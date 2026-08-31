@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Vague stylisée -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,62 C32,54 40,54 48,62 C56,70 64,70 72,62 C78,56 84,56 84,56 L84,64 C84,64 78,64 74,68 C66,76 54,76 46,68 C38,60 34,60 28,66 C26,68 24,68 24,68 Z" />
+    <!-- Voile -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L54,52 L40,52 C40,52 44,38 54,26 Z" />
+    <path
+        android:fillColor="#CCFFFFFF"
+        android:pathData="M58,30 L58,52 L68,52 C68,52 64,40 58,30 Z" />
+</vector>

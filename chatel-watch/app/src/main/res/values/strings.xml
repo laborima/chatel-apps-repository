@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Châtel Météo</string>
+    <string name="tile_tide_label">Marée Châtel</string>
+    <string name="tile_wind_label">Vent Châtel</string>
+    <string name="tile_activities_label">Activités Châtel</string>
+    <string name="tile_webcam_label">Webcam du port</string>
+    <string name="tide_title">Marée</string>
+    <string name="tide_rising">↑ Montante</string>
+    <string name="tide_falling">↓ Descendante</string>
+    <string name="tide_high">Marée haute</string>
+    <string name="tide_low">Marée basse</string>
+    <string name="activities_title">Activités</string>
+    <string name="activities_none">Aucune activité possible</string>
+    <string name="webcam_title">Webcam</string>
+    <string name="settings_title">Profil</string>
+    <string name="loading">Chargement…</string>
+    <string name="error_network">Serveur injoignable</string>
+    <string name="retry">Réessayer</string>
+    <string name="complication_tide_label">Marée Châtelaillon</string>
+    <string name="complication_wind_label">Vent Châtelaillon (kt)</string>
+</resources>
