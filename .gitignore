@@ -32,4 +32,4 @@ dist/
 *.pem
 
 # Private repos
-leslaborie/
+/leslaborie/
