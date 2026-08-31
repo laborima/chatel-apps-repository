@@ -22,8 +22,9 @@ export const metadata: Metadata = {
   manifest: `${BASE_PATH}/manifest.json`,
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Châtel Météo Planner",
+    statusBarStyle: "black-translucent",
+    // Nom affiche sous l'icone sur l'ecran d'accueil : doit rester court
+    title: "Châtel Planner",
   },
   icons: {
     icon: [
@@ -44,7 +45,8 @@ export const viewport: Viewport = {
   themeColor: "#0066cc",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1
+  // viewport-fit=cover : l'app occupe tout l'ecran des iPhone a encoche
+  viewportFit: "cover"
 };
 
 export default function RootLayout({
@@ -57,7 +59,17 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href={`${BASE_PATH}/manifest.json`} />
         <meta name="theme-color" content="#0066cc" />
+        {/*
+          Safari sur iOS ne connait toujours que la meta historique. Next 16
+          n'emet plus que "mobile-web-app-capable", qu'iOS ignore : sans la
+          ligne ci-dessous, "Sur l'ecran d'accueil" cree un simple marque-page
+          qui s'ouvre dans Safari au lieu d'une application plein ecran.
+        */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href={`${BASE_PATH}/icons/ios/180.png`} />
+        <link rel="apple-touch-icon" sizes="152x152" href={`${BASE_PATH}/icons/ios/152.png`} />
+        <link rel="apple-touch-icon" sizes="167x167" href={`${BASE_PATH}/icons/ios/167.png`} />
+        <link rel="apple-touch-icon" sizes="180x180" href={`${BASE_PATH}/icons/ios/180.png`} />
         <link rel="icon" type="image/png" href={`${BASE_PATH}/icons/android/android-launchericon-192-192.png`} />
         <link rel="shortcut icon" href={`${BASE_PATH}/icons/android/android-launchericon-192-192.png`} />
       </head>
@@ -65,7 +77,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <script src={`${BASE_PATH}/register-sw.js`} />
+        <script src={`${BASE_PATH}/register-sw.js`} defer />
       </body>
     </html>
   );
