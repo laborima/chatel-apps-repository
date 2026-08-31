@@ -40,7 +40,7 @@
           "weekdays": "18:00-23:00",
           "weekends": "available",
           "holidays": "available",
-          "school_holidays": "unavailable"
+          "school_holidays": "18:00-sunset"
         }
       }
     },
@@ -126,7 +126,7 @@
     },
     {
       "id": "theo",
-      "name": "Th\u00e9o",
+      "name": "Théo",
       "height": 170,
       "weight": 62,
       "skill_level": "intermediate",
@@ -199,9 +199,10 @@
       },
       "availability": {
         "non_working_hours": {
-          "weekdays": "18:00-23:00",
+          "weekdays": "unavailable",
           "weekends": "available",
-          "holidays": "available"
+          "holidays": "available",
+          "school_holidays": "available"
         }
       }
     }
@@ -325,7 +326,7 @@
       "duration_min": 60,
       "ideal_conditions": {
         "tide_max": 3.5,
-        "wind_min": 15,
+        "wind_min": 12,
         "wind_direction": [
           "SW",
           "W"
@@ -357,17 +358,47 @@
       "duration_min": 60,
       "ideal_conditions": {
         "tide_min": 4,
-        "wind_max": 10,
+        "wind_max": 8,
         "wave_height_max": 0.8,
         "weather": [
           "stable"
         ],
         "tide_phase": "rising",
-        "daylight_only": true
+        "daylight_only": true,
+        "wind_direction_forbidden": [
+          "E"
+        ]
       },
       "required_gear": [
         "gong_hipe_55"
       ],
+      "suitable_for": [
+        "matthieu",
+        "christophe",
+        "constance",
+        "theo",
+        "anna"
+      ],
+      "skill_level_required": "beginner",
+      "availability_note": "Respects profile non_working_hours"
+    },
+    {
+      "id": "peche_a_pied",
+      "name": "Pêche à pied",
+      "type": "peche",
+      "description": "Pêche à pied sur l'estran découvert aux grandes marées",
+      "duration_min": 60,
+      "ideal_conditions": {
+        "coefficient_min": 80,
+        "tide_window": {
+          "around": "low",
+          "hours_before": 1,
+          "hours_after": 1
+        },
+        "daylight_only": true,
+        "no_storm": true
+      },
+      "required_gear": [],
       "suitable_for": [
         "matthieu",
         "christophe",
@@ -644,45 +675,94 @@
   },
   "calendar": {
     "french_holidays": [
-      "2025-01-01",
-      "2025-04-21",
-      "2025-05-01",
-      "2025-05-08",
-      "2025-05-29",
-      "2025-06-09",
-      "2025-07-14",
-      "2025-08-15",
-      "2025-11-01",
-      "2025-11-11",
-      "2025-12-25"
+      "2026-01-01",
+      "2026-04-06",
+      "2026-05-01",
+      "2026-05-08",
+      "2026-05-14",
+      "2026-05-25",
+      "2026-07-14",
+      "2026-08-15",
+      "2026-11-01",
+      "2026-11-11",
+      "2026-12-25",
+      "2027-01-01",
+      "2027-03-29",
+      "2027-05-01",
+      "2027-05-06",
+      "2027-05-08",
+      "2027-05-17",
+      "2027-07-14",
+      "2027-08-15",
+      "2027-11-01",
+      "2027-11-11",
+      "2027-12-25"
     ],
-    "school_holidays_zone_b": {
-      "description": "Zone B (Acad\u00e9mies de Bordeaux, Clermont-Ferrand, Dijon, Limoges, Lyon, Poitiers)",
-      "2024_2025": [
+    "school_holidays": {
+      "zone": "Zone A",
+      "description": "Zone A - academie de Bordeaux (Chatelaillon-Plage). Source : data.education.gouv.fr",
+      "2025_2026": [
         {
           "name": "Toussaint",
-          "start": "2024-10-19",
-          "end": "2024-11-04"
+          "start": "2025-10-17",
+          "end": "2025-11-02"
         },
         {
-          "name": "No\u00ebl",
-          "start": "2024-12-21",
-          "end": "2025-01-06"
+          "name": "Noel",
+          "start": "2025-12-19",
+          "end": "2026-01-04"
         },
         {
           "name": "Hiver",
-          "start": "2025-02-08",
-          "end": "2025-02-24"
+          "start": "2026-02-06",
+          "end": "2026-02-22"
         },
         {
           "name": "Printemps",
-          "start": "2025-04-05",
-          "end": "2025-04-21"
+          "start": "2026-04-03",
+          "end": "2026-04-19"
         },
         {
-          "name": "\u00c9t\u00e9",
-          "start": "2025-07-05",
-          "end": "2025-09-01"
+          "name": "Pont de l'Ascension",
+          "start": "2026-05-13",
+          "end": "2026-05-17"
+        },
+        {
+          "name": "Ete",
+          "start": "2026-07-03",
+          "end": "2026-08-31"
+        }
+      ],
+      "2026_2027": [
+        {
+          "name": "Toussaint",
+          "start": "2026-10-16",
+          "end": "2026-11-01"
+        },
+        {
+          "name": "Noel",
+          "start": "2026-12-18",
+          "end": "2027-01-03"
+        },
+        {
+          "name": "Hiver",
+          "start": "2027-02-12",
+          "end": "2027-02-28"
+        },
+        {
+          "name": "Printemps",
+          "start": "2027-04-09",
+          "end": "2027-04-25"
+        },
+        {
+          "name": "Pont de l'Ascension",
+          "start": "2027-05-06",
+          "end": "2027-05-06"
+        },
+        {
+          "name": "Ete",
+          "start": "2027-07-02",
+          "end": "2027-08-31"
         }
       ]
     }
