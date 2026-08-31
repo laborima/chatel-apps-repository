@@ -18,7 +18,10 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
         );
     }
 
-    const tidePercent = ((tide.heightNow - tide.heightLow) / (tide.heightHigh - tide.heightLow)) * 100;
+    const tideSpan = (tide.heightHigh ?? 0) - (tide.heightLow ?? 0);
+    const tidePercent = tideSpan > 0
+        ? ((tide.heightNow - tide.heightLow) / tideSpan) * 100
+        : 50;
 
     let sunriseHour = 7;
     let sunsetHour = 21;
@@ -48,22 +51,46 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
         }))
         .filter((p) => typeof p.tide === "number" && Number.isFinite(p.tide));
 
+    const CURVE_AMPLIFICATION = 1.28;
+    const CURVE_VERTICAL_PADDING = 0.08;
+
     let tideCurvePoints = "";
+    let currentTideLineY = null;
     const tideByHour = new Map();
     if (tidePointsRaw.length > 0) {
-        const minTide = tide.heightLow ?? 0;
-        const maxTide = tide.heightHigh ?? 6;
+        // Scale on what is actually plotted. tide.heightHigh/heightLow are only the
+        // *next* extremes, so they do not bound the whole day and the curve used to
+        // clip against the top or bottom of the box.
+        const plotted = tidePointsRaw.map((p) => p.tide).concat(
+            Number.isFinite(tide.heightNow) ? [tide.heightNow] : []
+        );
+        const minTide = Math.min(...plotted);
+        const maxTide = Math.max(...plotted);
         const tideRange = maxTide - minTide || 1;
+
+        const getCurveY = (tideValue) => {
+            if (!Number.isFinite(tideValue)) {
+                return null;
+            }
+
+            const baseNorm = Math.max(0, Math.min(1, (tideValue - minTide) / tideRange));
+            const amplifiedNorm = 0.5 + ((baseNorm - 0.5) * CURVE_AMPLIFICATION);
+            const clampedNorm = Math.max(0, Math.min(1, amplifiedNorm));
+            const paddedNorm = CURVE_VERTICAL_PADDING + (clampedNorm * (1 - (CURVE_VERTICAL_PADDING * 2)));
+
+            return (1 - paddedNorm) * 100;
+        };
 
         tideCurvePoints = tidePointsRaw
             .map((p) => {
                 tideByHour.set(p.hour, p.tide);
                 const x = ((p.hour - minHour) / totalSpan) * 100;
-                const norm = Math.max(0, Math.min(1, (p.tide - minTide) / tideRange));
-                const y = (1 - norm) * 100;
+                const y = getCurveY(p.tide);
                 return `${x},${y}`;
             })
             .join(" ");
+
+        currentTideLineY = getCurveY(tide.heightNow);
     }
 
     const typeStyles = {
@@ -162,7 +189,7 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
                         {tide.heightNow.toFixed(2)}
                         <span className="text-xl ml-2">m</span>
                     </p>
-                    {tide.coefficient && (
+                    {Number.isFinite(tide.coefficient) && (
                         <p className="text-sm mt-1 opacity-90">
                             {t("tide.coefficient")} {tide.coefficient}
                         </p>
@@ -182,11 +209,22 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
                                 viewBox="0 0 100 100"
                                 preserveAspectRatio="none"
                             >
+                                {currentTideLineY !== null && (
+                                    <line
+                                        x1="0"
+                                        y1={currentTideLineY}
+                                        x2="100"
+                                        y2={currentTideLineY}
+                                        stroke="rgba(239, 68, 68, 0.95)"
+                                        strokeWidth="1.5"
+                                        strokeDasharray="4 3"
+                                    />
+                                )}
                                 <polyline
                                     points={tideCurvePoints}
                                     fill="none"
                                     stroke="rgba(255,255,255,0.4)"
-                                    strokeWidth="2"
+                                    strokeWidth="2.5"
                                 />
                             </svg>
                         )}
@@ -259,14 +297,14 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
                         <p className="text-lg font-semibold">
                             {tide.timeHighDisplay || (tide.timeHigh ? new Date(tide.timeHigh).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—")}
                         </p>
-                        <p className="text-sm opacity-90">{tide.heightHigh.toFixed(2)}m</p>
+                        <p className="text-sm opacity-90">{Number.isFinite(tide.heightHigh) ? `${tide.heightHigh.toFixed(2)}m` : "—"}</p>
                     </div>
                     <div>
                         <p className="text-xs opacity-75">{t("tide.lowTide")}</p>
                         <p className="text-lg font-semibold">
                             {tide.timeLowDisplay || (tide.timeLow ? new Date(tide.timeLow).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—")}
                         </p>
-                        <p className="text-sm opacity-90">{tide.heightLow.toFixed(2)}m</p>
+                        <p className="text-sm opacity-90">{Number.isFinite(tide.heightLow) ? `${tide.heightLow.toFixed(2)}m` : "—"}</p>
                     </div>
                 </div>
             </div>

@@ -6,7 +6,7 @@
 
 import { scrapeMeteoLaRochelle } from "./meteoService";
 import { fetchFiveDayForecast } from "./forecastWeatherService";
-import { fetchTideData } from "./tideService";
+import { fetchTideData, interpolateTideHeight } from "./tideService";
 import { kmhToKnots, degreeToDirection, WIND_DIRECTIONS } from "./utils";
 import { getLocation, loadActivitiesData } from "./configService";
 import { getVesselPosition } from "./signalkService";
@@ -62,6 +62,27 @@ const isDirectionPreferred = (currentDirection, preferredDirections, idealDirect
 };
 
 /**
+ * Checks if a direction falls inside any of the given sectors (+/-22.5 degrees).
+ * Used for hard exclusions, e.g. an offshore wind that would blow a paddler out.
+ */
+const isDirectionInSectors = (currentDirection, sectors) => {
+    const currentDeg = normalizeDirection(currentDirection);
+    if (currentDeg === null || !sectors || sectors.length === 0) {
+        return false;
+    }
+
+    return sectors.some((sector) => {
+        const sectorDeg = normalizeDirection(sector);
+        if (sectorDeg === null) {
+            return false;
+        }
+        const diff = Math.abs(currentDeg - sectorDeg) % 360;
+        const wrapped = Math.min(diff, 360 - diff);
+        return wrapped <= 22.5;
+    });
+};
+
+/**
  * Checks if a date is a French holiday
  */
 const isFrenchHoliday = (date, holidays = []) => {
@@ -70,26 +91,89 @@ const isFrenchHoliday = (date, holidays = []) => {
 };
 
 /**
- * Checks if a date falls within school holidays (Zone B)
+ * Checks if a date falls within school holidays.
+ *
+ * Scans every school-year entry in the calendar. The previous implementation
+ * only looked at a hard-coded "2024_2025" key, so the check silently returned
+ * false for every date once that school year was over.
  */
-const isSchoolHolidayZoneB = (date, schoolHolidaysConfig = {}) => {
-    if (!schoolHolidaysConfig || !schoolHolidaysConfig['2024_2025']) {
+const isSchoolHoliday = (date, schoolHolidaysConfig = {}) => {
+    if (!schoolHolidaysConfig) {
         return false;
     }
 
     const dateStr = date.toISOString().split('T')[0];
-    const holidays = schoolHolidaysConfig['2024_2025'];
 
-    return holidays.some(period => 
-        dateStr >= period.start && dateStr <= period.end
-    );
+    return Object.entries(schoolHolidaysConfig).some(([key, periods]) => {
+        // Skip metadata entries such as "zone" and "description".
+        if (!/^\d{4}_\d{4}$/.test(key) || !Array.isArray(periods)) {
+            return false;
+        }
+        return periods.some((period) => dateStr >= period.start && dateStr <= period.end);
+    });
 };
 
 /**
- * Checks if profile is available at given time based on non_working_hours
- * non_working_hours represents the time slots when activities are POSSIBLE
+ * Evaluates one availability rule for a given hour.
+ *
+ * A rule is one of:
+ *   "available"        - all day
+ *   "unavailable"      - never
+ *   "18:00-23:00"      - between those hours
+ *   "18:00-sunset"     - from that hour until the sun goes down
+ *
+ * @param {string|undefined} rule
+ * @param {number} hours - hour of day, 0-23
+ * @param {{sunset?: Date|string, isDaylight?: boolean}} context
+ * @returns {boolean} true when the profile is free at that hour
  */
-const isProfileAvailable = (profile, currentTime = new Date(), calendarData = {}) => {
+const matchesAvailabilityRule = (rule, hours, context = {}) => {
+    if (rule === undefined || rule === null || rule === 'available') {
+        return true;
+    }
+    if (rule === 'unavailable') {
+        return false;
+    }
+    if (typeof rule !== 'string') {
+        return true;
+    }
+
+    const [startStr, endStr] = rule.split('-');
+    const startHour = Number(startStr?.split(':')[0]);
+    if (!Number.isFinite(startHour) || hours < startHour) {
+        return false;
+    }
+
+    // "sunset" as the upper bound: the session has to be over by nightfall.
+    if (endStr?.trim().toLowerCase() === 'sunset') {
+        if (context.sunset) {
+            const sunsetDate = new Date(context.sunset);
+            if (Number.isFinite(sunsetDate.getTime())) {
+                // The slot at hour H covers H..H+1, so it must start before sunset.
+                return hours < sunsetDate.getHours() ||
+                    (hours === sunsetDate.getHours() && sunsetDate.getMinutes() > 0);
+            }
+        }
+        // No sunset time available: fall back to the daylight flag when we have it.
+        return context.isDaylight !== false;
+    }
+
+    const endHour = Number(endStr?.split(':')[0]);
+    if (!Number.isFinite(endHour)) {
+        return true;
+    }
+    return hours < endHour;
+};
+
+/**
+ * Checks if profile is available at given time based on non_working_hours.
+ * non_working_hours represents the time slots when activities are POSSIBLE.
+ *
+ * Exactly one rule applies. Days off come first — a weekend or a public holiday
+ * is free whatever else is going on — then school holidays, then ordinary
+ * weekdays.
+ */
+const isProfileAvailable = (profile, currentTime = new Date(), calendarData = {}, context = {}) => {
     if (!profile || !profile.availability || !profile.availability.non_working_hours) {
         return true; // No restrictions if not defined
     }
@@ -98,37 +182,32 @@ const isProfileAvailable = (profile, currentTime = new Date(), calendarData = {}
     const day = currentTime.getDay();
     const hours = currentTime.getHours();
     const isWeekend = day === 0 || day === 6;
-    const dateIsFrenchHoliday = calendarData.french_holidays && isFrenchHoliday(currentTime, calendarData.french_holidays);
-    const dateIsSchoolHoliday = calendarData.school_holidays_zone_b && isSchoolHolidayZoneB(currentTime, calendarData.school_holidays_zone_b);
 
-    // Check weekday activity hours (e.g., "08:00-18:00" means activities possible from 8h to 18h)
-    if (!isWeekend && !dateIsFrenchHoliday && !dateIsSchoolHoliday && nwh.weekdays) {
-        const [startStr, endStr] = nwh.weekdays.split('-');
-        const [startHour] = startStr.split(':').map(Number);
-        const [endHour] = endStr.split(':').map(Number);
-        
-        // Activities are only available within the specified hours
-        if (hours < startHour || hours >= endHour) {
-            return false; // Outside activity hours
-        }
+    const dateIsFrenchHoliday = Boolean(calendarData.french_holidays) &&
+        isFrenchHoliday(currentTime, calendarData.french_holidays);
+
+    // "school_holidays" is the canonical key; the older config called it
+    // "school_holidays_zone_b" (and mislabelled the zone).
+    const schoolHolidaysConfig = calendarData.school_holidays || calendarData.school_holidays_zone_b;
+    const dateIsSchoolHoliday = Boolean(schoolHolidaysConfig) &&
+        isSchoolHoliday(currentTime, schoolHolidaysConfig);
+    const schoolHolidaysRule = nwh.school_holidays ?? nwh.school_holidays_zone_b;
+
+    let rule;
+    if (isWeekend) {
+        rule = nwh.weekends;
+    } else if (dateIsFrenchHoliday && nwh.holidays !== undefined) {
+        rule = nwh.holidays;
+    } else if (dateIsSchoolHoliday && schoolHolidaysRule !== undefined) {
+        rule = schoolHolidaysRule;
+    } else if (dateIsFrenchHoliday || dateIsSchoolHoliday) {
+        // A day off with no rule of its own: treat it like a weekend.
+        rule = nwh.weekends;
+    } else {
+        rule = nwh.weekdays;
     }
 
-    // Check if available on weekends
-    if (isWeekend && nwh.weekends === 'unavailable') {
-        return false;
-    }
-
-    // Check if available on holidays
-    if (dateIsFrenchHoliday && nwh.holidays === 'unavailable') {
-        return false;
-    }
-
-    // Check if available during school holidays Zone B
-    if (dateIsSchoolHoliday && nwh.school_holidays_zone_b === 'unavailable') {
-        return false;
-    }
-
-    return true;
+    return matchesAvailabilityRule(rule, hours, context);
 };
 
 /**
@@ -163,6 +242,62 @@ const isDaylight = (currentTime = new Date()) => {
     return hours >= 7 && hours <= 21;
 };
 
+// --- Session scoring tuning -------------------------------------------------
+
+/** Tide margin below which the window is about to close (metres). */
+const TIDE_COMFORT_MARGIN_M = 0.4;
+
+/** Gust/average ratio above which the wind starts to feel gusty. */
+const GUST_FACTOR_COMFORTABLE = 1.35;
+
+/** Maximum points removed for gustiness. */
+const GUST_WEIGHT = 15;
+
+/** Maximum points removed for a wind that is inside the band but not ideal. */
+const WIND_FIT_WEIGHT = 25;
+
+/**
+ * How well the wind speed fits the activity, as a 0..1 score.
+ *
+ * 1 at the sweet spot, tapering towards the edges of the acceptable band. The
+ * sweet spot is `wind_ideal` when the activity declares one, otherwise the
+ * upper-middle of the range, which is where most board sports actually plane.
+ *
+ * @returns {number|null} null when the activity declares no wind preference
+ */
+const scoreWindFit = (windKnots, ideal_conditions) => {
+    if (!Number.isFinite(windKnots)) {
+        return null;
+    }
+
+    let min = ideal_conditions.wind_min;
+    let max = ideal_conditions.wind_max;
+    if (Array.isArray(ideal_conditions.wind_range)) {
+        [min, max] = ideal_conditions.wind_range;
+    }
+
+    if (!Number.isFinite(min) && !Number.isFinite(max)) {
+        return null;
+    }
+
+    // Open-ended band: any wind past the threshold is equally fine.
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+        return 1;
+    }
+
+    const ideal = Number.isFinite(ideal_conditions.wind_ideal)
+        ? ideal_conditions.wind_ideal
+        : min + ((max - min) * 0.6);
+
+    const spread = Math.max(ideal - min, max - ideal);
+    if (spread <= 0) {
+        return 1;
+    }
+
+    const distance = Math.abs(windKnots - ideal) / spread;
+    return Math.max(0, 1 - (distance * distance));
+};
+
 /**
  * Evaluates if an activity is feasible given current conditions
  * Returns a score from 0-100 and validation status
@@ -177,8 +312,10 @@ export const evaluateActivity = (activity, conditions, currentTime = new Date(),
         warnings: []
     };
 
-    // Check profile availability (non-working hours, holidays, school holidays)
-    if (profile && !isProfileAvailable(profile, currentTime, calendarData)) {
+    // Check profile availability (non-working hours, holidays, school holidays).
+    // The sunset is passed through so a rule like "18:00-sunset" can be evaluated.
+    const availabilityContext = { sunset: conditions.sunset, isDaylight: conditions.isDaylight };
+    if (profile && !isProfileAvailable(profile, currentTime, calendarData, availabilityContext)) {
         result.isValid = false;
         result.reasons.push("Profile not available at this time");
         result.score -= 100;
@@ -202,18 +339,96 @@ export const evaluateActivity = (activity, conditions, currentTime = new Date(),
         result.score -= 50;
     }
 
-    // Check tide minimum
-    if (ideal_conditions.tide_min !== undefined && conditions.tideHeight < ideal_conditions.tide_min) {
-        result.isValid = false;
-        result.reasons.push(`Tide too low (${conditions.tideHeight.toFixed(2)}m < ${ideal_conditions.tide_min}m)`);
-        result.score -= 50;
+    // Check tide window. A null height means the tide forecast is unavailable:
+    // warn rather than silently treating it as a very low tide.
+    const hasTideHeight = Number.isFinite(conditions.tideHeight);
+    const needsTide = ideal_conditions.tide_min !== undefined || ideal_conditions.tide_max !== undefined;
+
+    if (needsTide && !hasTideHeight) {
+        result.score -= 10;
+        result.warnings.push("Tide height unknown - window not verified");
     }
 
-    // Check tide maximum
-    if (ideal_conditions.tide_max !== undefined && conditions.tideHeight > ideal_conditions.tide_max) {
+    if (hasTideHeight) {
+        if (ideal_conditions.tide_min !== undefined && conditions.tideHeight < ideal_conditions.tide_min) {
+            result.isValid = false;
+            result.reasons.push(`Tide too low (${conditions.tideHeight.toFixed(2)}m < ${ideal_conditions.tide_min}m)`);
+            result.score -= 50;
+        }
+
+        if (ideal_conditions.tide_max !== undefined && conditions.tideHeight > ideal_conditions.tide_max) {
+            result.isValid = false;
+            result.reasons.push(`Tide too high (${conditions.tideHeight.toFixed(2)}m > ${ideal_conditions.tide_max}m)`);
+            result.score -= 50;
+        }
+
+        // Sitting right on the edge of the window means it closes within minutes:
+        // the tide moves fastest mid-cycle, up to ~1m per hour here at springs.
+        if (result.isValid && needsTide) {
+            const margin = Math.min(
+                ideal_conditions.tide_min !== undefined ? conditions.tideHeight - ideal_conditions.tide_min : Infinity,
+                ideal_conditions.tide_max !== undefined ? ideal_conditions.tide_max - conditions.tideHeight : Infinity
+            );
+            if (margin < TIDE_COMFORT_MARGIN_M) {
+                const penalty = Math.round((1 - (margin / TIDE_COMFORT_MARGIN_M)) * 12);
+                result.score -= penalty;
+                result.warnings.push(`Close to the tide limit (${margin.toFixed(2)}m of margin)`);
+            }
+        }
+    }
+
+    // Forbidden wind sectors - a hard exclusion, not a preference.
+    if (ideal_conditions.wind_direction_forbidden && conditions.windDirection &&
+        isDirectionInSectors(conditions.windDirection, ideal_conditions.wind_direction_forbidden)) {
         result.isValid = false;
-        result.reasons.push(`Tide too high (${conditions.tideHeight.toFixed(2)}m > ${ideal_conditions.tide_max}m)`);
-        result.score -= 50;
+        result.reasons.push(`Wind from a forbidden sector (${conditions.windDirection})`);
+        result.score -= 100;
+    }
+
+    // Tidal coefficient window - a hard gate (spring tides required, or excluded).
+    if (ideal_conditions.coefficient_min !== undefined ||
+        ideal_conditions.coefficient_max !== undefined) {
+        if (!Number.isFinite(conditions.tideCoefficient)) {
+            result.score -= 10;
+            result.warnings.push("Tidal coefficient unknown - not verified");
+        } else {
+            if (ideal_conditions.coefficient_min !== undefined &&
+                conditions.tideCoefficient < ideal_conditions.coefficient_min) {
+                result.isValid = false;
+                result.reasons.push(`Tidal coefficient too low (${conditions.tideCoefficient} < ${ideal_conditions.coefficient_min})`);
+                result.score -= 50;
+            }
+            if (ideal_conditions.coefficient_max !== undefined &&
+                conditions.tideCoefficient > ideal_conditions.coefficient_max) {
+                result.isValid = false;
+                result.reasons.push(`Tidal coefficient too high (${conditions.tideCoefficient} > ${ideal_conditions.coefficient_max})`);
+                result.score -= 50;
+            }
+        }
+    }
+
+    // Window around a tide extreme, e.g. "1h either side of low water".
+    if (ideal_conditions.tide_window) {
+        const { around, hours_before: hoursBefore = 1, hours_after: hoursAfter = 1 } = ideal_conditions.tide_window;
+        const offset = around === "high" ? conditions.minutesFromHighTide : conditions.minutesFromLowTide;
+
+        if (!Number.isFinite(offset)) {
+            result.score -= 10;
+            result.warnings.push("Tide times unknown - window not verified");
+        } else if (offset < -(hoursBefore * 60) || offset > hoursAfter * 60) {
+            result.isValid = false;
+            const label = around === "high" ? "high water" : "low water";
+            const hours = (Math.abs(offset) / 60).toFixed(1);
+            result.reasons.push(`Outside the ${label} window (${hours}h away)`);
+            result.score -= 50;
+        } else {
+            // Best right at the extreme, tapering towards the edges of the window.
+            const span = offset < 0 ? hoursBefore * 60 : hoursAfter * 60;
+            if (span > 0) {
+                const distance = Math.abs(offset) / span;
+                result.score -= Math.round(distance * distance * 10);
+            }
+        }
     }
 
     // Check wind range
@@ -246,6 +461,27 @@ export const evaluateActivity = (activity, conditions, currentTime = new Date(),
         result.isValid = false;
         result.reasons.push(`Wind too high (${windKnots.toFixed(1)} knots > ${ideal_conditions.wind_max} knots)`);
         result.score -= 40;
+    }
+
+    // Grade how well the wind sits inside the acceptable band. Without this every
+    // slot that merely passes the gates scores the same, and the planner cannot
+    // tell a marginal 15-knot slot from an ideal 20-knot one.
+    if (result.isValid) {
+        const windFit = scoreWindFit(windKnots, ideal_conditions);
+        if (windFit !== null) {
+            result.score -= Math.round((1 - windFit) * WIND_FIT_WEIGHT);
+        }
+    }
+
+    // Gusty wind is exhausting and dangerous on a wing or a sail, even when the
+    // average speed is perfect.
+    if (Number.isFinite(conditions.windGustKnots) && windKnots > 0) {
+        const gustFactor = conditions.windGustKnots / windKnots;
+        if (gustFactor > GUST_FACTOR_COMFORTABLE) {
+            const excess = Math.min(1, (gustFactor - GUST_FACTOR_COMFORTABLE) / GUST_FACTOR_COMFORTABLE);
+            result.score -= Math.round(excess * GUST_WEIGHT);
+            result.warnings.push(`Gusty conditions (gusts ${conditions.windGustKnots.toFixed(0)} kn for ${windKnots.toFixed(0)} kn average)`);
+        }
     }
 
     // Check wave height
@@ -295,10 +531,12 @@ export const evaluateActivity = (activity, conditions, currentTime = new Date(),
     }
 
     // Check tide phase preference
-    if (ideal_conditions.tide_phase === "rising" && conditions.tidePhase !== "rising") {
+    if (ideal_conditions.tide_phase && conditions.tidePhase !== "unknown" &&
+        conditions.tidePhase !== ideal_conditions.tide_phase) {
         result.score -= 5;
-        result.warnings.push("Tide phase not optimal (prefer rising tide)");
+        result.warnings.push(`Tide phase not optimal (prefer ${ideal_conditions.tide_phase} tide)`);
     }
+
 
     // Check visibility
     if (ideal_conditions.visibility_min !== undefined && conditions.visibility !== null) {
@@ -606,6 +844,7 @@ export const fetchCurrentConditions = async () => {
                 timeLow: tideData.timeLow,
                 isRising: tideData.isRising,
                 coefficient: tideData.coeffNow,
+                extremes: tideData.extremes || [],
                 phase: tideData.isRising ? "rising" : "falling"
             } : null,
             meteoRaw: meteoData
@@ -673,13 +912,17 @@ const prepareConditionsForEvaluation = (currentConditions, todayForecast = null)
         windDirection: currentConditions.wind.direction,
         tideHeight: currentConditions.tide?.heightNow || 0,
         tidePhase: currentConditions.tide?.phase || "unknown",
+        tideCoefficient: currentConditions.tide?.coefficient ?? null,
+        minutesFromLowTide: minutesFromNearestExtreme(new Date(), currentConditions.tide, "Low"),
+        minutesFromHighTide: minutesFromNearestExtreme(new Date(), currentConditions.tide, "High"),
         swellHeight: null,
         isRaining: false,
         isStorm: false,
         isWet: false,
         visibility: null,
         temperature: null,
-        isDaylight: currentIsDaylight
+        isDaylight: currentIsDaylight,
+        sunset: todayForecast?.sunset ?? null
     };
 };
 
@@ -783,7 +1026,8 @@ const mergeActivityTimeSlots = (daySlots, sunrise, sunset) => {
             activitiesMap.get(activity.id).slots.push({
                 hour: slot.hour,
                 windKnots: slot.conditions?.windKnots,
-                tideEstimate: slot.conditions?.tideEstimate
+                tideEstimate: slot.conditions?.tideEstimate,
+                score: activity.evaluation?.score ?? null
             });
         });
     });
@@ -804,14 +1048,15 @@ const mergeActivityTimeSlots = (daySlots, sunrise, sunset) => {
             return;
         }
 
-        // Build continuous ranges (gaps > 3 hours create new ranges)
+        // Build continuous ranges. Slots are hourly, so any missing hour is an hour
+        // whose conditions failed: it genuinely breaks the window and must not be
+        // merged over.
         const ranges = [];
         let rangeStart = uniqueHours[0];
         let rangeEnd = uniqueHours[0];
-        
+
         for (let i = 1; i < uniqueHours.length; i++) {
-            // If gap is more than 3 hours, start a new range
-            if (uniqueHours[i] - rangeEnd > 3) {
+            if (uniqueHours[i] - rangeEnd > 1) {
                 ranges.push({ start: rangeStart, end: rangeEnd });
                 rangeStart = uniqueHours[i];
                 rangeEnd = uniqueHours[i];
@@ -823,106 +1068,217 @@ const mergeActivityTimeSlots = (daySlots, sunrise, sunset) => {
 
         // Build time ranges with tide info
         const timeRanges = ranges.map(range => {
-            // Calculate end hour, respecting daylight and 24h limit
-            let endHour = range.end + 3;
+            // The slot at hour H covers H..H+1, so the window ends one hour after
+            // the last suitable slot.
+            let endHour = range.end + 1;
             if (activityData.ideal_conditions?.daylight_only) {
                 endHour = Math.min(endHour, sunsetHour);
             }
             endHour = Math.min(endHour, 24);
-            
+
             // Get slots at start and end of this range
             const startSlot = activityData.slots.find(s => s.hour === range.start);
             const endSlot = activityData.slots.find(s => s.hour === range.end);
-            
-            // Calculate average wind for this range
+
             const rangeSlots = activityData.slots.filter(s => s.hour >= range.start && s.hour <= range.end);
             const avgWind = (rangeSlots.reduce((sum, s) => sum + (s.windKnots || 0), 0) / rangeSlots.length).toFixed(1);
-            
+            const avgScore = rangeSlots.length
+                ? Math.round(rangeSlots.reduce((sum, s) => sum + (s.score ?? 0), 0) / rangeSlots.length)
+                : 0;
+
             return {
                 start: range.start,
                 end: endHour,
+                durationMinutes: Math.max(0, endHour - range.start) * 60,
                 display: `${range.start}h-${endHour}h`,
                 tideStart: startSlot?.tideEstimate?.toFixed(1) || '-',
                 tideEnd: endSlot?.tideEstimate?.toFixed(1) || '-',
-                avgWind: avgWind
+                avgWind: avgWind,
+                score: avgScore
             };
-        });
+        })
+            // A window shorter than the session itself is not a session. Rigging,
+            // launching and coming back in do not fit in a leftover half hour.
+            .filter(range => range.durationMinutes >= (activityData.duration_min || 0));
 
-        // Calculate overall average wind
-        const validSlots = activityData.slots.filter(s => uniqueHours.includes(s.hour));
-        const avgWind = (validSlots.reduce((sum, s) => sum + (s.windKnots || 0), 0) / validSlots.length).toFixed(1);
+        if (timeRanges.length === 0) {
+            return;
+        }
+
+        // Overall average wind, over the hours that actually made it into a window
+        const keptHours = new Set(
+            timeRanges.flatMap(range => {
+                const hours = [];
+                for (let h = range.start; h < range.end; h += 1) hours.push(h);
+                return hours;
+            })
+        );
+        const validSlots = activityData.slots.filter(s => keptHours.has(s.hour));
+        const avgWind = validSlots.length
+            ? (validSlots.reduce((sum, s) => sum + (s.windKnots || 0), 0) / validSlots.length).toFixed(1)
+            : '0.0';
+
+        // Best window of the day drives how the activity is ranked for that day.
+        const bestScore = timeRanges.reduce((best, range) => Math.max(best, range.score), 0);
 
         mergedActivities.push({
             ...activityData,
             slots: undefined,
             timeRanges,
-            avgWind
+            avgWind,
+            bestScore
         });
     });
 
-    return mergedActivities;
+    return mergedActivities.sort((a, b) => (b.bestScore ?? 0) - (a.bestScore ?? 0));
 };
 
 /**
- * Estimate tide height at a specific time using sinusoidal interpolation
- * Based on the next high and low tide times and heights
+ * Estimate tide height at a specific time.
+ *
+ * When the tides plugin exposes its full extremes list (the usual case), the
+ * height is interpolated harmonically between the two surrounding extremes. That
+ * follows the real spring/neap amplitude cycle, which matters here: the range at
+ * Chatelaillon swings between roughly 3m at neaps and 5m at springs within the
+ * same month.
+ *
+ * Only when no extremes list is available do we fall back to projecting the
+ * single known half-cycle forward, which is accurate for a few hours at best.
  */
 const estimateTideHeightAt = (targetTime, tideData) => {
-    if (!tideData || !tideData.timeHigh || !tideData.timeLow || 
+    if (!tideData) {
+        return null;
+    }
+
+    if (Array.isArray(tideData.extremes) && tideData.extremes.length >= 2) {
+        const interpolated = interpolateTideHeight(tideData.extremes, targetTime);
+        if (interpolated !== null) {
+            return interpolated;
+        }
+    }
+
+    return projectTideHeightFromHalfCycle(targetTime, tideData);
+};
+
+/**
+ * Fallback tide estimate: repeat the known half-cycle to project alternating
+ * extrema. Amplitude and period are frozen, so this drifts within a day or two.
+ */
+const projectTideHeightFromHalfCycle = (targetTime, tideData) => {
+    if (!tideData || !tideData.timeHigh || !tideData.timeLow ||
         tideData.heightHigh === null || tideData.heightLow === null) {
-        return tideData?.heightNow || 3;
+        return tideData?.heightNow ?? null;
     }
 
     const targetMs = new Date(targetTime).getTime();
     const highMs = new Date(tideData.timeHigh).getTime();
     const lowMs = new Date(tideData.timeLow).getTime();
-    
-    const highHeight = tideData.heightHigh;
-    const lowHeight = tideData.heightLow;
-    
-    let startMs, endMs, startHeight, endHeight;
-    
-    if (highMs < lowMs) {
-        const prevLowMs = highMs - (12.42 * 60 * 60 * 1000);
-        if (targetMs <= highMs) {
-            startMs = prevLowMs;
-            endMs = highMs;
-            startHeight = lowHeight;
-            endHeight = highHeight;
-        } else {
-            startMs = highMs;
-            endMs = lowMs;
-            startHeight = highHeight;
-            endHeight = lowHeight;
-        }
-    } else {
-        const prevHighMs = lowMs - (12.42 * 60 * 60 * 1000);
-        if (targetMs <= lowMs) {
-            startMs = prevHighMs;
-            endMs = lowMs;
-            startHeight = highHeight;
-            endHeight = lowHeight;
-        } else {
-            startMs = lowMs;
-            endMs = highMs;
-            startHeight = lowHeight;
-            endHeight = highHeight;
+
+    const highHeight = Number(tideData.heightHigh);
+    const lowHeight = Number(tideData.heightLow);
+
+    if (!Number.isFinite(targetMs) || !Number.isFinite(highMs) || !Number.isFinite(lowMs) ||
+        !Number.isFinite(highHeight) || !Number.isFinite(lowHeight)) {
+        return tideData?.heightNow ?? null;
+    }
+
+    const firstExtremumMs = Math.min(highMs, lowMs);
+    const secondExtremumMs = Math.max(highMs, lowMs);
+    const halfCycleDuration = secondExtremumMs - firstExtremumMs;
+
+    if (halfCycleDuration <= 0) {
+        return tideData.heightNow ?? null;
+    }
+
+    const firstExtremumHeight = firstExtremumMs === highMs ? highHeight : lowHeight;
+    const secondExtremumHeight = secondExtremumMs === highMs ? highHeight : lowHeight;
+
+    const halfCycleIndex = Math.floor((targetMs - firstExtremumMs) / halfCycleDuration);
+    const startMs = firstExtremumMs + (halfCycleIndex * halfCycleDuration);
+    const startHeight = halfCycleIndex % 2 === 0 ? firstExtremumHeight : secondExtremumHeight;
+    const endHeight = halfCycleIndex % 2 === 0 ? secondExtremumHeight : firstExtremumHeight;
+
+    const progress = Math.min(1, Math.max(0, (targetMs - startMs) / halfCycleDuration));
+    const sinProgress = (1 - Math.cos(progress * Math.PI)) / 2;
+
+    return parseFloat((startHeight + ((endHeight - startHeight) * sinProgress)).toFixed(2));
+};
+
+/**
+ * Tide phase ("rising" / "falling") at a given time.
+ *
+ * Derived from the next extreme in the full list when available. The previous
+ * implementation compared the single next high against the single next low, so
+ * it returned one constant phase for the entire 5-day planning.
+ */
+const estimateTidePhaseAt = (targetTime, tideData) => {
+    const targetMs = new Date(targetTime).getTime();
+
+    if (Array.isArray(tideData?.extremes) && tideData.extremes.length > 0) {
+        const next = tideData.extremes
+            .slice()
+            .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+            .find((e) => new Date(e.time).getTime() >= targetMs);
+        if (next) {
+            return next.type === "High" ? "rising" : "falling";
         }
     }
-    
-    const cycleDuration = endMs - startMs;
-    if (cycleDuration <= 0) {
-        return tideData.heightNow || 3;
+
+    if (tideData?.timeHigh && tideData?.timeLow) {
+        return new Date(tideData.timeHigh) < new Date(tideData.timeLow) ? "rising" : "falling";
     }
-    
-    const elapsed = targetMs - startMs;
-    const progress = Math.min(1, Math.max(0, elapsed / cycleDuration));
-    const angle = progress * Math.PI;
-    const sinProgress = (1 - Math.cos(angle)) / 2;
-    
-    const estimatedHeight = startHeight + (endHeight - startHeight) * sinProgress;
-    
-    return parseFloat(estimatedHeight.toFixed(2));
+
+    return "unknown";
+};
+
+/**
+ * Signed offset, in minutes, from the nearest tide extreme of the given type.
+ * Negative before the extreme, positive after.
+ *
+ * Lets an activity be tied to a moment in the cycle ("1h either side of low
+ * water") rather than to a height, which is what actually matters for foreshore
+ * fishing: the same height happens twice a cycle, but only one of them is the
+ * ebb that uncovers the flats.
+ */
+const minutesFromNearestExtreme = (targetTime, tideData, type) => {
+    const targetMs = new Date(targetTime).getTime();
+    const extremes = (tideData?.extremes || []).filter((e) => e.type === type);
+
+    if (extremes.length === 0 || !Number.isFinite(targetMs)) {
+        return null;
+    }
+
+    const nearest = extremes.reduce((closest, extreme) => {
+        const distance = Math.abs(new Date(extreme.time).getTime() - targetMs);
+        const closestDistance = Math.abs(new Date(closest.time).getTime() - targetMs);
+        return distance < closestDistance ? extreme : closest;
+    });
+
+    return (targetMs - new Date(nearest.time).getTime()) / 60000;
+};
+
+/**
+ * Tidal coefficient in force at a given time (French scale, 20-120).
+ *
+ * The coefficient is attached to high waters; the one that applies to a moment is
+ * the one of the nearest high water. It drives the tidal range and therefore the
+ * strength of the current, which matters for wingfoil and windsurf sessions.
+ */
+const estimateTideCoefficientAt = (targetTime, tideData) => {
+    const targetMs = new Date(targetTime).getTime();
+    const highs = (tideData?.extremes || []).filter(
+        (e) => e.type === "High" && Number.isFinite(e.coefficient)
+    );
+
+    if (highs.length === 0) {
+        return tideData?.coeffNow ?? null;
+    }
+
+    return highs.reduce((closest, high) => {
+        const distance = Math.abs(new Date(high.time).getTime() - targetMs);
+        const closestDistance = Math.abs(new Date(closest.time).getTime() - targetMs);
+        return distance < closestDistance ? high : closest;
+    }).coefficient;
 };
 
 /**
@@ -976,29 +1332,30 @@ export const get5DayPlanning = async (profileId) => {
                     return hour >= pHour && hour < pHour + 3;
                 }) || dayForecast.periods[0]; // Fallback to first period
                 
-                // Calculate tide height estimate for this specific hour
+                // Tide height, phase and coefficient for this specific hour
                 const estimatedTide = estimateTideHeightAt(hourTime, tideData);
-                
-                // Calculate tide phase dynamically for this hour
-                let hourTidePhase = "falling";
-                if (tideData?.timeHigh && tideData?.timeLow) {
-                    const nextHighTime = new Date(tideData.timeHigh);
-                    const nextLowTime = new Date(tideData.timeLow);
-                    hourTidePhase = nextHighTime < nextLowTime ? "rising" : "falling";
-                }
+                const hourTidePhase = estimateTidePhaseAt(hourTime, tideData);
+                const hourTideCoefficient = estimateTideCoefficientAt(hourTime, tideData);
+                const minutesFromLowTide = minutesFromNearestExtreme(hourTime, tideData, "Low");
+                const minutesFromHighTide = minutesFromNearestExtreme(hourTime, tideData, "High");
 
                 const conditions = {
                     windKnots: period.windSpeedKnots || 0,
+                    windGustKnots: period.windGustKnots ?? null,
                     windDirection: period.windDirectionCardinal,
                     tideHeight: estimatedTide,
                     tidePhase: hourTidePhase,
+                    tideCoefficient: hourTideCoefficient,
+                    minutesFromLowTide,
+                    minutesFromHighTide,
                     swellHeight: null,
                     isRaining: period.precipitationProbability > 50,
                     isStorm: period.windSpeedKnots > 35,
                     isWet: period.precipitationProbability > 30,
                     visibility: null,
                     temperature: period.temperature,
-                    isDaylight: isHourDuringDaylight
+                    isDaylight: isHourDuringDaylight,
+                    sunset: dayForecast.sunset ?? null
                 };
 
                 const evaluatedActivities = evaluateAllActivities(
@@ -1015,10 +1372,13 @@ export const get5DayPlanning = async (profileId) => {
                     date: hourTime,
                     conditions: {
                         windKnots: period.windSpeedKnots,
+                        windGustKnots: period.windGustKnots ?? null,
                         windDirection: period.windDirectionCardinal,
                         temperature: period.temperature,
                         precipitationProbability: period.precipitationProbability,
-                        tideEstimate: estimatedTide
+                        tideEstimate: estimatedTide,
+                        tidePhase: hourTidePhase,
+                        tideCoefficient: hourTideCoefficient
                     },
                     activities: evaluatedActivities.filter(a => a.evaluation.isValid),
                     allActivities: evaluatedActivities

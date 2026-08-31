@@ -19,6 +19,9 @@ const getSignalKBaseUrl = () => {
     return window.location.origin;
 };
 
+// The tides resource provider is registered on the v2 Resources API.
+const TIDES_RESOURCE_PATH = "/signalk/v2/api/resources/tides";
+
 /**
  * Make an API call to SignalK server
  * @param {string} path - API path (e.g., '/signalk/v2/api/resources/tides')
@@ -105,9 +108,9 @@ export const getSignalKValue = async (signalkPath) => {
 export const getCurrentWeather = async () => {
     try {
         const paths = [
-            "environment.wind.speedTrueGround",
-            "environment.wind.angleTrueGround",
-            "environment.wind.gustTrueGround",
+            "environment.wind.speedOverGround",
+            "environment.wind.directionTrue",
+            "environment.wind.gustOverGround",
             "environment.outside.temperature",
             "environment.outside.pressure",
             "environment.outside.relativeHumidity"
@@ -123,16 +126,16 @@ export const getCurrentWeather = async () => {
         const KELVIN_OFFSET = 273.15;
         const PA_TO_HPA = 0.01;
 
-        const windSpeedMs = results["environment.wind.speedTrueGround"];
-        const windAngleRad = results["environment.wind.angleTrueGround"];
-        const gustMs = results["environment.wind.gustTrueGround"];
+        const windSpeedMs = results["environment.wind.speedOverGround"];
+        const windDirectionRad = results["environment.wind.directionTrue"];
+        const gustMs = results["environment.wind.gustOverGround"];
         const tempK = results["environment.outside.temperature"];
         const pressurePa = results["environment.outside.pressure"];
         const humidityRatio = results["environment.outside.relativeHumidity"];
 
         return {
             wind: windSpeedMs !== null ? windSpeedMs * MS_TO_KMH : null,
-            directionDegrees: windAngleRad !== null ? windAngleRad * RAD_TO_DEG : null,
+            directionDegrees: windDirectionRad !== null ? windDirectionRad * RAD_TO_DEG : null,
             gust: gustMs !== null ? gustMs * MS_TO_KMH : null,
             temperature: tempK !== null ? tempK - KELVIN_OFFSET : null,
             pressure: pressurePa !== null ? pressurePa * PA_TO_HPA : null,
@@ -222,19 +225,69 @@ export const getTideData = async () => {
 };
 
 /**
- * Get tide forecast from SignalK resources API (signalk-tides plugin)
- * @param {number} latitude - Latitude
- * @param {number} longitude - Longitude
- * @returns {Promise<Object>} Tide forecast with extremes
+ * Get the tide forecast resource collection (signalk-tides plugin).
+ *
+ * The plugin recomputes this on every request, so unlike the `environment.tide.*`
+ * delta paths it never serves stale extremes.
+ *
+ * @returns {Promise<Object|null>} GeoJSON feature collection, one feature per day
  */
-export const getTideForecast = async (latitude, longitude) => {
-    const path = `/signalk/v1/api/resources/tides?position=[${longitude},${latitude}]`;
+export const getTideForecast = async () => {
     try {
-        return await apiCall(path);
+        return await apiCall(TIDES_RESOURCE_PATH);
     } catch (error) {
         console.warn("[SignalKService] Tide forecast not available:", error.message);
         return null;
     }
+};
+
+/**
+ * Get the upcoming tide extremes as a single flat, chronologically sorted list.
+ *
+ * @returns {Promise<{stationName: string|null, extremes: Array}|null>}
+ */
+export const getTideExtremes = async () => {
+    const collection = await getTideForecast();
+    if (!collection || typeof collection !== "object") {
+        return null;
+    }
+
+    const seen = new Set();
+    const extremes = [];
+    let stationName = null;
+
+    for (const feature of Object.values(collection)) {
+        const properties = feature?.properties;
+        if (!properties || !Array.isArray(properties.extremes)) {
+            continue;
+        }
+        stationName = stationName || properties.name || null;
+
+        for (const extreme of properties.extremes) {
+            if (!extreme?.time || !Number.isFinite(Number(extreme.value))) {
+                continue;
+            }
+            // Days overlap at the boundaries, so the same extreme can appear twice.
+            const key = `${extreme.time}|${extreme.type}`;
+            if (seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            extremes.push({
+                type: extreme.type,
+                value: Number(extreme.value),
+                time: extreme.time,
+                coefficient: Number.isFinite(Number(extreme.coefficient)) ? Number(extreme.coefficient) : null
+            });
+        }
+    }
+
+    if (extremes.length === 0) {
+        return null;
+    }
+
+    extremes.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    return { stationName, extremes };
 };
 
 /**
@@ -244,7 +297,7 @@ export const getTideForecast = async (latitude, longitude) => {
 export const checkTidesAvailability = async () => {
     try {
         const baseUrl = getSignalKBaseUrl();
-        const response = await fetch(`${baseUrl}/signalk/v1/api/resources/tides`, {
+        const response = await fetch(`${baseUrl}${TIDES_RESOURCE_PATH}`, {
             method: "GET",
             headers: { "Accept": "application/json" }
         });
@@ -283,6 +336,7 @@ export default {
     checkWeatherApiAvailability,
     getTideData,
     getTideForecast,
+    getTideExtremes,
     checkTidesAvailability,
     checkServerAvailability
 };
