@@ -2,6 +2,7 @@
 #include "config.h"
 
 #include <ESP_Video.h>
+#include <Wire.h>
 #include "driver/jpeg_encode.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -121,9 +122,36 @@ static void applySensorSettings() {
     if (settings.exposure >= 0) captureDev.setSensorExposure(settings.exposure);
 }
 
+/**
+ * Scans the SCCB (I2C) bus and prints the devices that answer, to tell
+ * "no camera / unpowered camera" (nothing) from "unsupported sensor"
+ * (e.g. IMX708 at 0x1a) when esp_video fails to detect a sensor.
+ */
+static void scanSccb() {
+    Wire.begin(CAM_SCCB_SDA, CAM_SCCB_SCL, 100000);
+    int found = 0;
+    Serial.print("[CAM] SCCB scan:");
+    for (uint8_t addr = 0x08; addr < 0x78; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf(" 0x%02x", addr);
+            found++;
+        }
+    }
+    if (!found) Serial.print(" nothing answers (camera unpowered, ribbon reversed, or wrong SCCB pins)");
+    Serial.println();
+    Serial.println("[CAM] Known: OV5647=0x36  OV5640/OV5645=0x3c  IMX708 (Pi cam v3, unsupported)=0x1a  IMX219 (Pi cam v2)=0x10");
+    Wire.end();
+}
+
 bool cameraBegin(CameraFrameCb cb) {
     frameCb = cb;
     if (!jpegMutex) jpegMutex = xSemaphoreCreateMutex();
+    static bool scanned = false;
+    if (!scanned) {
+        scanned = true;
+        scanSccb();
+    }
 
     ESPVideoCamConfigClass camConfig;
     if (!camConfig.begin((i2c_port_num_t)CAM_SCCB_I2C_PORT, CAM_SCCB_SCL, CAM_SCCB_SDA,

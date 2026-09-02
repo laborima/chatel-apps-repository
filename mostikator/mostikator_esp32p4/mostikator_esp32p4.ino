@@ -22,7 +22,11 @@
  * Arduino IDE settings:
  *   arduino-esp32 >= 3.3.11, board "ESP32P4 Dev Module", PSRAM: Enabled,
  *   Flash Size: 32MB, Partition Scheme: Custom (partitions.csv in this folder),
- *   Chip Variant: v3.00 or newer, USB CDC On Boot: Enabled.
+ *   Chip Variant: match the ROM banner on the serial console –
+ *   "esp32p4-eco2" (Waveshare ESP32-P4-WIFI6 rev 1.x) = "Before v3.00",
+ *   "esp32p4-eco5" = "v3.00 or newer" (a wrong variant crashes the bootloader).
+ *   USB CDC On Boot: Disabled when the serial console is the CH343 "UART" port,
+ *   Enabled when using the native "USB" port.
  *
  * Dependencies (Library Manager):
  *   PubSubClient, WebSockets (Links2004), LiquidCrystal (optional)
@@ -168,7 +172,9 @@ static void publishStatus() {
     signalkPublishValues(json);
 
     // Retry the camera if it failed at boot (ribbon plugged late, etc.)
-    if (!cameraOk) {
+    static unsigned long lastCameraRetry = 0;
+    if (!cameraOk && now - lastCameraRetry >= 30000) {
+        lastCameraRetry = now;
         cameraOk = cameraBegin(onCameraFrame);
         if (cameraOk && DET_AUTO_ARM) detectorArm(true);
     }

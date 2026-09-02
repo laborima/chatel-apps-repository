@@ -221,7 +221,12 @@ Coordonnées : `x`, `y` normalisées (0..1, origine en haut à gauche), `px`/`py
 - **arduino-esp32 ≥ 3.3.11** (la bibliothèque `ESP_Video` pour la caméra MIPI-CSI n'existe pas avant ;
   la 3.3.7 installée localement ne suffit pas). Gestionnaire de cartes → esp32 → 3.3.11.
 - Carte **ESP32P4 Dev Module** : PSRAM *Enabled*, Flash Size *32MB*, Partition Scheme *Custom*
-  (le `partitions.csv` du dossier est pris automatiquement), Chip Variant *v3.00 or newer*, USB CDC On Boot *Enabled*.
+  (le `partitions.csv` du dossier est pris automatiquement).
+- **Chip Variant** : à faire correspondre à la bannière ROM du moniteur série. `ESP-ROM:esp32p4-eco2` (notre
+  carte) = *Before v3.00* ; `eco5` = *v3.00 or newer*. Avec la mauvaise variante le bootloader plante en boucle
+  (`Guru Meditation Error: Illegal instruction` avant tout log applicatif).
+- **USB CDC On Boot** : *Disabled* si le câble est sur le port **UART** (puce CH343, `/dev/ttyACM0`),
+  *Enabled* sur le port **USB** natif.
 - Bibliothèques : `PubSubClient`, `WebSockets` (Links2004), `LiquidCrystal` (si LCD). Déjà installées.
 
 ### Configuration
@@ -238,11 +243,14 @@ FOV, valeurs par défaut du détecteur. Tout le reste se règle en live via `POS
 Arduino IDE (Téléverser), ou en ligne de commande :
 
 ```bash
-arduino-cli compile --fqbn "esp32:esp32:esp32p4:PSRAM=enabled,FlashSize=32M,PartitionScheme=custom,ChipVariant=postv3,CDCOnBoot=cdc" mostikator_esp32p4
-arduino-cli upload  --fqbn "esp32:esp32:esp32p4:PSRAM=enabled,FlashSize=32M,PartitionScheme=custom,ChipVariant=postv3,CDCOnBoot=cdc" -p /dev/ttyACM0 mostikator_esp32p4
+FQBN="esp32:esp32:esp32p4:PSRAM=enabled,FlashSize=32M,PartitionScheme=custom,ChipVariant=prev3,CDCOnBoot=default"
+arduino-cli compile --fqbn "$FQBN" mostikator_esp32p4
+arduino-cli upload  --fqbn "$FQBN" -p /dev/ttyACM0 mostikator_esp32p4
 ```
 
 Moniteur série 115200 : `[CAM] Capture started 1920x1080`, `[WIFI] Connected`, `[MQTT] Connected`, `[DET] Armed`.
+Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adresses I2C qui répondent
+(OV5647 = 0x36, OV5640 = 0x3c, IMX708 = 0x1a : présent mais sans driver, rien = caméra non alimentée ou nappe à l'envers).
 
 ### Comment marche la détection
 
