@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { getStreamUrl, getCaptureUrl } from "../services/deviceService";
+
+/**
+ * Live MJPEG view from the ESP32-P4 with a tactical overlay:
+ * region of interest, locked targets (id, velocity vector, predicted
+ * position) and a centre crosshair. Star Wars targeting computer vibes.
+ */
+export default function VideoCard({ status, config, targets, armed, onArm, onDisarm }) {
+    const [playing, setPlaying] = useState(false);
+    const [streamError, setStreamError] = useState(false);
+    const [snapshot, setSnapshot] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [streamKey, setStreamKey] = useState(0);
+
+    const containerRef = useRef(null);
+    const imgRef = useRef(null);
+    const canvasRef = useRef(null);
+    const targetsRef = useRef(targets);
+    useEffect(() => { targetsRef.current = targets; }, [targets]);
+
+    const cameraReady = status?.camera?.ready;
+
+    /* ---------- overlay ---------- */
+    const draw = useCallback(() => {
+        const canvas = canvasRef.current;
+        const img = imgRef.current;
+        if (!canvas) return;
+        const rect = (img && playing ? img : canvas.parentElement)?.getBoundingClientRect();
+        if (!rect || rect.width === 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+        }
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        ctx.clearRect(0, 0, W, H);
+
+        // ROI
+        const roi = config?.detector?.roi;
+        if (roi) {
+            ctx.strokeStyle = "rgba(57,255,20,0.25)";
+            ctx.setLineDash([6, 6]);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(roi[0] * W, roi[1] * H, (roi[2] - roi[0]) * W, (roi[3] - roi[1]) * H);
+            ctx.setLineDash([]);
+        }
+
+        // Centre crosshair
+        ctx.strokeStyle = "rgba(57,255,20,0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - 18, H / 2); ctx.lineTo(W / 2 - 6, H / 2);
+        ctx.moveTo(W / 2 + 6, H / 2); ctx.lineTo(W / 2 + 18, H / 2);
+        ctx.moveTo(W / 2, H / 2 - 18); ctx.lineTo(W / 2, H / 2 - 6);
+        ctx.moveTo(W / 2, H / 2 + 6); ctx.lineTo(W / 2, H / 2 + 18);
+        ctx.stroke();
+
+        // Targets
+        for (const t of targetsRef.current || []) {
+            const x = t.x * W, y = t.y * H;
+            const r = Math.max(14, Math.max(t.w * W, t.h * H) * 1.5);
+            const color = t.confidence >= 0.6 ? "#39ff14" : "#ffb000";
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Corner brackets
+            const b = r + 6;
+            ctx.beginPath();
+            [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
+                ctx.moveTo(x + sx * b, y + sy * (b - 8));
+                ctx.lineTo(x + sx * b, y + sy * b);
+                ctx.lineTo(x + sx * (b - 8), y + sy * b);
+            });
+            ctx.stroke();
+
+            // Prediction vector
+            if (t.px !== undefined) {
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(t.px * W, t.py * H);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(t.px * W, t.py * H, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = color;
+            ctx.font = "bold 12px ui-monospace, monospace";
+            ctx.fillText(`#${t.id}  ${Number(t.pan).toFixed(1)}° / ${Number(t.tilt).toFixed(1)}°`, x + b + 4, y - b);
+            ctx.fillStyle = "rgba(215,224,230,0.8)";
+            ctx.font = "11px ui-monospace, monospace";
+            ctx.fillText(`${Math.round(t.confidence * 100)}%`, x + b + 4, y - b + 14);
+        }
+    }, [config, playing]);
+
+    useEffect(() => {
+        let raf;
+        const loop = () => { draw(); raf = requestAnimationFrame(loop); };
+        raf = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(raf);
+    }, [draw]);
+
+    /* ---------- stream control ---------- */
+    const startStream = () => { setStreamError(false); setSnapshot(null); setStreamKey((k) => k + 1); setPlaying(true); };
+    const stopStream = () => { setPlaying(false); if (imgRef.current) imgRef.current.src = ""; };
+
+    const takeSnapshot = () => {
+        setPlaying(false);
+        setSnapshot(getCaptureUrl());
+    };
+
+    const toggleFullscreen = () => {
+        const el = containerRef.current;
+        if (!el) return;
+        if (!document.fullscreenElement) {
+            el.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+        } else {
+            document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+        }
+    };
+
+    useEffect(() => {
+        const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener("fullscreenchange", onChange);
+        return () => document.removeEventListener("fullscreenchange", onChange);
+    }, []);
+
+    // Stop the stream when the tab is hidden (saves the ESP32 bandwidth)
+    useEffect(() => {
+        const onVisibility = () => { if (document.hidden && playing) stopStream(); };
+        document.addEventListener("visibilitychange", onVisibility);
+        return () => document.removeEventListener("visibilitychange", onVisibility);
+    }, [playing]);
+
+    const stateLabel = status?.detector?.state === "armed" ? "ARMÉ"
+        : status?.detector?.state === "learning" ? "CALIBRATION"
+        : "DÉSARMÉ";
+
+    return (
+        <section className="mk-panel overflow-hidden">
+            <div className="mk-panel-title">
+                <span className="flex items-center gap-2">
+                    Ordinateur de visée
+                    <span className={`mk-mono text-[0.65rem] px-2 py-0.5 rounded-full border ${
+                        armed ? "border-mk-alert text-mk-alert mk-armed" : "border-mk-border text-mk-muted"}`}>
+                        {stateLabel}
+                    </span>
+                </span>
+                <span className="mk-mono text-xs text-mk-muted normal-case tracking-normal">
+                    {status?.camera?.width ? `${status.camera.width}×${status.camera.height}` : "caméra ?"}
+                    {status?.camera?.fps ? ` · ${status.camera.fps.toFixed(0)} fps` : ""}
+                    {status?.detector?.fps ? ` · det ${status.detector.fps.toFixed(0)} fps` : ""}
+                </span>
+            </div>
+
+            <div ref={containerRef} className={`relative bg-black ${isFullscreen ? "h-screen" : "aspect-video"}`}>
+                {playing && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        key={streamKey}
+                        ref={imgRef}
+                        src={getStreamUrl()}
+                        alt="Flux caméra"
+                        className="absolute inset-0 w-full h-full object-contain"
+                        onError={() => { setStreamError(true); setPlaying(false); }}
+                    />
+                )}
+                {!playing && snapshot && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={snapshot} alt="Capture" className="absolute inset-0 w-full h-full object-contain"
+                        onError={() => setStreamError(true)} />
+                )}
+                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+                {playing && <div className="mk-scanline" />}
+
+                {!playing && !snapshot && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
+                        <div className="text-5xl">{cameraReady ? "🎯" : "📷"}</div>
+                        <p className="text-mk-muted text-sm max-w-md">
+                            {streamError
+                                ? "Flux interrompu – le détecteur est peut-être hors ligne."
+                                : cameraReady
+                                    ? "Caméra prête. Lancez le flux pour voir les cibles en direct."
+                                    : `Caméra non initialisée${status?.camera?.error ? ` (${status.camera.error})` : ""}.`}
+                        </p>
+                        <button className="mk-btn mk-btn-laser" onClick={startStream} disabled={!cameraReady}>
+                            ▶ Flux vidéo
+                        </button>
+                    </div>
+                )}
+
+                {/* Overlay controls */}
+                <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-2">
+                    {playing
+                        ? <button className="mk-btn text-xs" onClick={stopStream}>■ Stop</button>
+                        : <button className="mk-btn text-xs" onClick={startStream} disabled={!cameraReady}>▶ Flux</button>}
+                    <button className="mk-btn text-xs" onClick={takeSnapshot} disabled={!cameraReady}>📸 Capture</button>
+                    <button className="mk-btn text-xs" onClick={toggleFullscreen}>{isFullscreen ? "⤢ Quitter" : "⤢ Plein écran"}</button>
+                    <div className="ml-auto">
+                        {armed
+                            ? <button className="mk-btn mk-btn-alert text-xs" onClick={onDisarm}>⏻ Désarmer</button>
+                            : <button className="mk-btn mk-btn-laser text-xs" onClick={onArm} disabled={!cameraReady}>⚡ Armer</button>}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}

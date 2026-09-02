@@ -1,0 +1,13 @@
+# Firmware secrets
+mostikator_esp32p4/config.h
+
+# Webapp build
+signalk-mostikator/node_modules/
+signalk-mostikator/.next/
+signalk-mostikator/out/
+signalk-mostikator/out-esp/
+signalk-mostikator/.env*
+!signalk-mostikator/.env.sample
+
+# LittleFS image
+*.littlefs.bin

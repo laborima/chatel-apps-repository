@@ -5,6 +5,7 @@
 # - chatel-signalk-weatherprovider (this plugin)
 # - chatel-meteo-planner (webapp)
 # - signalk-tides (plugin)
+# - signalk-mostikator (webapp + ESP32-P4 proxy plugin)
 
 set -e
 
@@ -35,6 +36,7 @@ METEO_PLANNER_DIR="${OCEARO_DIR}/../chatel-apps-repository/chatel-meteo-planner"
 TIDES_DIR="$(cd "$(dirname "$0")/../../ocearo/signalk-tides" && pwd)"
 LOCAL_TIDE_DATA_DIR="$(cd "$(dirname "$0")/../../ocearo/cirrus/tides" && pwd)"
 POI_LAB_DIR="$(cd "$(dirname "$0")/../signalk-esp-pond-sensor/signalk-poi-lab" && pwd)"
+MOSTIKATOR_DIR="$(cd "$(dirname "$0")/../mostikator/signalk-mostikator" && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -290,6 +292,55 @@ deploy_poi_lab() {
     log_info "POI Lab deployed successfully"
 }
 
+# Deploy signalk-mostikator (webapp + plugin proxy to the ESP32-P4)
+deploy_mostikator() {
+    log_info "Deploying signalk-mostikator..."
+
+    if [ ! -d "${MOSTIKATOR_DIR}" ]; then
+        log_error "Mostikator directory not found: ${MOSTIKATOR_DIR}"
+        return 1
+    fi
+
+    local PLUGIN_NAME="signalk-mostikator"
+    local STAGING="${STAGING_DIR}/${PLUGIN_NAME}"
+    local CONTAINER_DIR="${SIGNALK_LOCAL_PLUGINS_DIR}/${PLUGIN_NAME}"
+    local BUILD_DIR="${MOSTIKATOR_DIR}/out"
+
+    # Build the Next.js project for the SignalK target (basePath /signalk-mostikator)
+    log_info "Building Mostikator Next.js project..."
+    cd "${MOSTIKATOR_DIR}"
+    NODE_ENV=production npm run build:signalk
+
+    if [ $? -ne 0 ]; then
+        log_error "Build failed!"
+        return 1
+    fi
+
+    # Create staging directory on remote
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${STAGING}/public"
+
+    # Copy built files to staging
+    log_info "Transferring files..."
+    scp -P ${SSH_PORT} -r ${BUILD_DIR}/* ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/public/
+
+    # Copy package.json and plugin index.js for SignalK webapp + plugin registration
+    scp -P ${SSH_PORT} "${MOSTIKATOR_DIR}/package.json" "${MOSTIKATOR_DIR}/index.js" ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/
+
+    # Clean and copy to Docker container
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec ${DOCKER_CONTAINER} rm -rf ${CONTAINER_DIR}"
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec ${DOCKER_CONTAINER} mkdir -p ${SIGNALK_LOCAL_PLUGINS_DIR}"
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec ${DOCKER_CONTAINER} mkdir -p ${CONTAINER_DIR}"
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker cp ${STAGING}/. ${DOCKER_CONTAINER}:${CONTAINER_DIR}/"
+
+    # Register webapp + plugin in SignalK config
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec -w ${SIGNALK_DATA_DIR} ${DOCKER_CONTAINER} npm install --omit=dev --ignore-scripts file:${CONTAINER_DIR}"
+
+    # Cleanup staging
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "rm -rf ${STAGING}"
+
+    log_info "Mostikator deployed successfully"
+}
+
 # Restart SignalK server
 restart_signalk() {
     log_info "Restarting SignalK server..."
@@ -318,6 +369,7 @@ main() {
     DEPLOY_TIDES=false
     DEPLOY_TIDE_DATA=false
     DEPLOY_POI_LAB=false
+    DEPLOY_MOSTIKATOR=false
     SKIP_RESTART=false
     
     while [[ $# -gt 0 ]]; do
@@ -347,6 +399,11 @@ main() {
                 DEPLOY_POI_LAB=true
                 shift
                 ;;
+            --mostikator)
+                DEPLOY_ALL=false
+                DEPLOY_MOSTIKATOR=true
+                shift
+                ;;
             --no-restart)
                 SKIP_RESTART=true
                 shift
@@ -368,6 +425,7 @@ main() {
                 echo "  --tides        Deploy only tides plugin"
                 echo "  --tide-data    Deploy only local tide data files"
                 echo "  --poi-lab      Deploy only POI Laboratory webapp"
+                echo "  --mostikator   Deploy only Mostikator webapp + plugin"
                 echo "  --no-restart   Skip SignalK restart"
                 echo "  --host HOST    Remote host (from .env or CLI)"
                 echo "  --user USER    Remote user (from .env or CLI)"
@@ -403,6 +461,10 @@ main() {
     
     if [ "$DEPLOY_ALL" = true ] || [ "$DEPLOY_POI_LAB" = true ]; then
         deploy_poi_lab
+    fi
+
+    if [ "$DEPLOY_ALL" = true ] || [ "$DEPLOY_MOSTIKATOR" = true ]; then
+        deploy_mostikator
     fi
     
     if [ "$SKIP_RESTART" = false ]; then

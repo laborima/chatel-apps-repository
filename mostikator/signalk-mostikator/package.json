@@ -1,0 +1,43 @@
+{
+  "name": "signalk-mostikator",
+  "version": "0.1.0",
+  "description": "Mostikator - Mosquito detection dashboard for SignalK and ESP32-P4",
+  "private": false,
+  "main": "index.js",
+  "author": "Matthieu Laborie",
+  "license": "Apache-2.0",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "mosquito",
+    "detection",
+    "turret",
+    "esp32-p4"
+  ],
+  "signalk": {
+    "appIcon": "./icons/icon.png",
+    "displayName": "Mostikator"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "NEXT_PUBLIC_TARGET=signalk next build",
+    "build:signalk": "NEXT_PUBLIC_TARGET=signalk next build",
+    "build:esp": "NEXT_PUBLIC_TARGET=esp next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "^16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.4",
+    "tailwindcss": "^4"
+  },
+  "overrides": {
+    "minimatch": ">=10.2.1"
+  }
+}

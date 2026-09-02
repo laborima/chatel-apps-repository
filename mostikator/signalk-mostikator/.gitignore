@@ -1,0 +1,15 @@
+/node_modules
+/.next/
+/.next-esp/
+/out/
+/out-esp/
+/build
+/coverage
+.DS_Store
+*.pem
+npm-debug.log*
+.env*
+!.env.sample
+*.tsbuildinfo
+next-env.d.ts
+*.littlefs.bin
