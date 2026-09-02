@@ -6,7 +6,7 @@
 #define NTP_SERVER   "pool.ntp.org"
 #define TZ_PARIS     "CET-1CEST,M3.5.0,M10.5.0/3"
 
-#define WIFI_CONNECT_TIMEOUT_MS  15000
+#define WIFI_CONNECT_TIMEOUT_MS  30000   // ESP-Hosted radio (C6) needs >15 s on first association
 #define WIFI_RETRY_BASE_MS       1000
 #define WIFI_RETRY_MAX_MS        60000
 #define WIFI_MAX_FAILURES        10
@@ -24,6 +24,8 @@ static unsigned long lastWifiCheck = 0;
 static unsigned long wifiRetryDelay = 0;
 static int           wifiConsecutiveFailures = 0;
 static bool          ntpSynced = false;
+static bool          ntpStarted = false;
+static unsigned long lastNtpCheck = 0;
 
 void wifiBegin() {
     WiFi.mode(WIFI_STA);
@@ -49,20 +51,26 @@ int wifiLocalHour() {
 void wifiLoop() {
     if (WiFi.status() == WL_CONNECTED) {
         if (wifiState != WIFI_STATE_IDLE) {
-            Serial.printf("[WIFI] Connected – IP: %s (RSSI %d)\n",
-                          WiFi.localIP().toString().c_str(), WiFi.RSSI());
+            Serial.printf("[WIFI] Connected to %s – IP: %s (RSSI %d)\n",
+                          WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
             wifiState = WIFI_STATE_IDLE;
             wifiRetryDelay = WIFI_RETRY_BASE_MS;
             wifiConsecutiveFailures = 0;
             ntpSynced = false;
+            ntpStarted = false;
         }
 
-        if (!ntpSynced) {
+        // Start SNTP once per connection (restarting it every loop prevents the sync)
+        if (!ntpStarted) {
             configTzTime(TZ_PARIS, NTP_SERVER);
+            ntpStarted = true;
+            lastNtpCheck = millis();
+        } else if (!ntpSynced && millis() - lastNtpCheck >= 1000) {
+            lastNtpCheck = millis();
             struct tm timeinfo;
             if (getLocalTime(&timeinfo, 0)) {
                 ntpSynced = true;
-                Serial.println("[NTP] Time synced");
+                Serial.printf("[NTP] Time synced: %02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min);
             }
         }
         return;

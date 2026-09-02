@@ -308,7 +308,8 @@ static bool serveFile(String path) {
         if (f) f.close();
         return false;
     }
-    if (gz) server.sendHeader("Content-Encoding", "gzip");
+    // WebServer::streamFile adds "Content-Encoding: gzip" itself for *.gz files
+    (void)gz;
     server.sendHeader("Cache-Control",
                       path.indexOf("/_next/static/") >= 0 ? "public, max-age=31536000, immutable" : "no-cache");
     server.streamFile(f, contentType(path));
