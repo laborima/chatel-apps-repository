@@ -249,8 +249,15 @@ arduino-cli upload  --fqbn "$FQBN" -p /dev/ttyACM0 mostikator_esp32p4
 ```
 
 Moniteur série 115200 : `[CAM] Capture started 1920x1080`, `[WIFI] Connected`, `[MQTT] Connected`, `[DET] Armed`.
-Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adresses I2C qui répondent
-(OV5647 = 0x36, OV5640 = 0x3c, IMX708 = 0x1a : présent mais sans driver, rien = caméra non alimentée ou nappe à l'envers).
+Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adresses I2C qui répondent :
+
+| Ce qui répond | Interprétation |
+|---|---|
+| `0x18` seul | 0x18 = codec audio ES8311 de la carte. Aucune caméra : nappe à l'envers, mal enfoncée, ou absente |
+| `0x36` | OV5647 — capteur supporté, doit démarrer |
+| `0x3c` | OV5640 / OV5645 |
+| `0x50 0x64` sans `0x1a` | **Pi Camera v3** : 0x64 = puce crypto ATSHA204A, 0x50 = EEPROM. Le capteur IMX708 (0x1a) reste muet car ses régulateurs sont pilotés par la broche 11 (CAM_GPIO) de la nappe 15 points, que la carte Waveshare ne commande pas. Et même alimenté, l'IMX708 n'a pas de driver `esp_cam_sensor` → module inutilisable, prendre un OV5647 |
+| `0x10` | IMX219 (Pi Camera v2), pas de driver non plus |
 
 ### Comment marche la détection
 
