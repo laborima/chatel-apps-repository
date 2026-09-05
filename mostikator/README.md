@@ -10,11 +10,12 @@
 Tourelle anti-moustiques : un **module de détection** (ESP32-P4 + caméra) repère les moustiques,
 publie leurs coordonnées sur **SignalK**, et une **tourelle** (canon à eau façon turbolaser) les arrose.
 
-Ce dossier contient la partie **détection** :
+Ce dossier contient la partie **détection** et la partie **tourelle** :
 
 | Dossier | Rôle |
 |---------|------|
 | `mostikator_esp32p4/` | Firmware Arduino pour la Waveshare ESP32-P4-WIFI6 : caméra MIPI-CSI, détection, API HTTP, WebSocket, MQTT → SignalK, LCD |
+| `mostikator_turret_esp32/` | Firmware Arduino pour l'ELEGOO ESP32 de la tourelle : manette PS5 (Bluetooth), servos pan/tilt calibrés, relais pompe/électrovanne, LEDs vertes, son laser |
 | `signalk-mostikator/` | Webapp Next.js (tableau de chasse, vidéo live avec cibles, réglages) + plugin SignalK (proxy vers l'ESP32). La même appli se déploie **sur SignalK** et **sur l'ESP32-P4** |
 
 Le WiFi, le proxy SignalK, le déploiement et la PWA reprennent ce qui a été fait pour
@@ -104,28 +105,112 @@ flowchart LR
 - **LCD** : `LCD_ENABLED 1` dans `config.h`. Broches modifiables (GPIO ≤ 36 recommandés sur le P4).
 - La carte est alimentée en USB-C ; la tourelle a sa propre alimentation 12 V (pompe, électrovanne).
 
-## Schéma de montage — tourelle (prochaine étape, pour mémoire)
+## Schéma de montage — tourelle
 
 ```text
-   Manette PS5 (BT) ---> ELEGOO ESP32 (lib esp-ps5) <--- WiFi ---> SignalK (cibles pan/tilt)
+   Manette PS5 (BT classic) ---> ELEGOO ESP32 (lib esp-ps5)
+                                     |
+        +------------+---------------+---------------+---------------+
+        |            |               |               |               |
+   Servo pan     Servo tilt     Carte 4 relais   LEDs vertes      Piezo
+   GPIO14        GPIO13         (actives LOW)    GPIO25           GPIO32
+   Futaba S3003  Futaba S3003   IN1 pompe GPIO26 (via transistor) (son laser)
+                                IN2 vanne GPIO27
+   Rotation      Haut / bas     IN3 libre GPIO33
+                                     |
+                              +------+------+
+                              |             |
+                        Electrovanne    Pompe 12V 5 l/min
+                        12V NF 1/4"     auto-amorçante
+                        (tir < 50 ms)   (pression 116 psi)
                               |
-        +---------------------+----------------------+-----------------------+
-        |                     |                      |                       |
-   Servo pan (rotation)  Servo tilt (haut/bas)   Carte 4 relais 5V     HP + piezo (son laser)
-   Futaba S3003          Futaba S3003            SRD-05VDC-SL-C         LED verte (jet vert)
-        |                     |                      |
-   Tourelle Lego         Canon cuivre + buse    +----+-----+
-                                                |          |
-                                        Electrovanne   Pompe 12V 5 l/min
-                                        12V NF 1/4"    auto-amorçante
-                                        (tir < 50 ms)  (pression 116 psi)
-                                                |
-                                          Réservoir d'eau
+                        Réservoir d'eau
 ```
 
-La tourelle lit `environment.mostikator.target` (pan/tilt prédits) sur SignalK ou le WebSocket de l'ESP32,
-tire, puis renvoie le résultat : `POST http://<esp>/api/shot?target=<id>&result=hit|miss`.
-Les corrections (vent, distance, tir de calibration) restent à faire côté tourelle.
+- Servos alimentés en **5 V séparé** (pas le 3V3 de l'ESP32 : deux S3003 en butée tirent > 1 A), masse commune
+  avec l'ESP32. Signal direct sur GPIO14 (pan) / GPIO13 (tilt).
+- Carte relais SRD-05VDC-SL-C : VCC 5 V, GND commun, entrées **actives à l'état bas** (`RELAY_ACTIVE_LOW 1`).
+  Le 12 V pompe/vanne passe par les contacts COM/NO des relais, jamais par l'ESP32.
+- Broches à éviter sur l'ESP32 : 0, 2, 12, 15 (strapping au boot) et 34-39 (entrées seules).
+- La tourelle lira ensuite `environment.mostikator.target` (pan/tilt prédits) sur SignalK ou le WebSocket
+  de l'ESP32-P4 et renverra `POST http://<esp>/api/shot?target=<id>&result=hit|miss` (mode auto, à faire).
+
+### Manette PS5
+
+| Bouton | Mode normal | Mode calibration (barre lumineuse bleue) |
+|--------|-------------|------------------------------------------|
+| Joystick gauche | Rotation (X) et haut/bas (Y) de la tourelle | — |
+| Joystick droit | Idem, lent (visée fine) | — |
+| Croix directionnelle | Ajuste de 1° | Pan gauche/droite, tilt bas/haut par pas de `step` µs (maintenir = répétition) |
+| ✕ Croix | **Tir** (maintenu = jet continu, max `FIRE_MAX_MS`), R2 aussi | Marque la butée **basse** du tilt |
+| ○ Rond | Son laser seul | Marque la butée **haute** du tilt |
+| □ Carré | **LEDs vertes** on/off | Marque la butée gauche (**low**) du pan |
+| △ Triangle | Recentre la tourelle | Marque la butée droite (**high**) du pan |
+| L1 / R1 | L1 : pompe on/off (amorçage) | Pas ÷2 / ×2 |
+| Options | **Armer / désarmer** (armer démarre la pompe) | **Sauvegarde** la calibration et quitte |
+| Create | Entrer / sortir du mode calibration | Sortir sans sauvegarder |
+
+Barre lumineuse : orange = sécurité, vert = armé, rouge = tir (vibration), bleu = calibration.
+Manette perdue → vanne fermée, pompe coupée, désarmé.
+
+Appairage : maintenir **PS + Create** jusqu'à ce que la barre pulse en blanc, puis démarrer l'ESP32 (il scanne
+`PS5_PAIR_TIMEOUT_S` secondes). L'appairage est mémorisé par Bluedroid ; `forget` sur la console pour changer de manette,
+ou fixer `PS5_MAC` dans `config.h`.
+
+### Réglage des servos (calibration)
+
+Le firmware ne raisonne pas en « angle servo 0-180 » mais en **largeur d'impulsion** (µs) et en **angle réel**
+de la tourelle (0° = axe caméra / canon horizontal, comme le `pan`/`tilt` du détecteur). Chaque axe est
+défini par deux points : `(us, deg)` à la butée basse et `(us, deg)` à la butée haute. Entre les deux c'est
+linéaire, et le servo n'est **jamais** envoyé au-delà des deux points (ni hors `SERVO_US_MIN..MAX`).
+
+Le palonnier peut donc être monté n'importe comment (par exemple **tourelle en butée basse**) : ce n'est pas
+la mécanique qu'on ajuste, c'est la table de correspondance qui est enregistrée en NVS.
+
+Procédure, moniteur série 115200 (ou tout à la manette, voir tableau) :
+
+```text
+cal on                 # mode calibration : les angles sont ignorés, on pilote en µs
+tilt 1500              # le canon bouge ; descendre par pas jusqu'à la butée basse mécanique
+tilt -                 # (pas = 'step 10' par défaut, 'step 2' pour finir)
+tilt -
+mark tilt low -20      # cette impulsion = butée basse, le canon pointe à -20° (mesuré / estimé)
+tilt 1900              # remonter jusqu'à la butée haute
+mark tilt high 60      # cette impulsion = butée haute, canon à +60°
+pan 1000 ... pan +     # pareil pour la rotation : gauche = low, droite = high
+mark pan low -60
+mark pan high 60
+save                   # écrit en NVS ; 'show' pour relire, 'reset' pour revenir à config.h
+angle 0 0              # test : doit viser droit devant, horizontal
+```
+
+- Ne jamais forcer contre une butée : si le servo grogne, revenir d'un pas avant de `mark`.
+- Inverser le sens d'un axe = donner un `us` plus grand au point `low` qu'au point `high` (c'est accepté).
+- Les angles réels servent au mode auto (cible du détecteur). Pour le pilotage manuel seul, peu importe
+  qu'ils soient exacts, seules les deux butées comptent.
+- À la manette, les angles utilisés par les marques sont ceux de `config.h` (`TILT_DEG_LOW`…) ; pour des
+  valeurs mesurées, passer par la console.
+- `speed <deg/s>` limite la vitesse de balayage (défaut 150) ; `FIRE_MAX_MS` borne le jet même bouton maintenu.
+
+### Firmware `mostikator_turret_esp32/`
+
+```bash
+cp mostikator_turret_esp32/config.h.sample mostikator_turret_esp32/config.h
+CLI=~/arduino-ide_2.3.7_Linux_64bit/resources/app/lib/backend/resources/arduino-cli   # ou arduino-cli
+FQBN="esp32:esp32:esp32:PartitionScheme=huge_app,UploadSpeed=921600"
+$CLI compile --fqbn "$FQBN" mostikator_turret_esp32
+$CLI upload  --fqbn "$FQBN" -p /dev/ttyUSB0 mostikator_turret_esp32
+```
+
+Arduino IDE : carte **ESP32 Dev Module**, partition **Huge APP** (Bluedroid ne rentre pas dans la partition par
+défaut). Bibliothèque : `esp-ps5` (Hamza Yesilmen) ; les servos sont pilotés par le LEDC du core (pas de lib). Console série : `help`, `scan` liste les
+appareils Bluetooth visibles.
+
+Piège rencontré : arduino-esp32 3.x **libère la mémoire du contrôleur Bluetooth au boot** si aucune bibliothèque
+liée ne déclare `btInUse()`. `esp-ps5` ne le fait pas → `btStart()` échoue en boucle avec
+`initialize controller failed: ESP_ERR_INVALID_STATE` et aucune manette n'est jamais vue. Le firmware définit
+donc `bool btInUse() { return true; }` (`ps5_input.cpp`). Compiler avec `DebugLevel=info` pour voir les logs
+de la lib (`onDiscovery(): scan: ...`).
 
 ---
 
@@ -358,8 +443,8 @@ Tourelle :
 - [ ] Canon à eau orientable haut/bas, rotation de la tourelle par moteur
 - [ ] Tourelle en Lego + cuivre pour le canon et la buse
 - [ ] Bruit de laser Star Wars et lumière verte sur le jet
-- [ ] Contrôle manette PS5 (haut/bas, rotation, tir) ou position envoyée par le détecteur avec corrections
-      auto (vent, distance, tir de calibration)
+- [x] Contrôle manette PS5 (haut/bas, rotation, tir, LEDs) + calibration des servos en NVS
+- [ ] Position envoyée par le détecteur (SignalK / WebSocket) avec corrections auto (vent, distance, tir de calibration)
 - [x] Module détection : envoi des coordonnées, suivi du tir et du résultat
 - [x] Affichage mobile de la détection via signalk.example.org (webapp SignalK)
 - [x] Affichage LCD : moustiques vus / tirs / réussis / loupés

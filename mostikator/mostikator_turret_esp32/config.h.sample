@@ -1,0 +1,74 @@
+#pragma once
+
+/* ================= PS5 DUALSENSE (Bluetooth Classic, lib esp-ps5) ================= */
+/* Leave empty to scan + pair (hold PS + Create on the controller until the lightbar pulses white).
+ * Or set the controller MAC "AA:BB:CC:DD:EE:FF" to connect without scanning. */
+#define PS5_MAC             ""
+#define PS5_PAIR_TIMEOUT_S  20
+
+/* ================= SERVOS (Futaba S3003) ================= */
+/* Avoid strapping pins (0, 2, 12, 15) and input-only pins (34-39) on the ELEGOO ESP32 */
+#define PIN_SERVO_PAN   14
+#define PIN_SERVO_TILT  13
+
+/* Hard pulse limits: the firmware never drives a servo outside this range whatever the calibration.
+ * Futaba S3003: neutral 1520 us, ~800-2200 us for the full travel. */
+#define SERVO_US_MIN   700
+#define SERVO_US_MAX  2300
+
+/* Default calibration (overwritten by the calibration saved in NVS, see README "Réglage des servos").
+ * Each axis is defined by two points: pulse width (us) + real-world angle (deg) at that pulse.
+ *   tilt "low"  = barrel at the mechanical bottom stop
+ *   tilt "high" = barrel at the top stop
+ *   pan  "low"  = turret fully left, "high" = fully right
+ * Angles are relative to the camera axis (0 = straight ahead / horizontal), like the detector's pan/tilt.
+ * Swapping usLow/usHigh reverses the direction of an axis. */
+#define PAN_US_LOW    1000
+#define PAN_DEG_LOW    -60.0f
+#define PAN_US_HIGH   2000
+#define PAN_DEG_HIGH    60.0f
+#define TILT_US_LOW   1000
+#define TILT_DEG_LOW   -20.0f
+#define TILT_US_HIGH  1900
+#define TILT_DEG_HIGH   60.0f
+
+/* Position at boot / "center" (Triangle) */
+#define TURRET_HOME_PAN    0.0f
+#define TURRET_HOME_TILT   0.0f
+
+/* Slew limit (deg/s) – protects the gears and the Lego */
+#define TURRET_MAX_SPEED_DEGS  150.0f
+
+/* Calibration step (us) for the D-pad / console "+" and "-" */
+#define CAL_STEP_US  10
+
+/* ================= CONTROLLER FEEL ================= */
+#define STICK_DEADZONE        12       /* raw units out of 127 */
+#define STICK_MAX_SPEED_DEGS  90.0f    /* left stick fully pushed */
+#define STICK_FINE_SPEED_DEGS 20.0f    /* right stick: fine aiming */
+#define STICK_EXPO            0.5f     /* 0 = linear, 1 = cubic (soft around the center) */
+#define TILT_STICK_INVERT     0        /* 1 if pushing the stick up should lower the barrel */
+#define NUDGE_DEG             1.0f     /* D-pad */
+#define FIRE_TRIGGER_THRESHOLD 60      /* R2 0..255 */
+
+/* ================= WATER GUN (4-relay board SRD-05VDC-SL-C, active LOW) ================= */
+#define PIN_RELAY_PUMP   26
+#define PIN_RELAY_VALVE  27
+#define PIN_RELAY_SPARE  33     /* -1 = unused */
+#define RELAY_ACTIVE_LOW  1
+
+/* Green LEDs on the jet (direct GPIO through a MOSFET/transistor, or a relay channel) */
+#define PIN_LED_GREEN    25     /* -1 = none */
+#define LED_ACTIVE_LOW    0
+
+/* Piezo / speaker (laser sound). -1 = none */
+#define PIN_BUZZER       32
+
+#define FIRE_TAP_MS       150   /* burst length for a short press */
+#define FIRE_MAX_MS      1500   /* longest continuous burst, even with the button held */
+#define FIRE_MIN_GAP_MS   150   /* valve rest between bursts */
+#define PUMP_IDLE_OFF_MS 90000  /* pump auto-off after this idle time (0 = never) */
+#define LED_AFTERGLOW_MS  250   /* LEDs stay on this long after the valve closes (when not toggled on) */
+
+/* ================= WATCHDOG ================= */
+#define WDT_TIMEOUT_S 30

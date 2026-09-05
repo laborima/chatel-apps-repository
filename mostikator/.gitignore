@@ -1,5 +1,6 @@
 # Firmware secrets
 mostikator_esp32p4/config.h
+mostikator_turret_esp32/config.h
 
 # Webapp build
 signalk-mostikator/node_modules/
