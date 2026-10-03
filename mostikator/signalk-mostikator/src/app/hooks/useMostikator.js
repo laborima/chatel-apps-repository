@@ -28,12 +28,24 @@ export default function useMostikator() {
     const wsPortRef = useRef(82);
     const socketRef = useRef(null);
     const targetTimerRef = useRef(null);
+    const refreshingRef = useRef(false);
+    const configRef = useRef(null);
+    useEffect(() => { configRef.current = config; }, [config]);
 
     const pushEvent = useCallback((evt) => {
         setEvents((prev) => [{ ...evt, key: `${evt.ts || Date.now()}-${Math.random()}` }, ...prev].slice(0, MAX_EVENTS));
     }, []);
 
+    const loadConfig = useCallback(async () => {
+        try {
+            setConfig(await device.getConfig());
+        } catch { /* device offline */ }
+    }, []);
+
     const refresh = useCallback(async () => {
+        /* A slow device answers in up to 8 s while we poll every 5 s: never pile requests on it */
+        if (refreshingRef.current) return;
+        refreshingRef.current = true;
         try {
             const st = await device.getStatus();
             setStatus(st);
@@ -41,6 +53,8 @@ export default function useMostikator() {
             if (st.ws_port) wsPortRef.current = st.ws_port;
             setDeviceOnline(true);
             setError(null);
+            /* Device offline at page load: the config (never pushed in SignalK mode) comes once it is back */
+            if (!configRef.current) loadConfig();
             setLastUpdate(new Date().toISOString());
             // Targets from REST too (SignalK mode only receives the primary target)
             if (st.detector?.armed) {
@@ -55,15 +69,11 @@ export default function useMostikator() {
             setDeviceOnline(false);
             setError(err.name === "AbortError" ? "Détecteur injoignable (timeout)" : err.message);
         } finally {
+            refreshingRef.current = false;
             setLoading(false);
         }
-    }, []);
+    }, [loadConfig]);
 
-    const loadConfig = useCallback(async () => {
-        try {
-            setConfig(await device.getConfig());
-        } catch { /* device offline */ }
-    }, []);
 
     // Handles a message from the device WebSocket
     const onDeviceMessage = useCallback((msg) => {
@@ -157,6 +167,16 @@ export default function useMostikator() {
             return st;
         }),
         resetStats: () => runAction(async () => { const st = await device.resetStats(); setStats(st); return st; }),
+        setVolume: (volume) => runAction(async () => {
+            const snd = await device.setVolume(volume);
+            setStatus((prev) => (prev ? { ...prev, audio: { ...(prev.audio || {}), ...snd } } : prev));
+            return snd;
+        }),
+        testSound: (volume) => runAction(async () => {
+            const snd = await device.testSound(volume);
+            setStatus((prev) => (prev ? { ...prev, audio: { ...(prev.audio || {}), ...snd } } : prev));
+            return snd;
+        }),
         saveConfig: (params) => runAction(async () => { const cfg = await device.saveConfig(params); setConfig(cfg); return cfg; }),
         resetConfig: () => runAction(async () => { const cfg = await device.resetConfig(); setConfig(cfg); return cfg; })
     };

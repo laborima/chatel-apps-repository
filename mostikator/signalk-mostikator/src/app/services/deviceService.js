@@ -8,7 +8,7 @@
  */
 
 const TARGET = process.env.NEXT_PUBLIC_TARGET || "signalk";
-const DEV_DEVICE_URL = process.env.NEXT_PUBLIC_DEVICE_URL || "http://192.168.1.90";
+const DEV_DEVICE_URL = process.env.NEXT_PUBLIC_DEVICE_URL || "http://mostikator-p4-01.local";
 
 export const isEspHosted = () => TARGET === "esp";
 export const isDev = () => process.env.NODE_ENV !== "production";
@@ -52,11 +52,14 @@ const request = async (path, options = {}, timeoutMs = 8000) => {
     }
 };
 
+/* Empty / undefined fields are dropped: the firmware would otherwise read "undefined" as 0 */
 const post = (path, params = {}) =>
     request(path, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(params).toString()
+        body: new URLSearchParams(
+            Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
+        ).toString()
     });
 
 export const getStatus  = () => request("/status");
@@ -68,7 +71,23 @@ export const disarm     = () => post("/disarm");
 export const resetStats = () => post("/stats/reset");
 export const reportShot = (targetId, hit) => post("/shot", { target: targetId ?? 0, result: hit ? "hit" : "miss" });
 export const saveConfig = (params) => post("/config", params);
+export const getSound   = () => request("/sound");
+export const setVolume  = (volume) => post("/sound", { volume });
+export const testSound  = (volume) => post("/sound", volume === undefined ? { test: 1 } : { volume, test: 1 });
 export const resetConfig = () => post("/config", { reset: 1 });
+
+/** Tail of the firmware log (text/plain), same history as the telnet console. */
+export const getLog = async (timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(`${getDeviceBaseUrl()}/log`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error(`Device error ${response.status}`);
+        return await response.text();
+    } finally {
+        clearTimeout(timer);
+    }
+};
 
 export const getStreamUrl  = () => `${getDeviceBaseUrl()}/stream`;
 export const getCaptureUrl = () => `${getDeviceBaseUrl()}/capture?t=${Date.now()}`;

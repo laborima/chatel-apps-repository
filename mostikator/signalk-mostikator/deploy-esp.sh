@@ -7,8 +7,10 @@
 #   ./deploy-esp.sh --port /dev/ttyUSB0
 #   ./deploy-esp.sh --no-flash      build + image only (mostikator.littlefs.bin)
 #   ./deploy-esp.sh --image-only    skip the Next.js build, rebuild the image from out-esp/
+#   ./deploy-esp.sh --ota [host]    flash over WiFi instead of USB (ArduinoOTA, default host
+#                                   <DEVICE_NAME>.local, password OTA_PASSWORD from config.h)
 #
-# The firmware itself is flashed with the Arduino IDE (or arduino-cli); this
+# The firmware itself is flashed with mostikator_esp32p4/deploy-ota.sh; this
 # script only updates the "spiffs" data partition mounted as LittleFS.
 
 set -e
@@ -22,6 +24,7 @@ PORT="/dev/ttyACM0"
 DO_BUILD=true
 DO_FLASH=true
 BAUD=921600
+OTA_HOST=""
 
 # Tool locations (Arduino IDE / arduino-cli install)
 ESP32_TOOLS="${ESP32_TOOLS:-$HOME/.arduino15/packages/esp32/tools}"
@@ -40,8 +43,12 @@ while [[ $# -gt 0 ]]; do
         --baud)       BAUD="$2"; shift 2 ;;
         --no-flash)   DO_FLASH=false; shift ;;
         --image-only) DO_BUILD=false; shift ;;
+        --ota)
+            OTA_HOST="$(sed -n 's/^#define DEVICE_NAME *"\(.*\)".*/\1/p' "${FIRMWARE_DIR}/config.h").local"
+            if [[ -n "${2:-}" && "${2}" != --* ]]; then OTA_HOST="$2"; shift; fi
+            shift ;;
         --help)
-            sed -n '2,14p' "$0"; exit 0 ;;
+            sed -n '2,16p' "$0"; exit 0 ;;
         *) log_error "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -87,7 +94,14 @@ log_info "Creating LittleFS image with $(du -sh "${BUILD_DIR}" | cut -f1) of fil
 "${MKLITTLEFS}" -c "${BUILD_DIR}" -b 4096 -p 256 -s "${PART_SIZE}" "${IMAGE}"
 log_info "Image: ${IMAGE} ($(du -h "${IMAGE}" | cut -f1))"
 
-if [ "${DO_FLASH}" = true ]; then
+if [ "${DO_FLASH}" = true ] && [ -n "${OTA_HOST}" ]; then
+    ESPOTA="$(ls -d $HOME/.arduino15/packages/esp32/hardware/esp32/*/tools/espota.py 2>/dev/null | sort -V | tail -1)"
+    OTA_PASS="$(sed -n 's/^#define OTA_PASSWORD *"\(.*\)".*/\1/p' "${FIRMWARE_DIR}/config.h")"
+    OTA_PORT="$(sed -n 's/^#define OTA_PORT *\([0-9]*\).*/\1/p' "${FIRMWARE_DIR}/config.h")"
+    log_info "Flashing ${IMAGE} over WiFi to ${OTA_HOST} (LittleFS partition, the board reboots after)..."
+    python3 "${ESPOTA}" -i "${OTA_HOST}" -p "${OTA_PORT:-3232}" -a "${OTA_PASS}" -s -f "${IMAGE}" -r
+    log_info "Done – the webapp is served at http://${OTA_HOST}/"
+elif [ "${DO_FLASH}" = true ]; then
     if [ -z "${ESPTOOL}" ]; then
         log_error "esptool not found – flash manually: esptool --chip esp32p4 --port ${PORT} write_flash ${PART_OFFSET} ${IMAGE}"
         exit 1

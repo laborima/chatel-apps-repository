@@ -7,6 +7,8 @@ import VideoCard from "./components/VideoCard";
 import TargetList from "./components/TargetList";
 import EventLog from "./components/EventLog";
 import DetectorControls from "./components/DetectorControls";
+import SoundControls from "./components/SoundControls";
+import DeviceLog from "./components/DeviceLog";
 
 export default function Home() {
     const mk = useMostikator();
@@ -68,6 +70,12 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col gap-6">
                         <TargetList targets={mk.targets} onShot={mk.reportShot} disabled={!mk.deviceOnline} />
+                        <SoundControls
+                            status={mk.status}
+                            onSetVolume={mk.setVolume}
+                            onTest={mk.testSound}
+                            disabled={!mk.deviceOnline}
+                        />
                         <EventLog events={mk.events} />
                     </div>
                 </div>
@@ -77,8 +85,12 @@ export default function Home() {
                         config={mk.config}
                         onSave={mk.saveConfig}
                         onReset={mk.resetConfig}
-                        disabled={!mk.deviceOnline}
+                        disabled={!mk.deviceOnline || !mk.config}
                     />
+                </div>
+
+                <div className="mb-6">
+                    <DeviceLog disabled={!mk.deviceOnline} />
                 </div>
 
                 <footer className="text-center text-mk-muted text-xs py-8 border-t border-mk-border mk-mono">

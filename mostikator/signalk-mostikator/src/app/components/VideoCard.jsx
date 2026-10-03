@@ -22,6 +22,9 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     useEffect(() => { targetsRef.current = targets; }, [targets]);
 
     const cameraReady = status?.camera?.ready;
+    /* The OV5647 runs in 800x800: the frame follows the sensor's aspect instead of a fixed 16:9 */
+    const camW = status?.camera?.width || 16;
+    const camH = status?.camera?.height || 9;
 
     /* ---------- overlay ---------- */
     const draw = useCallback(() => {
@@ -37,8 +40,14 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
         }
         const ctx = canvas.getContext("2d");
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const W = rect.width, H = rect.height;
-        ctx.clearRect(0, 0, W, H);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        /* object-contain letterboxes the picture (fullscreen, or before the status arrives):
+         * draw in the area the image really covers, or every target lands beside its mosquito */
+        const srcW = img?.naturalWidth || camW, srcH = img?.naturalHeight || camH;
+        const scale = Math.min(rect.width / srcW, rect.height / srcH);
+        const W = srcW * scale, H = srcH * scale;
+        ctx.translate((rect.width - W) / 2, (rect.height - H) / 2);
 
         // ROI
         const roi = config?.detector?.roi;
@@ -106,14 +115,20 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
             ctx.font = "11px ui-monospace, monospace";
             ctx.fillText(`${Math.round(t.confidence * 100)}%`, x + b + 4, y - b + 14);
         }
-    }, [config, playing]);
+    }, [config, playing, camW, camH]);
 
+    /* Animate only while a picture is shown: an idle card must not burn a phone's battery at 60 fps */
+    const live = playing || !!snapshot;
     useEffect(() => {
+        if (!live) {
+            const once = requestAnimationFrame(draw);
+            return () => cancelAnimationFrame(once);
+        }
         let raf;
         const loop = () => { draw(); raf = requestAnimationFrame(loop); };
         raf = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(raf);
-    }, [draw]);
+    }, [draw, live, targets]);
 
     /* ---------- stream control ---------- */
     const startStream = () => { setStreamError(false); setSnapshot(null); setStreamKey((k) => k + 1); setPlaying(true); };
@@ -168,7 +183,14 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                 </span>
             </div>
 
-            <div ref={containerRef} className={`relative bg-black ${isFullscreen ? "h-screen" : "aspect-video"}`}>
+            <div
+                ref={containerRef}
+                className={`relative bg-black mx-auto ${isFullscreen ? "h-screen w-full" : ""}`}
+                style={isFullscreen ? undefined : {
+                    aspectRatio: `${camW} / ${camH}`,
+                    width: `min(100%, calc(75vh * ${camW / camH}))`   /* a square frame stays on screen */
+                }}
+            >
                 {playing && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

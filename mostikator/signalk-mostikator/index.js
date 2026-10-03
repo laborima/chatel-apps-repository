@@ -9,7 +9,7 @@ const http = require('http');
  *
  *      /signalk-mostikator/device/<route>  ->  http://ESP_IP:ESP_PORT/api/<route>
  *
- *    Routes: status, targets, stats, config, arm, disarm, shot, capture, stream
+ *    Routes: status, targets, stats, config, arm, disarm, shot, sound, capture, stream, log
  *
  * 2. Metadata for the SignalK paths published by the device through the
  *    MQTT bridge (environment.mostikator.*).
@@ -30,8 +30,8 @@ module.exports = function (app) {
             deviceHost: {
                 type: 'string',
                 title: 'ESP32-P4 Host',
-                description: 'IP or hostname of the detection node (e.g. 192.168.1.90)',
-                default: '192.168.1.90'
+                description: 'IP or hostname of the detection node. Only a fallback: the device publishes its own address on environment.mostikator.device.ip and the proxy follows it (no DHCP reservation needed)',
+                default: 'mostikator-p4-01.local'
             },
             devicePort: {
                 type: 'number',
@@ -42,27 +42,64 @@ module.exports = function (app) {
         }
     };
 
-    let deviceHost = '192.168.1.90';
+    let configuredHost = 'mostikator-p4-01.local';
     let devicePort = 80;
+    let lastHost = null;
 
     const PROXY_PATH = '/signalk-mostikator/device';
+    let running = false;
+    let routeInstalled = false;
 
     plugin.start = function (options) {
-        deviceHost = options.deviceHost || '192.168.1.90';
+        configuredHost = options.deviceHost || 'mostikator-p4-01.local';
         devicePort = options.devicePort || 80;
+        running = true;
 
-        app.use(PROXY_PATH, (req, res) => {
-            proxyRequest(req, res, '/api' + (req.url || '/'));
-        });
+        /* Express cannot remove a middleware: install it once, and let it pass through while the
+         * plugin is stopped instead of stacking one more proxy at every restart */
+        if (!routeInstalled) {
+            routeInstalled = true;
+            app.use(PROXY_PATH, (req, res, next) => {
+                if (!running) return next();
+                const url = req.url || '/';
+                /* Only the device REST API: no "..", no absolute URL smuggled into the request line */
+                if (!url.startsWith('/') || url.includes('..') || url.includes('\\')) {
+                    res.status(400).json({ error: 'Bad device path' });
+                    return;
+                }
+                proxyRequest(req, res, '/api' + url);
+            });
+        }
 
         publishMeta();
 
-        app.debug(`Mostikator proxy started: ${PROXY_PATH}/* -> http://${deviceHost}:${devicePort}/api/*`);
+        app.debug(`Mostikator proxy started: ${PROXY_PATH}/* -> http://${deviceHost()}:${devicePort}/api/*`);
     };
 
     plugin.stop = function () {
+        running = false;
         app.debug('Mostikator proxy stopped');
     };
+
+    /**
+     * Address of the device: the one it last published over MQTT (follows DHCP and the switch between
+     * the two WiFi networks), else the configured host.
+     */
+    function deviceHost() {
+        let host = configuredHost;
+        try {
+            const published = app.getSelfPath('environment.mostikator.device.ip');
+            const ip = published && published.value;
+            if (typeof ip === 'string' && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip) && ip !== '0.0.0.0') host = ip;
+        } catch (err) {
+            app.debug(`device.ip lookup failed: ${err.message}`);
+        }
+        if (host !== lastHost) {
+            lastHost = host;
+            app.debug(`Mostikator device at ${host}:${devicePort}`);
+        }
+        return host;
+    }
 
     /**
      * Declares units / descriptions for the paths the device publishes.
@@ -81,7 +118,8 @@ module.exports = function (app) {
             { path: base + 'stats.hits', value: { description: 'Mosquitoes hit' } },
             { path: base + 'stats.misses', value: { description: 'Missed shots' } },
             { path: base + 'device.rssi', value: { units: 'dBm', description: 'WiFi signal of the ESP32-P4' } },
-            { path: base + 'device.uptime', value: { units: 's', description: 'Device uptime' } }
+            { path: base + 'device.uptime', value: { units: 's', description: 'Device uptime' } },
+            { path: base + 'device.ip', value: { description: 'IP address of the ESP32-P4 (followed by the proxy)' } }
         ];
         try {
             app.handleMessage(plugin.id, {
@@ -111,12 +149,26 @@ module.exports = function (app) {
         // The MJPEG stream and the snapshot wait for camera frames
         const isSlow = targetPath.startsWith('/api/stream') || targetPath.startsWith('/api/capture');
 
-        const headers = { 'Host': `${deviceHost}:${devicePort}` };
-        if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
-        if (req.headers['content-length']) headers['Content-Length'] = req.headers['content-length'];
+        /* SignalK mounts a body parser ahead of the plugins, so on a POST the body is already
+         * consumed and req.pipe() below would send nothing while Content-Length still promised
+         * bytes - the device then waits for a body that never comes, until our own timeout.
+         * When the body has been parsed, re-serialise it and send it ourselves. */
+        const parsedBody = (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0)
+            ? new URLSearchParams(req.body).toString()
+            : null;
+
+        const host = deviceHost();
+        const headers = { 'Host': `${host}:${devicePort}` };
+        if (parsedBody !== null) {
+            headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            headers['Content-Length'] = Buffer.byteLength(parsedBody);
+        } else {
+            if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+            if (req.headers['content-length']) headers['Content-Length'] = req.headers['content-length'];
+        }
 
         const options = {
-            hostname: deviceHost,
+            hostname: host,
             port: devicePort,
             path: targetPath,
             method: req.method,
@@ -139,9 +191,17 @@ module.exports = function (app) {
                 res.status(502).json({
                     error: 'Mostikator device unreachable',
                     message: err.message,
-                    target: `${deviceHost}:${devicePort}${targetPath}`
+                    target: `${host}:${devicePort}${targetPath}`
                 });
+            } else {
+                res.destroy(err);   /* failed mid-body: never leave the browser hanging */
             }
+        });
+
+        /* Browser gone (stream stopped, tab closed): release the ESP socket at once. It only has
+         * 4 MJPEG slots and would otherwise hold each one until its own write timeout. */
+        res.on('close', () => {
+            if (!res.writableEnded) proxyReq.destroy();
         });
 
         proxyReq.on('socket', (socket) => {
@@ -149,13 +209,15 @@ module.exports = function (app) {
         });
 
         proxyReq.on('timeout', () => {
-            proxyReq.destroy();
-            if (!res.headersSent) {
-                res.status(504).json({ error: 'Device timeout' });
-            }
+            if (!res.headersSent) res.status(504).json({ error: 'Device timeout' });
+            proxyReq.destroy(new Error('Device timeout'));
         });
 
-        req.pipe(proxyReq, { end: true });
+        if (parsedBody !== null) {
+            proxyReq.end(parsedBody);
+        } else {
+            req.pipe(proxyReq, { end: true });
+        }
     }
 
     return plugin;

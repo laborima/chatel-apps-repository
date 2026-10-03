@@ -11,6 +11,8 @@ const DETECTOR_FIELDS = [
     { key: "max_match_dist", label: "Distance de suivi (px)", min: 1, max: 200, step: 1 },
     { key: "learn_shift", label: "Apprentissage fond (1/2ⁿ)", min: 1, max: 10, step: 1 },
     { key: "warmup_frames", label: "Images de calibration", min: 1, max: 300, step: 1 },
+    { key: "noise_k", label: "Anti-bruit (K)", min: 0, max: 20, step: 1, help: "Seuil par pixel = seuil + K × bruit propre du pixel (bords, scintillement). 0 = désactivé" },
+    { key: "global_change_pct", label: "Changement global (%)", min: 1, max: 100, step: 1, help: "Au-delà de ce % de l'image qui change d'un coup (vibration, exposition), l'image est ignorée" },
     { key: "lead_ms", label: "Anticipation (ms)", min: 0, max: 1000, step: 10, help: "Avance de tir envoyée à la tourelle" },
     { key: "downscale", label: "Réduction (1/N)", min: 2, max: 8, step: 1, help: "Grille de travail = image / N" },
     { key: "hfov", label: "Champ horizontal (°)", min: 10, max: 180, step: 0.5 },
@@ -31,7 +33,9 @@ const formFromConfig = (config) => {
         confirm_frames: d.confirm_frames, miss_frames: d.miss_frames, max_match_dist: d.max_match_dist,
         learn_shift: d.learn_shift, warmup_frames: d.warmup_frames, lead_ms: d.lead_ms,
         downscale: d.downscale, hfov: d.hfov, vfov: d.vfov,
+        noise_k: d.noise_k, global_change_pct: d.global_change_pct,
         dark_only: d.dark_only ? 1 : 0,
+        isolation: d.isolation ? 1 : 0,
         roi_x0: d.roi?.[0] ?? 0, roi_y0: d.roi?.[1] ?? 0, roi_x1: d.roi?.[2] ?? 1, roi_y1: d.roi?.[3] ?? 1,
         quality: c.quality, gain: c.gain, exposure: c.exposure,
         vflip: c.vflip ? 1 : 0, hflip: c.hflip ? 1 : 0,
@@ -112,6 +116,7 @@ export default function DetectorControls({ config, onSave, onReset, disabled }) 
                     </div>
                     <div className="flex flex-wrap gap-4">
                         <Toggle k="dark_only" label="Objets sombres uniquement" {...fieldProps} />
+                        <Toggle k="isolation" label="Cibles isolées uniquement (ignore les contours d'une tête, d'un bras…)" {...fieldProps} />
                         <Toggle k="vflip" label="Retourner verticalement" {...fieldProps} />
                         <Toggle k="hflip" label="Miroir horizontal" {...fieldProps} />
                     </div>
