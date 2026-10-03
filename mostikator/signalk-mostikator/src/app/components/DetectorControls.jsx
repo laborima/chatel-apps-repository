@@ -29,6 +29,7 @@ const AIM_FIELDS = [
     { key: "aim_settle_ms", label: "Visée avant tir (ms)", min: 0, max: 5000, step: 50, help: "La cible doit être suivie ce temps avant le tir" },
     { key: "aim_cooldown_ms", label: "Entre deux tirs (ms)", min: 200, max: 60000, step: 100 },
     { key: "aim_burst_ms", label: "Durée du jet (ms)", min: 20, max: 2000, step: 10, help: "Ignorée canon désarmé : tir à blanc (LEDs + son)" },
+    { key: "aim_lead_ms", label: "Anticipation fixe (ms)", min: 0, max: 1000, step: 10, help: "Ajoutée à l'âge de l'image et au temps de rotation du servo : liaison, réaction du servo, vol de l'eau" },
     { key: "aim_tilt_gain", label: "Tilt : gain", min: -10, max: 10, step: 0.01, help: "tourelle = gain × caméra + décalage (tools/calibrate_aim.py)" },
     { key: "aim_tilt_offset", label: "Tilt : décalage (°)", min: -180, max: 180, step: 0.1 },
     { key: "aim_pan_offset", label: "Pan : décalage (°)", min: -180, max: 180, step: 0.1 },
@@ -40,7 +41,7 @@ const formFromConfig = (config) => {
     const a = config?.aim || {};
     return {
         aim_auto: a.auto ? 1 : 0, aim_fire: a.fire ? 1 : 0, aim_laser: a.laser ? 1 : 0,
-        aim_settle_ms: a.settle_ms, aim_cooldown_ms: a.cooldown_ms, aim_burst_ms: a.burst_ms,
+        aim_settle_ms: a.settle_ms, aim_lead_ms: a.lead_ms, aim_cooldown_ms: a.cooldown_ms, aim_burst_ms: a.burst_ms,
         aim_tilt_gain: a.tilt_gain, aim_tilt_offset: a.tilt_offset, aim_pan_offset: a.pan_offset,
         threshold: d.threshold, min_area: d.min_area, max_area: d.max_area,
         confirm_frames: d.confirm_frames, miss_frames: d.miss_frames, max_match_dist: d.max_match_dist,

@@ -10,6 +10,7 @@ import DetectorControls from "./components/DetectorControls";
 import SoundControls from "./components/SoundControls";
 import DeviceLog from "./components/DeviceLog";
 import AuthButton from "./components/AuthButton";
+import ShotGallery from "./components/ShotGallery";
 
 export default function Home() {
     const mk = useMostikator();
@@ -80,6 +81,10 @@ export default function Home() {
                         />
                         <EventLog events={mk.events} />
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <ShotGallery disabled={!mk.deviceOnline} />
                 </div>
 
                 <div className="mb-6">

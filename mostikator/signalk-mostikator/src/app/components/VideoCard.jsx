@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getStreamUrl, getCaptureUrl, getDetectorViewUrl } from "../services/deviceService";
+import { getStreamUrl, getDetectorViewUrl } from "../services/deviceService";
 
 /**
  * Live MJPEG view from the ESP32-P4 with a tactical overlay:
@@ -15,7 +15,6 @@ import { getStreamUrl, getCaptureUrl, getDetectorViewUrl } from "../services/dev
 export default function VideoCard({ status, config, targets, armed, onArm, onDisarm }) {
     const [playing, setPlaying] = useState(false);
     const [streamError, setStreamError] = useState(false);
-    const [snapshot, setSnapshot] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [streamKey, setStreamKey] = useState(0);
     const [detOn, setDetOn] = useState(false);
@@ -140,7 +139,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     }, [config, playing, camW, camH]);
 
     /* Animate only while a picture is shown: an idle card must not burn a phone's battery at 60 fps */
-    const live = playing || !!snapshot || !!detView;
+    const live = playing || !!detView;
     useEffect(() => {
         if (!live) {
             const once = requestAnimationFrame(draw);
@@ -153,14 +152,8 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     }, [draw, live, targets]);
 
     /* ---------- stream control ---------- */
-    const startStream = () => { setStreamError(false); setSnapshot(null); setDetOn(false); setStreamKey((k) => k + 1); setPlaying(true); };
+    const startStream = () => { setStreamError(false); setDetOn(false); setStreamKey((k) => k + 1); setPlaying(true); };
     const stopStream = () => { setPlaying(false); if (imgRef.current) imgRef.current.src = ""; };
-
-    const takeSnapshot = () => {
-        setPlaying(false);
-        setDetOn(false);
-        setSnapshot(getCaptureUrl());
-    };
 
     const toggleFullscreen = () => {
         const el = containerRef.current;
@@ -199,7 +192,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
         return () => { stop = true; clearTimeout(timer); if (current) URL.revokeObjectURL(current); };
     }, [detOn]);
     const toggleDetView = () => {
-        if (!detOn) { stopStream(); setSnapshot(null); }
+        if (!detOn) stopStream();
         setDetView(null);
         setDetOn((on) => !on);
     };
@@ -251,11 +244,6 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                         onError={() => { setStreamError(true); setPlaying(false); }}
                     />
                 )}
-                {!playing && snapshot && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={snapshot} alt="Capture" className="absolute inset-0 w-full h-full object-contain"
-                        onError={() => setStreamError(true)} />
-                )}
                 {detOn && detView && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={detView} alt="Vue détecteur" className="absolute inset-0 w-full h-full object-contain"
@@ -264,7 +252,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
                 {playing && <div className="mk-scanline" />}
 
-                {!playing && !snapshot && !detOn && (
+                {!playing && !detOn && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
                         <div className="text-5xl">{cameraReady ? "🎯" : "📷"}</div>
                         <p className="text-mk-muted text-sm max-w-md">
@@ -285,7 +273,6 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                     {playing
                         ? <button className="mk-btn text-xs" onClick={stopStream}>■ Stop</button>
                         : <button className="mk-btn text-xs" onClick={startStream} disabled={!cameraReady}>▶ Flux</button>}
-                    <button className="mk-btn text-xs" onClick={takeSnapshot} disabled={!cameraReady}>📸 Capture</button>
                     <button className={`mk-btn text-xs ${detOn ? "mk-btn-laser" : ""}`} onClick={toggleDetView} disabled={!cameraReady}
                         title="Ce que voit le détecteur : rouge = changement compté, cyan = changement clair ignoré">
                         🔬 Vue détecteur

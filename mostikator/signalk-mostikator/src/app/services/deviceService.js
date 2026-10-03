@@ -133,6 +133,8 @@ export const getLog = async (timeoutMs = 8000) => {
 };
 
 export const getStreamUrl  = () => `${getDeviceBaseUrl()}/stream`;
+export const getShots = () => request("/shots");
+export const getShotImageUrl = (n, img) => `${getDeviceBaseUrl()}/shots/image?n=${n}&img=${img}`;
 export const getDetectorViewUrl = () => `${getDeviceBaseUrl()}/detector.bmp?t=${Date.now()}`;
 export const getCaptureUrl = () => `${getDeviceBaseUrl()}/capture?t=${Date.now()}`;
 
