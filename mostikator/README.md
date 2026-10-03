@@ -195,14 +195,37 @@ flowchart LR
   | P4 → tourelle | `FIRE [ms]` | Déclenche une rafale (mode auto) |
   | P4 → tourelle | `PING` | La tourelle répond `PONG <armed\|safe> <tirs>` |
 
-- **La manette a toujours la priorité sur la caméra.** Tant que la DualSense est connectée, la tourelle
-  **refuse tout `AIM` et tout `FIRE`** venant du lien : rien ne part sur une détection caméra pendant qu'on
-  joue à la manette (`linkAutoAllowed()` dans `link.cpp`, refus tracé au plus une fois par seconde).
-  La ligne `[STA]` de la console indique le mode courant (`auto allowed` / `manual (controller)`).
+- **Manette connectée = mode manette**, la tourelle **refuse tout `AIM`, `FIRE` et `LASER`** venant du lien
+  (refus tracé au plus une fois par seconde). **Clic sur le pavé tactile** = **mode caméra** (barre lumineuse
+  violette) : la caméra vise et tire, la manette ne garde que le pavé (retour au mode manette) et Options
+  (armer / désarmer l'eau). Manette éteinte ou perdue = mode caméra. La ligne `[STA]` de la console indique le
+  mode (`auto allowed` / `manual (controller)`).
 - Test du câblage sans eau : commande console **`pew`** sur la tourelle — elle envoie un `FIRE` sur le lien,
   le blaster doit sortir du HP branché sur le P4, sans ouvrir l'électrovanne.
-- Le retour du résultat du tir (`POST /api/shot?target=<id>&result=hit|miss`) et la visée automatique depuis
-  `environment.mostikator.target` restent à faire.
+- Le retour du résultat du tir (`POST /api/shot?target=<id>&result=hit|miss`) reste à faire.
+
+### Mode automatique (caméra → tourelle)
+
+`aim.cpp` sur le P4 : tant que le détecteur est armé et qu'une cible confirmée existe, la cible principale est
+convertie en angles tourelle (`tourelle = gain × caméra + décalage`, par axe) et envoyée en `AIM <pan> <tilt>`
+toutes les 50 ms ; le laser suit (`LASER 1`, éteint 1,5 s après la perte) ; après `aim_settle_ms` de visée un
+`FIRE <aim_burst_ms>` part, au plus toutes les `aim_cooldown_ms`. **Canon désarmé = tir à blanc** : LEDs vertes,
+son laser du piezo et blaster sur le HP du P4, pas d'eau. Tout se règle dans la webapp (Réglages du détecteur →
+Mode automatique) ou par `POST /api/config` (`aim_*`), persisté en NVS (`mostik-aim`).
+
+**Calibration laser ↔ caméra** : `mostikator_esp32p4/tools/calibrate_aim.py` (fond mat et clair, le point laser
+doit tomber dans l'image). Il désarme le détecteur, pointe la tourelle à plusieurs angles, prend une photo laser
+allumé et une laser éteint, trouve le point dans leur différence, ajuste la droite (points aberrants écartés) et
+l'enregistre sur le P4 :
+
+```bash
+mostikator_esp32p4/tools/calibrate_aim.py --dry-run --save-images /tmp/calib   # mesurer seulement
+mostikator_esp32p4/tools/calibrate_aim.py                                      # mesurer + enregistrer
+```
+
+Mesure du 2026-10-03 : `tilt tourelle = -2,06 × tilt caméra + 40,5°` (erreur max 1,7° sur 10 points) ; sans
+servo de rotation, le laser reste sur la colonne x ≈ 0,37 de l'image (≈ 9° à gauche de l'axe), tracée en
+pointillés rouges dans la webapp. Le bas de l'image (y > 0,7) demande plus de 60° de tilt : hors de portée.
 
 ### Manette PS5
 
@@ -217,9 +240,10 @@ flowchart LR
 | △ Triangle | Recentre la tourelle | Marque la butée droite (**high**) du pan |
 | L1 / R1 | L1 : pompe on/off (amorçage) | Pas ÷2 / ×2 |
 | Options | **Armer / désarmer** (armer démarre la pompe) | **Sauvegarde** la calibration et quitte |
+| Pavé tactile (clic) | **Mode caméra** ↔ mode manette (barre violette en mode caméra) | — |
 | Create | **Maintenir 1,5 s** : entrer / sortir du mode calibration (un simple appui ne fait rien : PS + Create sert aussi à l'appairage) | Maintenir 1,5 s : sortir sans sauvegarder |
 
-Barre lumineuse : orange = sécurité, vert = armé, rouge = tir (vibration), bleu = calibration.
+Barre lumineuse : orange = sécurité, vert = armé, rouge = tir (vibration), bleu = calibration, violet = mode caméra.
 Manette perdue → vanne fermée, pompe coupée, laser et LEDs éteints, désarmé.
 
 Appairage : maintenir **PS + Create** jusqu'à ce que la barre pulse en blanc. Tant qu'aucune manette n'est connue,
@@ -368,10 +392,11 @@ stateDiagram-v2
 
 Via SignalK : `https://<serveur-signalk>/signalk-mostikator/device/<route>` → `http://<esp>/api/<route>`.
 
-> **Sécurité** : le module n'a pas d'authentification et le proxy SignalK non plus. Exposé sur Internet sans auth
-> SignalK, n'importe qui peut voir le flux caméra, lire le journal, armer le détecteur, changer sa config et jouer le
-> son. L'eau, elle, ne sort que si le canon est armé **sur la tourelle** (Options sur la manette ou `arm` sur la
-> console) : ce n'est pas exposé en HTTP. Activer la sécurité SignalK (ou une auth sur le reverse proxy) pour fermer ça.
+> **Mot de passe de contrôle** : les commandes (armer/désarmer, son, réglages, tirs, remise à zéro) exigent
+> `CONTROL_PASSWORD` (`config.h`, `""` = pas de mot de passe) dans l'en-tête `X-Mostikator-Key` ; 5 erreurs bloquent
+> les commandes une minute. La webapp le demande au premier refus (ou via 🔒 S'authentifier) et le garde dans le
+> navigateur. La lecture (statut, flux, journal, vue détecteur) reste ouverte. L'eau ne sort que si le canon est
+> armé **sur la tourelle** (Options ou `arm` sur la console) : ce n'est pas exposé en HTTP.
 
 | Route | Méthode | Description |
 |-------|---------|-------------|
@@ -384,6 +409,8 @@ Via SignalK : `https://<serveur-signalk>/signalk-mostikator/device/<route>` → 
 | `/api/config` | GET / POST | Réglages détecteur + caméra (form-encoded), persistés en NVS. `reset=1` = valeurs d'usine |
 | `/api/capture` | GET | Photo JPEG |
 | `/api/stream` | GET | Flux MJPEG (4 clients max) |
+| `/api/auth` | GET | 200 si `X-Mostikator-Key` est bon (ou pas de mot de passe), 401 sinon |
+| `/api/detector.bmp` | GET | Vue détecteur (BMP 8 bits de la grille de travail) |
 | `/api/log` | GET | Fin du journal du firmware (texte, 32 Ko), même historique que la console telnet — carte « Journal du détecteur » de la webapp |
 | `/` | GET | Webapp (LittleFS), fallback SPA |
 
@@ -480,11 +507,17 @@ Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adress
 
 ### Comment marche la détection
 
-1. **Luma réduite** : l'image RGB565 est réduite d'un facteur `downscale` (4 → 480×270) en niveaux de gris.
+1. **Luma réduite** : l'image RGB565 est réduite d'un facteur `downscale` en niveaux de gris (3 → 266×266 pour le
+   mode 800×800, 18 images/s ; 2 → 400×400 mais 9 images/s ; 4 → 200×200). **La taille compte** : à 1 m, un
+   pixel caméra fait ~1,6 mm, un moustique ~3 pixels. Avec `downscale 4` et `min_area 4` il fallait un objet de
+   ~1,3 cm : ni un moustique ni le point laser n'étaient vus, seulement une main.
 2. **Fond adaptatif** : moyenne glissante par pixel (`learn_shift` : 5 → 1/32 par image). `warmup_frames` images
    d'apprentissage à l'armement.
 3. **Masque** : pixel plus sombre que le fond de plus de `threshold + noise_k × bruit du pixel` (`dark_only`, un
-   moustique est sombre sur un mur/ciel clair), dans la zone `roi`. Chaque pixel apprend son propre **bruit**
+   moustique est sombre sur un mur/ciel clair), dans la zone `roi`. Avec `dark_only`, les pixels qui
+   s'éclaircissent (point laser, reflet) ne sont appris que très lentement (1/1024) : sinon la tache laissée par le
+   laser paraissait « plus sombre que le fond » et la tourelle poursuivait son propre laser. Le moustique tigre est
+   noir rayé de blanc : sur un fond clair il reste sombre ; décocher `dark_only` fait aussi détecter le laser. Chaque pixel apprend son propre **bruit**
    (moyenne glissante de |luma − fond|) : les bords nets qui tremblent avec les vibrations ou l'auto-exposition,
    les lampes qui scintillent et les zones sombres bruitées relèvent seuls leur seuil, un mur uni garde toute la
    sensibilité. `noise_k` 0 = ancien comportement.
@@ -501,6 +534,13 @@ Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adress
 Mesure du 2026-09-24 (intérieur, faible lumière, tourelle qui bouge toutes les 2 s, même scène en A/B) : 14 fausses
 cibles/min avec l'ancien masque, **0** avec `noise_k 3` ; au calme 6 → 0-2/min, le reste venant d'une personne qui
 bouge au bord de l'image.
+
+**Vue détecteur** (bouton 🔬 de la webapp, `GET /api/detector.bmp`) : la grille de travail telle que le détecteur la
+voit, rafraîchie ~3 fois par seconde — rouge = changement compté, cyan = changement clair ignoré (`dark_only`),
+jaune = zone `roi`.
+
+Mesure du 2026-10-03 (mur clair, fenêtre exclue de la `roi`) : `min_area 1` laisse passer le bruit du capteur
+(15 fausses cibles/min), `min_area 2` → 0/min, mode automatique compris.
 
 Premiers réglages sur le terrain : ouvrir la webapp, lancer le flux, armer, puis ajuster `threshold`
 (faux positifs ↔ sensibilité), `min_area`/`max_area` (taille des moustiques à la distance de travail),
@@ -596,7 +636,8 @@ Tourelle :
 - [ ] Tourelle en Lego + cuivre pour le canon et la buse
 - [x] Bruit de laser Star Wars et lumière verte sur le jet (piezo sur la tourelle + codec ES8311 et HP sur le P4)
 - [x] Contrôle manette PS5 (haut/bas, rotation, tir, LEDs) + calibration des servos en NVS
-- [ ] Position envoyée par le détecteur (SignalK / WebSocket) avec corrections auto (vent, distance, tir de calibration)
+- [x] Visée et tir automatiques depuis la caméra (lien série), laser qui suit, calibration laser ↔ caméra
+- [ ] Corrections auto (vent, distance), servo de rotation (pan)
 - [x] Module détection : envoi des coordonnées, suivi du tir et du résultat
 - [x] Affichage mobile de la détection via la webapp SignalK
 - [x] Affichage LCD : moustiques vus / tirs / réussis / loupés
