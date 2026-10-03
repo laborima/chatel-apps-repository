@@ -18,6 +18,8 @@
  *   Triangle     : center the turret
  *   L1           : pump on/off (priming)
  *   Options      : arm / disarm (arming starts the pump)
+ *   Touchpad     : click = manual <-> camera mode (lightbar violet: the camera aims and fires, the
+ *                  controller only keeps the touchpad and Options)
  *   Create       : HOLD 1.5 s to enter / leave calibration mode (a tap does nothing: PS + Create is
  *                  also the pairing combo, and that press must not flip the turret into calibration)
  *
@@ -44,6 +46,7 @@ bool btInUse() { return true; }
 #define PS5_TASK_STACK   4096
 #define PS5_RESCAN_MS   20000   /* no controller known yet: one pairing scan every 20 s, not back to back */
 #define PS5_FALLBACK_MS 30000   /* known controller silent that long: also look for one in pairing mode */
+#define PS5_FALLBACK_EVERY_MS 60000   /* an inquiry costs ~10 KB of heap the WiFi needs too: not too often */
 #define PS5_FALLBACK_SCAN_S 4
 #define PS5_PENDING_MS  12000   /* outbound connect still unanswered after that: abandon it and retry */
 
@@ -126,14 +129,21 @@ static void onDisconnect() {
     turretSetVelocity(AXIS_TILT, 0);
 }
 
+static bool          sticksMoving = false;
+static bool          cameraMode = false;   /* controller connected but the camera drives (touchpad toggles) */
+
 static void handleDrive() {
     float pan  = stickToSpeed(ps5.lx, STICK_MAX_SPEED_DEGS) + stickToSpeed(ps5.rx, STICK_FINE_SPEED_DEGS);
     float tilt = stickToSpeed(-ps5.ly, STICK_MAX_SPEED_DEGS) + stickToSpeed(-ps5.ry, STICK_FINE_SPEED_DEGS);
 #if TILT_STICK_INVERT
     tilt = -tilt;
 #endif
-    turretSetVelocity(AXIS_PAN, pan);
-    turretSetVelocity(AXIS_TILT, tilt);
+    /* Sticks drive the servos only while moved, plus one stop when released */
+    if (pan || tilt || sticksMoving) {
+        turretSetVelocity(AXIS_PAN, pan);
+        turretSetVelocity(AXIS_TILT, tilt);
+        sticksMoving = pan || tilt;
+    }
 
     if (ps5.left.pressed)  turretNudge(AXIS_PAN,  -NUDGE_DEG);
     if (ps5.right.pressed) turretNudge(AXIS_PAN,   NUDGE_DEG);
@@ -180,6 +190,8 @@ static void feedback() {
 
     uint8_t r, g, b, rumble = 0;
     if (turretInCalMode())  { r = 0;   g = 40;  b = 255; }
+    else if (cameraMode && gunFiring()) { r = 255; g = 0; b = 255; rumble = 80; }
+    else if (cameraMode)    { r = 150; g = 0;   b = 255; }   /* violet: the camera drives */
     else if (gunFiring())   { r = 255; g = 0;   b = 0;   rumble = 200; }
     else if (gunArmed())    { r = 0;   g = 255; b = 30;  }
     else                    { r = 255; g = 90;  b = 0;   }
@@ -242,7 +254,7 @@ static void ps5TaskFn(void *) {
         if (c) {
             downSince = now;
         } else if (ps5_l2cap_has_target() && !ps5_l2cap_has_any_cid()
-                   && now - downSince >= PS5_FALLBACK_MS && now - lastScan >= PS5_RESCAN_MS) {
+                   && now - downSince >= PS5_FALLBACK_MS && (lastScan == 0 || now - lastScan >= PS5_FALLBACK_EVERY_MS)) {
             lastScan = now;
             pairScanResult = pairingScan() ? 1 : 2;
             pairScans++;
@@ -294,7 +306,7 @@ void ps5InputLoop() {
             Log.printf("[PS5] Controller in pairing mode found (%s) – connecting\n", str);
         } else if (!pairScanLogged) {
             Log.printf("[PS5] %s silent – also scanning for a controller in pairing mode (PS + Create) every %d s\n",
-                       bootMac[0] ? bootMac : "Known controller", PS5_RESCAN_MS / 1000);
+                       bootMac[0] ? bootMac : "Known controller", PS5_FALLBACK_EVERY_MS / 1000);
         }
         pairScanLogged = true;
     }
@@ -321,8 +333,20 @@ void ps5InputLoop() {
     }
     (void)(bool)ps5.share.pressed;   /* consume the edge, the level above is what counts */
 
-    if (turretInCalMode()) handleCalibration();
-    else                   handleDrive();
+    /* Touchpad click: manual <-> camera mode. In camera mode the controller only keeps the touchpad (back to
+     * manual) and Options (arm / disarm the water); the camera aims, fires and drives the laser. */
+    if (ps5.touchpad.pressed && !turretInCalMode()) {
+        cameraMode = !cameraMode;
+        gunHold(false);
+        turretSetVelocity(AXIS_PAN, 0);
+        turretSetVelocity(AXIS_TILT, 0);
+        sticksMoving = false;
+        Log.printf("[PS5] %s mode\n", cameraMode ? "Camera" : "Manual (controller)");
+    }
+
+    if (turretInCalMode())  handleCalibration();
+    else if (cameraMode)    { if (ps5.options.pressed) gunSetArmed(!gunArmed()); }
+    else                    handleDrive();
     feedback();
 }
 
@@ -364,3 +388,5 @@ void ps5InputPrintStatus(Print &out) {
                ps5_l2cap_has_any_cid() ? ", channel pending" : "",
                (unsigned long)pairScans, (unsigned long)pendingDrops);
 }
+
+bool ps5InputCameraMode() { return wasConnected && cameraMode; }

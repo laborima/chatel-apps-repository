@@ -5,6 +5,7 @@
 #include "water_gun.h"
 #include "ps5_input.h"
 
+
 #if LINK_ENABLED
 
 static HardwareSerial linkSerial(LINK_UART_NUM);
@@ -19,7 +20,7 @@ static void logRefusal(const char *what) {
     unsigned long now = millis();
     if (now - lastRefusalLog < 1000) return;
     lastRefusalLog = now;
-    Log.printf("[LNK] %s ignored – PS5 controller connected, manual mode wins\n", what);
+    Log.printf("[LNK] %s ignored – PS5 controller in manual mode (touchpad = camera mode)\n", what);
 }
 
 static void execute(char *cmd) {
@@ -37,6 +38,11 @@ static void execute(char *cmd) {
     if (!strcmp(argv[0], "FIRE")) {
         if (!linkAutoAllowed()) { logRefusal("FIRE"); return; }
         gunFire(argc >= 2 ? (uint16_t)atoi(argv[1]) : FIRE_TAP_MS);
+        return;
+    }
+    if (!strcmp(argv[0], "LASER") && argc >= 2) {
+        if (!linkAutoAllowed()) { logRefusal("LASER"); return; }
+        gunLaser(atoi(argv[1]) != 0);
         return;
     }
     if (!strcmp(argv[0], "PING")) {
@@ -79,7 +85,8 @@ void linkSendArmed(bool armed) {
     linkSerial.printf("ARM %d\n", armed ? 1 : 0);
 }
 
-bool linkAutoAllowed() { return !ps5InputConnected(); }
+/* Controller connected = manual mode, unless switched to camera mode with the touchpad */
+bool linkAutoAllowed() { return !ps5InputConnected() || ps5InputCameraMode(); }
 
 #else
 

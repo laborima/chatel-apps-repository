@@ -47,6 +47,12 @@ void setup() {
     Serial.printf("[BOOT] Mostikator turret – l'Empire contre-attaque (built " __DATE__ " " __TIME__ ", reset reason %d)\n",
                   (int)esp_reset_reason());
 
+    /* The stdout (VFS UART) lock is created on its first use. When that first use is a library log line
+     * (mDNS, lwIP) at a moment the heap is exhausted, the lock cannot be allocated and abort() reboots the
+     * turret (crash "lock_init_generic" in task mdns). Take it once now, while memory is plentiful. */
+    printf("\n");
+    fflush(stdout);
+
     gunBegin();       /* relays idle first: never boot with the valve open */
     if (esp_reset_reason() == ESP_RST_PANIC || esp_reset_reason() == ESP_RST_TASK_WDT) netPrintCrash(Serial, false);
     turretBegin();
