@@ -1,5 +1,22 @@
 #pragma once
 
+/* ================= WIFI / REMOTE MAINTENANCE ================= */
+/* WiFi only serves maintenance: OTA firmware updates and the telnet console. The turret keeps
+ * working without it (PS5 over Bluetooth, link to the P4 over UART). Leave WIFI_SSID empty to disable. */
+#define WIFI_SSID     "your-ssid"
+#define WIFI_PASS     "your-password"
+#define WIFI_SSID2    "your-ssid2"        /* tried when the first one is not found, "" = none */
+#define WIFI_PASS2    "your-password"
+#define WIFI_RETRY_MS 15000
+
+#define DEVICE_NAME   "mostikator-turret" /* mDNS: mostikator-turret.local */
+
+/* Password for OTA uploads (espota, port 3232) and for the telnet console (port 23).
+ * The telnet console can arm and fire the water gun: never leave it empty. */
+#define OTA_PASSWORD  "change-me"
+#define OTA_PORT      3232
+#define TELNET_PORT   23
+
 /* ================= PS5 DUALSENSE (Bluetooth Classic, lib esp-ps5) ================= */
 /* Leave empty to scan + pair (hold PS + Create on the controller until the lightbar pulses white).
  * Or set the controller MAC "AA:BB:CC:DD:EE:FF" to connect without scanning. */
@@ -7,8 +24,9 @@
 #define PS5_PAIR_TIMEOUT_S  20
 
 /* ================= SERVOS (Futaba S3003) ================= */
-/* Avoid strapping pins (0, 2, 12, 15) and input-only pins (34-39) on the ELEGOO ESP32 */
-#define PIN_SERVO_PAN   14
+/* Avoid strapping pins (0, 2, 12, 15) and input-only pins (34-39) on the ELEGOO ESP32.
+ * -1 = no servo on that axis (the angle is still tracked, nothing is driven). */
+#define PIN_SERVO_PAN   -1
 #define PIN_SERVO_TILT  13
 
 /* Hard pulse limits: the firmware never drives a servo outside this range whatever the calibration.
@@ -22,14 +40,15 @@
  *   tilt "high" = barrel at the top stop
  *   pan  "low"  = turret fully left, "high" = fully right
  * Angles are relative to the camera axis (0 = straight ahead / horizontal), like the detector's pan/tilt.
- * Swapping usLow/usHigh reverses the direction of an axis. */
+ * Swapping usLow/usHigh reverses the direction of an axis.
+ * Tilt values = calibration measured on the turret and saved in NVS on 2026-09-24. */
 #define PAN_US_LOW    1000
 #define PAN_DEG_LOW    -60.0f
 #define PAN_US_HIGH   2000
 #define PAN_DEG_HIGH    60.0f
-#define TILT_US_LOW   1000
+#define TILT_US_LOW   1540
 #define TILT_DEG_LOW   -20.0f
-#define TILT_US_HIGH  1900
+#define TILT_US_HIGH  1810
 #define TILT_DEG_HIGH   60.0f
 
 /* Position at boot / "center" (Triangle) */
@@ -51,15 +70,13 @@
 #define NUDGE_DEG             1.0f     /* D-pad */
 #define FIRE_TRIGGER_THRESHOLD 60      /* R2 0..255 */
 
-/* ================= WATER GUN (4-relay board SRD-05VDC-SL-C, active LOW) ================= */
-#define PIN_RELAY_PUMP   26
-#define PIN_RELAY_VALVE  27
-#define PIN_RELAY_SPARE  33     /* -1 = unused */
+/* ================= 4-RELAY BOARD (SRD-05VDC-SL-C, inputs active LOW) ================= */
+/* Mapping checked on the turret with the controller on 2026-09-24 */
+#define PIN_RELAY_PUMP   26     /* 12 V pump */
+#define PIN_RELAY_VALVE  27     /* solenoid valve (relay 2) */
+#define PIN_RELAY_LASER  25     /* aiming laser (relay 3), -1 = none */
+#define PIN_RELAY_LEDS   14     /* green LED lighting on the jet, -1 = none */
 #define RELAY_ACTIVE_LOW  1
-
-/* Green LEDs on the jet (direct GPIO through a MOSFET/transistor, or a relay channel) */
-#define PIN_LED_GREEN    25     /* -1 = none */
-#define LED_ACTIVE_LOW    0
 
 /* Piezo / speaker (laser sound). -1 = none */
 #define PIN_BUZZER       32
@@ -69,6 +86,20 @@
 #define FIRE_MIN_GAP_MS   150   /* valve rest between bursts */
 #define PUMP_IDLE_OFF_MS 90000  /* pump auto-off after this idle time (0 = never) */
 #define LED_AFTERGLOW_MS  250   /* LEDs stay on this long after the valve closes (when not toggled on) */
+#define LASER_MAX_ON_MS 600000  /* laser auto-off after 10 min on (0 = never) */
+
+/* ================= LINK TO THE DETECTION NODE (ESP32-P4, UART2) ================= */
+/* 3 wires, both boards in 3.3 V logic:
+ *   GPIO17 (TX2) -> P4 GPIO21 (RX)    GPIO16 (RX2) <- P4 GPIO20 (TX)    GND <-> GND
+ * Every manual shot is announced on this link so the P4 plays the blaster on the speaker
+ * plugged into its own board: the turret has no speaker of its own beyond the piezo.
+ * The P4 can also send AIM / FIRE, refused while the PS5 controller is connected. */
+#define LINK_ENABLED     1
+#define LINK_UART_NUM    2
+#define LINK_TX_PIN     17
+#define LINK_RX_PIN     16
+#define LINK_BAUD   115200
+#define LINK_HEARTBEAT_MS 5000  /* "HB" line so the P4 knows the turret is alive (its timeout is 15 s) */
 
 /* ================= WATCHDOG ================= */
 #define WDT_TIMEOUT_S 30

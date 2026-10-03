@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** Pump + solenoid valve relays, green LEDs on the jet, laser sound. */
+/** 4-relay board: pump, solenoid valve, aiming laser, green LEDs on the jet. Laser sound on the piezo. */
 void     gunBegin();
 void     gunLoop();
 
@@ -17,5 +17,7 @@ uint32_t gunShots();
 
 void     gunLeds(bool on);             /* toggle the green LEDs permanently on/off */
 bool     gunLedsOn();
+void     gunLaser(bool on);            /* aiming laser (relay 3) */
+bool     gunLaserOn();
 void     gunLaserFx();                 /* pew pew */
-void     gunAllOff();                  /* safety: valve closed, pump off, LEDs off */
+void     gunAllOff();                  /* safety: valve closed, pump off, LEDs and laser off */

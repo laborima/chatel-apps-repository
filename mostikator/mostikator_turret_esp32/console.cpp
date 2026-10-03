@@ -5,12 +5,18 @@
 #include "turret.h"
 #include "water_gun.h"
 #include "ps5_input.h"
+#include "link.h"
+#include "net.h"
 
-static char   line[96];
-static size_t len = 0;
+/* One line buffer per input: the serial port and the telnet console can type at the same time */
+struct LineBuf {
+    char   buf[96];
+    size_t len;
+};
+static LineBuf serialLine = {}, netLine = {};
 
 static void help() {
-    Serial.println(
+    Log.println(
         "Commands:\n"
         "  show                          calibration + current position\n"
         "  cal on|off                    calibration mode (raw pulse drive)\n"
@@ -23,9 +29,14 @@ static void help() {
         "  angle <pan> <tilt>            go to angles (deg)\n"
         "  center                        home position\n"
         "  arm | disarm | pump on|off    water gun\n"
-        "  fire [ms] | fx | leds on|off  burst / laser sound / green LEDs\n"
+        "  fire [ms] | fx                burst / laser sound only\n"
+        "  leds on|off | laser on|off    green LEDs (relay 4) / aiming laser (relay 3)\n"
+        "  pew                           blaster on the P4 speaker, no water (link test)\n"
         "  scan [s]                      list visible Bluetooth devices (diagnostic)\n"
-        "  forget                        forget the paired controller");
+        "  forget                        forget the paired controller\n"
+        "  net                           WiFi, OTA, heap, uptime, controller link\n"
+        "  crash [clear]                 last panic (core dump in flash)\n"
+        "  reboot                        safe everything and restart");
 }
 
 static Axis parseAxis(const char *s, bool &ok) {
@@ -46,11 +57,13 @@ static void execute(char *cmd) {
 
     if (!strcmp(c, "help") || !strcmp(c, "?")) { help(); return; }
     if (!strcmp(c, "show")) {
-        turretPrint(Serial);
-        Serial.printf("[GUN] %s, pump %s, LEDs %s, shots %lu | PS5 %s\n",
+        turretPrint(Log);
+        Log.printf("[GUN] %s, pump %s, LEDs %s, laser %s, shots %lu | PS5 %s\n",
                       gunArmed() ? "ARMED" : "disarmed", gunPumpOn() ? "on" : "off",
-                      gunLedsOn() ? "on" : "off", (unsigned long)gunShots(),
+                      gunLedsOn() ? "on" : "off", gunLaserOn() ? "on" : "off", (unsigned long)gunShots(),
                       ps5InputConnected() ? "connected" : "not connected");
+        Log.printf("[LNK] Camera orders: %s\n", linkAutoAllowed() ? "allowed" : "refused (controller connected)");
+        netPrintStatus(Log);
         return;
     }
     if (!strcmp(c, "cal") && argc >= 2) { turretCalMode(!strcmp(argv[1], "on")); return; }
@@ -63,17 +76,17 @@ static void execute(char *cmd) {
         else                            turretRawUs(a, atoi(argv[1]));
         return;
     }
-    if (!strcmp(c, "step") && argc >= 2) { step = constrain(atoi(argv[1]), 1, 200); Serial.printf("[TUR] step %d us\n", step); return; }
+    if (!strcmp(c, "step") && argc >= 2) { step = constrain(atoi(argv[1]), 1, 200); Log.printf("[TUR] step %d us\n", step); return; }
     if (!strcmp(c, "mark") && argc >= 4) {
         a = parseAxis(argv[1], isAxis);
-        if (!isAxis) { Serial.println("mark pan|tilt low|high <deg>"); return; }
+        if (!isAxis) { Log.println("mark pan|tilt low|high <deg>"); return; }
         turretMark(a, !strcmp(argv[2], "high"), atof(argv[3]));
         return;
     }
-    if (!strcmp(c, "speed") && argc >= 2) { TurretCal tc = turretGetCal(); tc.maxSpeedDegS = atof(argv[1]); turretSetCal(tc); turretPrint(Serial); return; }
+    if (!strcmp(c, "speed") && argc >= 2) { TurretCal tc = turretGetCal(); tc.maxSpeedDegS = atof(argv[1]); turretSetCal(tc); turretPrint(Log); return; }
     if (!strcmp(c, "save"))  { turretSaveCal(); return; }
-    if (!strcmp(c, "load"))  { Serial.println(turretLoadCal() ? "[TUR] Loaded" : "[TUR] Nothing saved in NVS"); turretPrint(Serial); return; }
-    if (!strcmp(c, "reset")) { turretResetCal(); turretPrint(Serial); return; }
+    if (!strcmp(c, "load"))  { Log.println(turretLoadCal() ? "[TUR] Loaded" : "[TUR] Nothing saved in NVS"); turretPrint(Log); return; }
+    if (!strcmp(c, "reset")) { turretResetCal(); turretPrint(Log); return; }
     if (!strcmp(c, "angle") && argc >= 3) { turretCalMode(false); turretSetAngles(atof(argv[1]), atof(argv[2])); return; }
     if (!strcmp(c, "center")) { turretCalMode(false); turretCenter(); return; }
 
@@ -82,27 +95,35 @@ static void execute(char *cmd) {
     if (!strcmp(c, "pump") && argc >= 2) { gunPump(!strcmp(argv[1], "on")); return; }
     if (!strcmp(c, "fire"))   { gunFire(argc >= 2 ? atoi(argv[1]) : FIRE_TAP_MS); return; }
     if (!strcmp(c, "fx"))     { gunLaserFx(); return; }
-    if (!strcmp(c, "leds") && argc >= 2) { gunLeds(!strcmp(argv[1], "on")); return; }
+    if (!strcmp(c, "pew"))    { linkSendFire(0); Log.println("[LNK] FIRE sent to the detection node"); return; }
+    if (!strcmp(c, "leds") && argc >= 2)  { gunLeds(!strcmp(argv[1], "on")); return; }
+    if (!strcmp(c, "laser") && argc >= 2) { gunLaser(!strcmp(argv[1], "on")); return; }
     if (!strcmp(c, "scan"))   { ps5InputScan(argc >= 2 ? (uint8_t)atoi(argv[1]) : 8); return; }
     if (!strcmp(c, "forget")) { ps5InputForget(); return; }
+    if (!strcmp(c, "net"))    { netPrintStatus(Log); ps5InputPrintStatus(Log); return; }
+    if (!strcmp(c, "crash"))  { netPrintCrash(Log, argc >= 2 && !strcmp(argv[1], "clear")); return; }
+    if (!strcmp(c, "reboot")) { gunAllOff(); Log.println("[SYS] Rebooting"); delay(200); ESP.restart(); }
 
-    Serial.printf("Unknown command '%s' – type help\n", c);
+    Log.printf("Unknown command '%s' – type help\n", c);
 }
 
 void consoleBegin() {
-    Serial.println("[CON] Serial console ready – type 'help'");
+    Log.println("[CON] Serial console ready – type 'help'");
+}
+
+static void feed(LineBuf &l, int ch) {
+    if (ch == '\r') return;
+    if (ch == '\n') {
+        l.buf[l.len] = 0;
+        l.len = 0;
+        execute(l.buf);
+    } else if (l.len < sizeof(l.buf) - 1) {
+        l.buf[l.len++] = (char)ch;
+    }
 }
 
 void consoleLoop() {
-    while (Serial.available()) {
-        char ch = (char)Serial.read();
-        if (ch == '\r') continue;
-        if (ch == '\n') {
-            line[len] = 0;
-            len = 0;
-            execute(line);
-        } else if (len < sizeof(line) - 1) {
-            line[len++] = ch;
-        }
-    }
+    while (Serial.available()) feed(serialLine, Serial.read());
+    int ch;
+    while ((ch = netConsoleRead()) >= 0) feed(netLine, ch);
 }

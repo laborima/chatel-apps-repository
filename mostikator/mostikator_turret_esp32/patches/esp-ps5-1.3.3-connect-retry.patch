@@ -1,0 +1,65 @@
+--- a/src/bluedroid/bluedroid.cpp
++++ b/src/bluedroid/bluedroid.cpp
+@@ -76,6 +76,8 @@
+ static BD_ADDR    g_bd_addr               = {0};
+ static uint16_t   l2cap_control_channel   = 0;
+ static uint16_t   l2cap_interrupt_channel = 0;
++static bool       l2cap_ctrl_configured   = false;
++static bool       l2cap_int_configured    = false;
+ 
+ // MARK: l2cap_has_target - true once a MAC has been latched (via connect()).
+ bool ps5_l2cap_is_active(void) { return is_connected; }
+@@ -92,6 +94,21 @@
+     return false;
+ }
+ 
++// MARK: l2cap_drop_pending - abandon an outbound connect that never completed.
++// Bluedroid does not always report a page timeout through connect_cfm, and a stale CID blocks every
++// later retry in isConnected(). Only touches a link that is not configured.
++void ps5_l2cap_drop_pending(void) {
++    if (is_connected) return;
++    if (l2cap_control_channel && !l2cap_ctrl_configured) {
++        L2CA_DisconnectReq(l2cap_control_channel);
++        l2cap_control_channel = 0;
++    }
++    if (l2cap_interrupt_channel && !l2cap_int_configured) {
++        L2CA_DisconnectReq(l2cap_interrupt_channel);
++        l2cap_interrupt_channel = 0;
++    }
++}
++
+ // MARK: l2cap_get_target - copy the latched MAC out (zeros if none).
+ void ps5_l2cap_get_target(uint8_t out[6]) {
+     memcpy(out, g_bd_addr, 6);
+@@ -163,6 +180,12 @@
+ 
+ static void ps5_l2cap_connect_cfm_cback(uint16_t cid, uint16_t result) {
+     ESP_LOGI(ps5_TAG, "connect_cfm cid=0x%02x result=%u", cid, result);
++    /* Outbound connect refused or timed out (controller off, page timeout, link key gone): release the
++     * CID, otherwise ps5_l2cap_has_any_cid() stays true and isConnected() never retries again. */
++    if (result != L2CAP_CONN_OK && result != L2CAP_CONN_PENDING) {
++        if (cid == l2cap_control_channel)   { l2cap_control_channel   = 0; l2cap_ctrl_configured = false; }
++        if (cid == l2cap_interrupt_channel) { l2cap_interrupt_channel = 0; l2cap_int_configured  = false; }
++    }
+ }
+ 
+ // MARK: config_ind - accept the controller's config request as-is.
+@@ -175,8 +198,6 @@
+ // Track each channel's configured state independently; only fire the up-edge
+ // once both are ready, regardless of which order the stack confirms them in.
+ extern void ps5_scan_cache_release(void);
+-static bool       l2cap_ctrl_configured = false;
+-static bool       l2cap_int_configured  = false;
+ static void ps5_l2cap_config_cfm_cback(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
+     (void)p_cfg;
+     if      (cid == l2cap_control_channel)   l2cap_ctrl_configured = true;
+--- a/src/ps5Controller.h
++++ b/src/ps5Controller.h
+@@ -253,6 +253,7 @@
+ bool  ps5_l2cap_has_any_cid(void); /* either control or interrupt CID still non-zero */
+ void  ps5_l2cap_get_target(uint8_t out[6]);
+ void  ps5_l2cap_clear_target(void);
++void  ps5_l2cap_drop_pending(void);   /* release a CID left by a connect that never completed */
+ void  ps5_l2cap_send_hid          (hid_cmd_t* c, uint8_t len);  /* control PSM 0x11   */
+ void  ps5_l2cap_send_hid_interrupt(hid_cmd_t* c, uint8_t len);  /* interrupt PSM 0x13 */
+ 

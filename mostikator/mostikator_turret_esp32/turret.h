@@ -49,5 +49,6 @@ void      turretRawUs(Axis a, int us);
 void      turretRawStep(Axis a, int deltaUs);
 void      turretMark(Axis a, bool high, float deg);
 
+bool      turretHasAxis(Axis a);        /* false when PIN_SERVO_x = -1 */
 const char *turretAxisName(Axis a);
-void      turretPrint(Stream &out);
+void      turretPrint(Print &out);
