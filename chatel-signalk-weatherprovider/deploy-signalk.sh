@@ -5,6 +5,7 @@
 # - chatel-signalk-weatherprovider (this plugin)
 # - chatel-meteo-planner (webapp)
 # - signalk-tides (plugin)
+# - signalk-poi-lab (pond camera + sensor webapp)
 # - signalk-mostikator (webapp + ESP32-P4 proxy plugin)
 
 set -e
