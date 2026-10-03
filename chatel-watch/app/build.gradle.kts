@@ -1,3 +1,14 @@
+import java.util.Properties
+
+/* SignalK server URL: kept out of git, set signalk.baseUrl in local.properties (or -Psignalk.baseUrl=...) */
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val signalkBaseUrl: String = (findProperty("signalk.baseUrl") as String?)
+    ?: localProps.getProperty("signalk.baseUrl")
+    ?: "https://signalk.example.org"
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -14,6 +25,7 @@ android {
         targetSdk = 34
         versionCode = 11
         versionName = "2.0"
+        buildConfigField("String", "DEFAULT_BASE_URL", "\"$signalkBaseUrl\"")
     }
 
     buildTypes {
@@ -39,6 +51,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

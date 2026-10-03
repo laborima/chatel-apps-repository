@@ -3,8 +3,7 @@
 Application **Wear OS** native pour Pixel Watch 4 (et toute montre Wear OS 3+),
 compagnon de [chatel-meteo-planner](../chatel-meteo-planner/).
 
-Les données proviennent du serveur SignalK hébergé sur
-**https://signalk.example.org** (marée via signalk-tides, météo via
+Les données proviennent de votre serveur SignalK (marée via signalk-tides, météo via
 chatel-signalk-weatherprovider, profils/activités via `activities.json` du
 meteo-planner). Aucun déploiement serveur supplémentaire n'est nécessaire.
 
@@ -135,15 +134,23 @@ appareils puis ▶ Run.)
 
 ## Configuration
 
+L'URL du serveur SignalK n'est pas dans le dépôt : ajouter dans `local.properties`
+
+```properties
+signalk.baseUrl=https://mon-serveur-signalk.example
+```
+
+ou passer `-Psignalk.baseUrl=...` à Gradle.
+
 | Réglage | Valeur par défaut | Où |
 |---|---|---|
-| Serveur SignalK | `https://signalk.example.org` | `Prefs.DEFAULT_BASE_URL` |
+| Serveur SignalK | `signalk.baseUrl` de `local.properties` (non versionné), sinon `https://signalk.example.org` | `BuildConfig.DEFAULT_BASE_URL` |
 | Webcam | `https://filmspv.viewsurf.com/chatelaillon02_live/media.jpg` | `SignalKApi.WEBCAM_URL` |
 | Profil par défaut | `matthieu` | `Prefs.DEFAULT_PROFILE` |
 
 Les profils, activités et la position (lat/lon) sont lus à chaque
 lancement depuis
-`https://signalk.example.org/chatel-meteo-planner/activities/activities.json` —
+`<serveur SignalK>/chatel-meteo-planner/activities/activities.json` —
 modifier le JSON côté serveur suffit pour mettre à jour la montre.
 
 ## Architecture

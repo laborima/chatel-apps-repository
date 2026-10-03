@@ -17,7 +17,7 @@ import kotlin.math.PI
 import kotlin.math.max
 
 /**
- * Client REST pour le serveur SignalK (signalk.example.org).
+ * Client REST pour le serveur SignalK (URL : `signalk.baseUrl` dans local.properties).
  * Aucune connexion persistante : uniquement des requêtes ponctuelles
  * quand l'app ou une tuile est affichée (pas de fond de batterie).
  */

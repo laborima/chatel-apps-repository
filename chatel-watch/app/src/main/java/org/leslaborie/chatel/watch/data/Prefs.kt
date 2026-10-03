@@ -14,7 +14,7 @@ class Prefs(private val context: Context) {
 
     companion object {
         const val DEFAULT_PROFILE = "matthieu"
-        const val DEFAULT_BASE_URL = "https://signalk.example.org"
+        val DEFAULT_BASE_URL: String = org.leslaborie.chatel.watch.BuildConfig.DEFAULT_BASE_URL
         private val PROFILE_ID = stringPreferencesKey("profile_id")
         private val BASE_URL = stringPreferencesKey("base_url")
     }
