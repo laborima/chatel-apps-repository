@@ -2,7 +2,7 @@
 #include <Preferences.h>
 
 static Preferences prefs;
-#define DET_BLOB_VERSION 1
+#define DET_BLOB_VERSION 3   /* 2: noiseK + globalChangePct, 3: isolation */
 
 void persistBegin() {
     prefs.begin("mostik-cfg", false);
@@ -30,7 +30,18 @@ void persistSaveCamera(const CameraSettings &s) {
     prefs.putBytes("cam", &s, sizeof(CameraSettings));
 }
 
+bool persistLoadAudioVolume(uint8_t &percent) {
+    if (!prefs.isKey("aud_vol")) return false;
+    percent = prefs.getUChar("aud_vol", percent);
+    return true;
+}
+
+void persistSaveAudioVolume(uint8_t percent) {
+    prefs.putUChar("aud_vol", percent);
+}
+
 void persistClear() {
+    prefs.remove("aud_vol");
     prefs.remove("det");
     prefs.remove("det_ver");
     prefs.remove("cam");

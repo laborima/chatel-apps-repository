@@ -12,3 +12,6 @@ signalk-mostikator/.env*
 
 # LittleFS image
 *.littlefs.bin
+
+# Python
+__pycache__/

@@ -38,3 +38,5 @@ size_t cameraJpegMaxSize();
  * from *seq. Waits up to waitMs for a new frame. Returns bytes copied (0 = none).
  */
 size_t cameraCopyJpeg(uint8_t *dst, size_t cap, uint32_t *seq, uint32_t waitMs);
+/** Sequence number of the JPEG currently held: start a copy loop from it to wait for a fresh frame. */
+uint32_t cameraJpegSeq();

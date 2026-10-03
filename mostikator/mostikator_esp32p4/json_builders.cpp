@@ -1,4 +1,6 @@
 #include "json_builders.h"
+#include "audio.h"
+#include "turret_link.h"
 #include "config.h"
 #include "camera.h"
 #include "stats.h"
@@ -20,8 +22,10 @@ size_t jsonStatus(char *buf, size_t cap) {
         "\"uptime\":%lu,\"free_heap\":%u,\"free_psram\":%u,"
         "\"camera\":{\"ready\":%s,\"width\":%u,\"height\":%u,\"fps\":%.1f,\"error\":\"%s\"},"
         "\"detector\":{\"state\":\"%s\",\"armed\":%s,\"fps\":%.1f,\"work_width\":%u,\"work_height\":%u,"
-        "\"blobs\":%u,\"tracks\":%u,\"frames\":%lu,\"process_ms\":%lu},"
+        "\"blobs\":%u,\"tracks\":%u,\"frames\":%lu,\"process_ms\":%lu,\"global_skips\":%lu},"
         "\"stats\":{\"seen\":%lu,\"shots\":%lu,\"hits\":%lu,\"misses\":%lu},"
+        "\"audio\":{\"ready\":%s,\"volume\":%u},"
+        "\"turret\":{\"connected\":%s,\"armed\":%s},"
         "\"ws_clients\":%d,\"ws_port\":%d}",
         DEVICE_NAME, wifiIp().c_str(), wifiRssi(), wifiNtpSynced() ? "true" : "false",
         (unsigned long)(millis() / 1000), (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
@@ -29,8 +33,10 @@ size_t jsonStatus(char *buf, size_t cap) {
         detectorStateName(), detectorArmed() ? "true" : "false", detectorFps(),
         (unsigned)detectorWorkWidth(), (unsigned)detectorWorkHeight(),
         (unsigned)detectorBlobCount(), (unsigned)detectorActiveTracks(),
-        (unsigned long)detectorFrameCount(), (unsigned long)detectorProcessMs(),
+        (unsigned long)detectorFrameCount(), (unsigned long)detectorProcessMs(), (unsigned long)detectorGlobalSkips(),
         (unsigned long)st.seen, (unsigned long)st.shots, (unsigned long)st.hits, (unsigned long)st.misses,
+        audioReady() ? "true" : "false", (unsigned)audioVolume(),
+        turretLinkConnected() ? "true" : "false", turretLinkArmed() ? "true" : "false",
         wsClients(), WS_PORT);
 }
 
@@ -40,11 +46,11 @@ size_t jsonConfig(char *buf, size_t cap) {
     return snprintf(buf, cap,
         "{\"type\":\"config\",\"detector\":{\"downscale\":%u,\"threshold\":%u,\"min_area\":%u,\"max_area\":%u,"
         "\"confirm_frames\":%u,\"miss_frames\":%u,\"max_match_dist\":%u,\"learn_shift\":%u,\"dark_only\":%s,"
-        "\"warmup_frames\":%u,\"roi\":[%.3f,%.3f,%.3f,%.3f],\"hfov\":%.1f,\"vfov\":%.1f,\"lead_ms\":%u},"
+        "\"warmup_frames\":%u,\"roi\":[%.3f,%.3f,%.3f,%.3f],\"hfov\":%.1f,\"vfov\":%.1f,\"lead_ms\":%u,\"noise_k\":%u,\"global_change_pct\":%u,\"isolation\":%s},"
         "\"camera\":{\"gain\":%ld,\"exposure\":%ld,\"vflip\":%s,\"hflip\":%s,\"quality\":%u}}",
         c.downscale, c.threshold, c.minArea, c.maxArea, c.confirmFrames, c.missFrames, c.maxMatchDist,
         c.learnShift, c.darkOnly ? "true" : "false", c.warmupFrames,
-        c.roiX0, c.roiY0, c.roiX1, c.roiY1, c.hfov, c.vfov, c.leadMs,
+        c.roiX0, c.roiY0, c.roiX1, c.roiY1, c.hfov, c.vfov, c.leadMs, c.noiseK, c.globalChangePct, c.isolation ? "true" : "false",
         (long)cs.gain, (long)cs.exposure, cs.vflip ? "true" : "false", cs.hflip ? "true" : "false", cs.jpegQuality);
 }
 

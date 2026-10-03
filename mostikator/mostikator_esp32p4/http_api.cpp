@@ -1,20 +1,24 @@
 #include "http_api.h"
 #include "config.h"
+#include "remote.h"
 #include "camera.h"
 #include "detector.h"
 #include "stats.h"
 #include "persist.h"
 #include "json_builders.h"
 #include "app_events.h"
+#include "audio.h"
 
 #include <WiFi.h>
 #include <WebServer.h>
 #include <LittleFS.h>
 #include "esp_heap_caps.h"
+#include <esp_task_wdt.h>
+#include <atomic>
 
 static WebServer server(HTTP_PORT);
 static char json[4096];
-static volatile int activeStreamClients = 0;
+static std::atomic<int> activeStreamClients{0};   /* ++ in loop() (core 1), -- in the MJPEG tasks (core 0) */
 
 /* ================= HELPERS ================= */
 static void cors() {
@@ -89,11 +93,41 @@ static void handleShot() {
 }
 
 /**
+ * GET  /api/sound                  -> current volume
+ * POST /api/sound?volume=<0-100>   -> set it (persisted in NVS)
+ * POST /api/sound?test=1           -> play the blaster once
+ * POST /api/sound?tone=1           -> play a 1 kHz sine instead (audio path diagnostic)
+ * Both parameters can be combined, the volume is applied before the test plays.
+ */
+static void handleSound() {
+    if (server.hasArg("volume")) {
+        long v = server.arg("volume").toInt();
+        if (v < 0 || v > 100) {
+            sendJson(400, "{\"error\":\"volume must be 0-100\"}");
+            return;
+        }
+        audioSetVolume((uint8_t)v);
+        persistSaveAudioVolume((uint8_t)v);
+        Log.printf("[AUDIO] Volume set to %ld%%\n", v);
+    }
+    if (server.hasArg("tone")) {
+        audioPlayTone();
+        Log.println("[AUDIO] Test tone");
+    } else if (server.hasArg("test")) {
+        audioLaserFx();
+        Log.println("[AUDIO] Test shot");
+    }
+    snprintf(json, sizeof(json), "{\"type\":\"sound\",\"ready\":%s,\"volume\":%u}",
+             audioReady() ? "true" : "false", (unsigned)audioVolume());
+    sendJson(200, json);
+}
+
+/**
  * GET  /api/config -> current detector + camera settings
  * POST /api/config -> apply (form-encoded or query params), persisted in NVS
  *   detector: downscale threshold min_area max_area confirm_frames miss_frames
  *             max_match_dist learn_shift dark_only warmup_frames
- *             roi_x0 roi_y0 roi_x1 roi_y1 hfov vfov lead_ms
+ *             roi_x0 roi_y0 roi_x1 roi_y1 hfov vfov lead_ms noise_k global_change_pct isolation
  *   camera:   gain exposure vflip hflip quality
  *   reset=1   -> factory defaults
  */
@@ -109,21 +143,28 @@ static void handleConfig() {
             cs.vflip = CAM_VFLIP != 0; cs.hflip = CAM_HFLIP != 0;
             cs.jpegQuality = JPEG_QUALITY;
             persistClear();
+            audioSetVolume(AUDIO_VOLUME);   /* persistClear() also erased the saved volume */
             detChanged = camChanged = true;
-            Serial.println("[CONFIG] Reset to defaults");
+            Log.println("[CONFIG] Reset to defaults");
         }
 
+        /* Strict parsing: "", "undefined" or "abc" would read as 0 with toInt() and pass the range
+         * check (exposure 0 = black camera, saved in NVS). Anything not fully numeric is ignored. */
         auto argLong = [&](const char *name, long minVal, long maxVal, long &out) -> bool {
             if (!server.hasArg(name)) return false;
-            long v = server.arg(name).toInt();
-            if (v < minVal || v > maxVal) return false;
+            String s = server.arg(name);
+            char *end = nullptr;
+            long v = strtol(s.c_str(), &end, 10);
+            if (s.isEmpty() || *end || v < minVal || v > maxVal) return false;
             out = v;
             return true;
         };
         auto argFloat = [&](const char *name, float minVal, float maxVal, float &out) -> bool {
             if (!server.hasArg(name)) return false;
-            float v = server.arg(name).toFloat();
-            if (v < minVal || v > maxVal) return false;
+            String s = server.arg(name);
+            char *end = nullptr;
+            float v = strtof(s.c_str(), &end);
+            if (s.isEmpty() || *end || !(v >= minVal && v <= maxVal)) return false;
             out = v;
             return true;
         };
@@ -140,6 +181,9 @@ static void handleConfig() {
         if (argLong("dark_only", 0, 1, v))          { c.darkOnly = v != 0; detChanged = true; }
         if (argLong("warmup_frames", 1, 500, v))    { c.warmupFrames = v; detChanged = true; }
         if (argLong("lead_ms", 0, 2000, v))         { c.leadMs = v; detChanged = true; }
+        if (argLong("noise_k", 0, 20, v))           { c.noiseK = v; detChanged = true; }
+        if (argLong("global_change_pct", 1, 100, v)) { c.globalChangePct = v; detChanged = true; }
+        if (argLong("isolation", 0, 1, v))          { c.isolation = v != 0; detChanged = true; }
         float f;
         if (argFloat("roi_x0", 0, 1, f)) { c.roiX0 = f; detChanged = true; }
         if (argFloat("roi_y0", 0, 1, f)) { c.roiY0 = f; detChanged = true; }
@@ -163,13 +207,28 @@ static void handleConfig() {
             persistSaveCamera(cameraGetSettings());
         }
         if (detChanged || camChanged) {
-            Serial.println("[CONFIG] Updated");
+            Log.println("[CONFIG] Updated");
             appConfigChanged();
         }
     }
 
     jsonConfig(json, sizeof(json));
     sendJson(200, json);
+}
+
+/**
+ * GET /api/log -> tail of the firmware log (text/plain), same history as the telnet console.
+ * Read only: remote diagnostics through the SignalK proxy without the USB cable.
+ */
+static void handleLog() {
+    static char *buf = nullptr;
+    const size_t cap = 32 * 1024;
+    if (!buf) buf = (char *)heap_caps_malloc(cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buf) { sendJson(500, "{\"error\":\"no memory\"}"); return; }
+    size_t n = remoteLogCopy(buf, cap);
+    cors();
+    server.sendHeader("Cache-Control", "no-cache");
+    server.send_P(200, "text/plain; charset=utf-8", buf, n);
 }
 
 /* ================= CAPTURE / STREAM ================= */
@@ -184,8 +243,8 @@ static void handleCapture() {
         sendJson(500, "{\"error\":\"no memory\"}");
         return;
     }
+    uint32_t seq = cameraJpegSeq();   /* wait for a frame encoded after this request, not the last one kept */
     cameraJpegDemand(+1);
-    uint32_t seq = 0;
     size_t n = cameraCopyJpeg(buf, cap, &seq, 2000);
     cameraJpegDemand(-1);
     if (!n) {
@@ -211,22 +270,21 @@ static void mjpegTask(void *pv) {
     StreamArgs *args = static_cast<StreamArgs *>(pv);
     WiFiClient client = args->client;
     delete args;
-    client.setTimeout(2);
     client.setNoDelay(true);
 
     size_t cap = cameraJpegMaxSize();
     uint8_t *buf = (uint8_t *)heap_caps_malloc(cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!buf) {
         client.stop();
-        activeStreamClients = activeStreamClients - 1;
+        activeStreamClients--;
         vTaskDelete(NULL);
         return;
     }
 
+    uint32_t seq = cameraJpegSeq();
     cameraJpegDemand(+1);
-    Serial.printf("[STREAM] Client started (%d active)\n", (int)activeStreamClients);
+    Log.printf("[STREAM] Client started (%d active)\n", activeStreamClients.load());
 
-    uint32_t seq = 0;
     while (client.connected()) {
         size_t n = cameraCopyJpeg(buf, cap, &seq, 1000);
         if (!n) continue;
@@ -240,8 +298,8 @@ static void mjpegTask(void *pv) {
     client.stop();
     heap_caps_free(buf);
     cameraJpegDemand(-1);
-    activeStreamClients = activeStreamClients - 1;
-    Serial.printf("[STREAM] Client ended (%d remaining)\n", (int)activeStreamClients);
+    activeStreamClients--;
+    Log.printf("[STREAM] Client ended (%d remaining)\n", activeStreamClients.load());
     vTaskDelete(NULL);
 }
 
@@ -263,13 +321,13 @@ static void handleStream() {
     client.println("Connection: close");
     client.println();
 
-    activeStreamClients = activeStreamClients + 1;
+    activeStreamClients++;
     StreamArgs *args = new StreamArgs{ client };
     BaseType_t ret = xTaskCreatePinnedToCore(mjpegTask, "mjpeg", 8192, args, 1, NULL, 0);
     if (ret != pdPASS) {
-        Serial.println("[STREAM] Failed to create task");
+        Log.println("[STREAM] Failed to create task");
         delete args;
-        activeStreamClients = activeStreamClients - 1;
+        activeStreamClients--;
     }
 }
 
@@ -308,11 +366,21 @@ static bool serveFile(String path) {
         if (f) f.close();
         return false;
     }
-    // WebServer::streamFile adds "Content-Encoding: gzip" itself for *.gz files
-    (void)gz;
     server.sendHeader("Cache-Control",
                       path.indexOf("/_next/static/") >= 0 ? "public, max-age=31536000, immutable" : "no-cache");
-    server.streamFile(f, contentType(path));
+    if (gz) server.sendHeader("Content-Encoding", "gzip");
+    server.setContentLength(f.size());
+    server.send(200, contentType(path), "");
+
+    /* Not streamFile(): it ignores short writes and would retry every chunk of a 70 KB bundle for
+     * ~10 s each towards a phone that left the WiFi, starving loop() into the watchdog. */
+    NetworkClient c = server.client();
+    static uint8_t chunk[1436];
+    unsigned long t0 = millis();
+    while (f.available() && millis() - t0 < 5000) {
+        size_t n = f.read(chunk, sizeof(chunk));
+        if (!n || c.write(chunk, n) != n) break;
+    }
     f.close();
     return true;
 }
@@ -346,20 +414,23 @@ void httpBegin() {
     server.on("/api/disarm", HTTP_GET, handleDisarm);
     server.on("/api/shot", HTTP_POST, handleShot);
     server.on("/api/shot", HTTP_GET, handleShot);
+    server.on("/api/sound", HTTP_GET, handleSound);
+    server.on("/api/sound", HTTP_POST, handleSound);
     server.on("/api/config", HTTP_GET, handleConfig);
     server.on("/api/config", HTTP_POST, handleConfig);
     server.on("/api/capture", HTTP_GET, handleCapture);
     server.on("/api/stream", HTTP_GET, handleStream);
+    server.on("/api/log", HTTP_GET, handleLog);
 
     const char *optionRoutes[] = { "/api/", "/api/status", "/api/targets", "/api/stats", "/api/stats/reset",
-                                   "/api/arm", "/api/disarm", "/api/shot", "/api/config", "/api/capture", "/api/stream" };
+                                   "/api/arm", "/api/disarm", "/api/shot", "/api/sound", "/api/config", "/api/capture", "/api/stream", "/api/log" };
     for (const char *r : optionRoutes) server.on(r, HTTP_OPTIONS, handleOptions);
 
     server.onNotFound(handleNotFound);
     server.begin();
-    Serial.printf("[HTTP] Server started on port %d\n", HTTP_PORT);
+    Log.printf("[HTTP] Server started on port %d\n", HTTP_PORT);
 }
 
 void httpLoop() { server.handleClient(); }
 
-int httpStreamClients() { return activeStreamClients; }
+int httpStreamClients() { return activeStreamClients.load(); }

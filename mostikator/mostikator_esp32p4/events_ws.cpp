@@ -1,12 +1,12 @@
 #include "events_ws.h"
 #include "config.h"
+#include "remote.h"
 #include "json_builders.h"
 #include "detector.h"
 #include "app_events.h"
 #include <WebSocketsServer.h>
 
 static WebSocketsServer wsServer(WS_PORT);
-static int clientCount = 0;
 static char msg[4096];
 
 static void sendSnapshot(uint8_t num) {
@@ -19,13 +19,12 @@ static void sendSnapshot(uint8_t num) {
 static void onWsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
     switch (type) {
         case WStype_CONNECTED:
-            clientCount++;
-            Serial.printf("[WS] Client #%d connected (%d total)\n", num, clientCount);
+            Log.printf("[WS] Client #%d connected (%d total)\n", num, wsServer.connectedClients());
             sendSnapshot(num);
             break;
         case WStype_DISCONNECTED:
-            if (clientCount > 0) clientCount--;
-            Serial.printf("[WS] Client #%d disconnected (%d remaining)\n", num, clientCount);
+            /* Also fired for handshakes that never completed: never count clients by hand */
+            Log.printf("[WS] Client #%d disconnected (%d remaining)\n", num, wsServer.connectedClients());
             break;
         case WStype_TEXT: {
             String cmd((const char *)payload, length);
@@ -50,14 +49,17 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t lengt
 void wsBegin() {
     wsServer.begin();
     wsServer.onEvent(onWsEvent);
-    Serial.printf("[WS] Event stream on port %d\n", WS_PORT);
+    /* A phone that walks out of WiFi range would stay "connected" for minutes and every broadcast
+     * would stall loop() on it: ping every 3 s, drop after one missed pong */
+    wsServer.enableHeartbeat(3000, 2000, 1);
+    Log.printf("[WS] Event stream on port %d\n", WS_PORT);
 }
 
 void wsLoop() { wsServer.loop(); }
 
 void wsBroadcast(const char *json) {
-    if (clientCount == 0) return;
+    if (wsServer.connectedClients() == 0) return;
     wsServer.broadcastTXT(json, strlen(json));
 }
 
-int wsClients() { return clientCount; }
+int wsClients() { return wsServer.connectedClients(); }

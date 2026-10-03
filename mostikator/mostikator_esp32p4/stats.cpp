@@ -1,4 +1,5 @@
 #include "stats.h"
+#include "remote.h"
 #include <Preferences.h>
 
 static Preferences prefs;
@@ -15,7 +16,7 @@ void statsBegin() {
     stats.shots  = prefs.getUInt("shots", 0);
     stats.hits   = prefs.getUInt("hits", 0);
     stats.misses = prefs.getUInt("misses", 0);
-    Serial.printf("[STATS] seen=%lu shots=%lu hits=%lu misses=%lu\n",
+    Log.printf("[STATS] seen=%lu shots=%lu hits=%lu misses=%lu\n",
                   (unsigned long)stats.seen, (unsigned long)stats.shots,
                   (unsigned long)stats.hits, (unsigned long)stats.misses);
 }

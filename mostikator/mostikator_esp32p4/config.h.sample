@@ -5,10 +5,17 @@
 #define WIFI_PASS     "CHANGE_ME"
 
 /* Fallback WiFi: used if primary SSID is not found */
-#define WIFI_SSID2    "iphone_wifi"
+#define WIFI_SSID2    "CHANGE_ME"
 #define WIFI_PASS2    "CHANGE_ME"
 
 #define DEVICE_NAME   "mostikator-p4-01"
+
+/* ================= REMOTE MAINTENANCE (see remote.h) ================= */
+/* Password for OTA uploads (espota, port OTA_PORT) and for the telnet console (port TELNET_PORT).
+ * The console can arm the detector and drive the turret: never leave it empty. */
+#define OTA_PASSWORD  "change-me"
+#define OTA_PORT      3232
+#define TELNET_PORT   23
 
 /* ================= SIGNALK (MQTT bridge, same as the pond sensor) ================= */
 #define MQTT_HOST     "192.168.1.16"
@@ -46,15 +53,18 @@
 /* ================= DETECTOR DEFAULTS (adjustable live via POST /api/config) ================= */
 #define DET_DOWNSCALE        4    /* working grid = frame / N (4 -> 480x270 for 1080p) */
 #define DET_THRESHOLD       28    /* luma difference vs background (0-255) */
-#define DET_MIN_AREA         2    /* blob area in working pixels */
+#define DET_MIN_AREA         4    /* blob area in working pixels (2 also catches the speckle at the threshold edge) */
 #define DET_MAX_AREA       120
-#define DET_CONFIRM_FRAMES   3    /* consecutive frames before a track becomes a target */
+#define DET_CONFIRM_FRAMES   4    /* consecutive frames before a track becomes a target */
 #define DET_MISS_FRAMES      8    /* frames without match before a track is dropped */
-#define DET_MAX_MATCH_DIST  24    /* working pixels */
+#define DET_MAX_MATCH_DIST  12    /* working pixels; 24 was loose enough to chain unrelated blobs into a track */
 #define DET_LEARN_SHIFT      5    /* background learning rate = 1/2^n per frame */
 #define DET_DARK_ONLY        1    /* mosquitoes are darker than a bright background */
-#define DET_WARMUP_FRAMES   30
+#define DET_WARMUP_FRAMES  200    /* ~5 s at 36 fps: the OV5647 auto-exposure must settle before arming */
 #define DET_LEAD_MS        150    /* prediction lead sent to the turret */
+#define DET_NOISE_K          3    /* per-pixel threshold = threshold + K x that pixel's own noise (edges, flicker) */
+#define DET_GLOBAL_CHANGE_PCT 2   /* more than this % of the ROI changes at once = shake / exposure: frame ignored */
+#define DET_ISOLATION        1    /* reject blobs with other changes around them (edge of a head, arm, leaf) */
 #define DET_ROI_X0        0.02f
 #define DET_ROI_Y0        0.02f
 #define DET_ROI_X1        0.98f
@@ -67,7 +77,48 @@
 #define PUBLISH_STATUS_MS  5000   /* status + stats to SignalK / WS */
 #define PUBLISH_TARGET_MS   200   /* target position rate limit (5 Hz) */
 
+/* ================= AUDIO (on-board ES8311 codec + NS4150B amp + speaker header) ================= */
+/* Nothing to wire: the speaker plugs into the PH2.0 "SPK" header of the Waveshare board.
+ * The codec sits at 0x18 on the same I2C bus as the camera SCCB, which is why a scan with no
+ * camera answers "0x18 only". audioBegin() therefore runs BEFORE cameraBegin(), configures the
+ * codec, and hands the bus back to the camera driver for good.
+ * I2S0 pins are fixed by the board layout - do not change them. */
+#define AUDIO_ENABLED        1
+#define AUDIO_CODEC_ADDR  0x18
+#define AUDIO_CODEC_SDA      7    /* = CAM_SCCB_SDA, shared bus */
+#define AUDIO_CODEC_SCL      8    /* = CAM_SCCB_SCL, shared bus */
+#define AUDIO_I2S_MCLK      13
+#define AUDIO_I2S_BCLK      12
+#define AUDIO_I2S_WS        10
+#define AUDIO_I2S_DOUT       9    /* ESP -> codec DSDIN (playback); GPIO11 is the microphone, unused */
+#define AUDIO_PA_PIN        53    /* NS4150B enable, -1 = always on */
+#define AUDIO_PA_SETTLE_MS  20
+#define AUDIO_SAMPLE_RATE 16000   /* must match tools/make_blaster.py */
+#define AUDIO_VOLUME       100    /* 0-100 % */
+
+/* ================= LINK TO THE TURRET (ESP32 + PS5 controller, UART2) ================= */
+/* 3 wires, both boards in 3.3 V logic:
+ *   GPIO20 (TX) -> turret GPIO16 (RX)    GPIO21 (RX) <- turret GPIO17 (TX)    GND <-> GND
+ * Swap the two defines if the wires are the other way round.
+ * The turret has no network (Bluetooth Classic only): it announces its manual shots here
+ * so the blaster comes out of the board speaker. */
+#define TURRET_LINK_ENABLED   1
+#define TURRET_LINK_UART_NUM  2
+#define TURRET_LINK_TX_PIN   20
+#define TURRET_LINK_RX_PIN   21
+#define TURRET_LINK_BAUD 115200
+/* The turret is considered present while it has said anything on the link recently. */
+#define TURRET_LINK_TIMEOUT_MS 15000
+
+/* Demo / bench mode: with no turret answering, nothing would ever fire and the detection
+ * would stay silent. A confirmed target then plays the blaster on its own, so you can hear
+ * what the camera sees. As soon as the turret answers, it owns the trigger again. */
+#define SIMULATE_SHOT_NO_TURRET    0   /* 1 = demo: with the phantom detections it plays the blaster in a loop */
+#define SIMULATE_SHOT_MIN_GAP_MS 400
+
 /* ================= OPTIONAL 16x2 LCD (HD44780, 4-bit) ================= */
+/* GPIO20/21 now carry the turret link: move RS/EN to free pins before enabling the LCD
+ * (the firmware refuses to compile otherwise). Audio needs no GPIO from this header. */
 #define LCD_ENABLED  0
 #define LCD_RS      20
 #define LCD_EN      21

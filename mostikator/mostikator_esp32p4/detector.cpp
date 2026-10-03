@@ -1,5 +1,6 @@
 #include "detector.h"
 #include "config.h"
+#include "remote.h"
 
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -43,6 +44,10 @@ static uint32_t  srcW = 0, srcH = 0;
 static uint32_t  W = 0, H = 0;
 static uint8_t  *gray = nullptr;
 static uint16_t *bg = nullptr;      // luma << 4 (fixed point)
+static uint16_t *noise = nullptr;   // running mean |luma - background| << 4: how much this pixel flickers
+static uint32_t  maskHits = 0;      // changed pixels in the ROI on the last frame
+static uint32_t  roiPixels = 1;
+static uint32_t  globalSkips = 0;
 static uint8_t  *mask = nullptr;
 static uint16_t *labels = nullptr;
 static uint16_t  parent[MAX_LABELS];
@@ -80,6 +85,9 @@ DetectorConfig detectorDefaultConfig() {
     c.hfov  = CAM_HFOV_DEG;
     c.vfov  = CAM_VFOV_DEG;
     c.leadMs = DET_LEAD_MS;
+    c.noiseK = DET_NOISE_K;
+    c.globalChangePct = DET_GLOBAL_CHANGE_PCT;
+    c.isolation = DET_ISOLATION != 0;
     return c;
 }
 
@@ -93,6 +101,9 @@ static void sanitize(DetectorConfig &c) {
     if (c.maxArea < c.minArea) c.maxArea = c.minArea;
     if (c.maxMatchDist < 1) c.maxMatchDist = 1;
     if (c.warmupFrames < 1) c.warmupFrames = 1;
+    if (c.noiseK > 20) c.noiseK = 20;
+    if (c.globalChangePct < 1) c.globalChangePct = 1;
+    if (c.globalChangePct > 100) c.globalChangePct = 100;
     auto clamp01 = [](float v) { return v < 0 ? 0.f : (v > 1 ? 1.f : v); };
     c.roiX0 = clamp01(c.roiX0); c.roiY0 = clamp01(c.roiY0);
     c.roiX1 = clamp01(c.roiX1); c.roiY1 = clamp01(c.roiY1);
@@ -141,7 +152,7 @@ void detectorArm(bool armed) {
     } else {
         state = (warm >= cfg.warmupFrames) ? DET_ARMED : DET_LEARNING;
     }
-    Serial.printf("[DET] %s\n", armed ? "Armed" : "Disarmed");
+    Log.printf("[DET] %s\n", armed ? "Armed" : "Disarmed");
 }
 
 bool          detectorArmed() { return armedRequested; }
@@ -158,6 +169,7 @@ const char   *detectorStateName() {
 static void freeBuffers() {
     if (gray)   { heap_caps_free(gray);   gray = nullptr; }
     if (bg)     { heap_caps_free(bg);     bg = nullptr; }
+    if (noise)  { heap_caps_free(noise);  noise = nullptr; }
     if (mask)   { heap_caps_free(mask);   mask = nullptr; }
     if (labels) { heap_caps_free(labels); labels = nullptr; }
 }
@@ -171,8 +183,9 @@ static bool allocBuffers(uint32_t w, uint32_t h) {
     bg     = (uint16_t *)heap_caps_malloc(n * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     mask   = (uint8_t *)heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     labels = (uint16_t *)heap_caps_malloc(n * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!gray || !bg || !mask || !labels) {
-        Serial.println("[DET] Buffer allocation failed");
+    noise  = (uint16_t *)heap_caps_malloc(n * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!gray || !bg || !mask || !labels || !noise) {
+        Log.println("[DET] Buffer allocation failed");
         freeBuffers();
         W = H = 0;
         return false;
@@ -181,7 +194,8 @@ static bool allocBuffers(uint32_t w, uint32_t h) {
     memset(bg, 0, n * 2);
     memset(mask, 0, n);
     memset(labels, 0, n * 2);
-    Serial.printf("[DET] Working grid %ux%u (1/%u of %ux%u)\n",
+    memset(noise, 0, n * 2);
+    Log.printf("[DET] Working grid %ux%u (1/%u of %ux%u)\n",
                   (unsigned)W, (unsigned)H, cfg.downscale, (unsigned)w, (unsigned)h);
     return true;
 }
@@ -217,8 +231,19 @@ static void downscale(const uint8_t *rgb, uint32_t w) {
 }
 
 /* ================= STAGE 2: BACKGROUND + MASK ================= */
+/*
+ * Each pixel also learns how much it normally moves (noise = running mean of |luma - background|).
+ * A pixel only counts as changed when it departs from the background by threshold + K x its own
+ * noise: sharp edges that wobble with vibration or auto-exposure, flickering lamps and dark
+ * noisy areas raise their own bar, while a flat wall keeps the full sensitivity for a mosquito.
+ */
+#define NOISE_LEARN_SHIFT 5   /* 1/32 per frame: settles within the warm-up */
+#define NOISE_CAP        48   /* a passing object must not inflate a pixel's noise for long */
+
 static void updateBackgroundAndMask() {
     const int thr = cfg.threshold;
+    const int k = cfg.noiseK;
+    uint32_t hits = 0;
     const uint8_t sh = cfg.learnShift;
     const bool dark = cfg.darkOnly;
     const uint32_t rx0 = (uint32_t)(cfg.roiX0 * W), rx1 = (uint32_t)(cfg.roiX1 * W);
@@ -228,20 +253,28 @@ static void updateBackgroundAndMask() {
         const bool rowIn = (y >= ry0 && y < ry1);
         uint8_t  *g = gray + y * W;
         uint16_t *b = bg + y * W;
+        uint16_t *nz = noise + y * W;
         uint8_t  *m = mask + y * W;
         for (uint32_t x = 0; x < W; x++) {
             int yv = g[x];
             int bv = b[x] >> 4;
             int d = bv - yv;   // > 0 when the pixel is darker than the background
+            int eff = thr + ((k * (int)nz[x]) >> 4);
             uint8_t hit = 0;
             if (rowIn && x >= rx0 && x < rx1) {
-                hit = dark ? (d > thr) : (d > thr || -d > thr);
+                hit = dark ? (d > eff) : (d > eff || -d > eff);
+                hits += hit;
             }
             m[x] = hit;
+            int ad = d < 0 ? -d : d;
+            if (ad > NOISE_CAP) ad = NOISE_CAP;
+            nz[x] = (uint16_t)((int32_t)nz[x] + ((((int32_t)ad << 4) - (int32_t)nz[x]) >> NOISE_LEARN_SHIFT));
             int32_t nb = (int32_t)b[x] + ((((int32_t)yv << 4) - (int32_t)b[x]) >> sh);
             b[x] = (uint16_t)nb;
         }
     }
+    maskHits = hits;
+    roiPixels = (rx1 > rx0 && ry1 > ry0) ? (rx1 - rx0) * (ry1 - ry0) : 1;
 }
 
 /* ================= STAGE 3: CONNECTED COMPONENTS (4-connectivity) ================= */
@@ -258,6 +291,28 @@ static inline void unite(uint16_t a, uint16_t b) {
     b = findRoot(b);
     if (a == b) return;
     if (a < b) parent[b] = a; else parent[a] = b;
+}
+
+/**
+ * A mosquito is alone in the sky: nothing else changes around it. The edge of a head, an arm or a
+ * leaf moving breaks into many small fragments of the same size, each with other changed pixels
+ * right next to it. Reject a blob when the ring around its box (2x its size, at least 4 px) holds
+ * more changed pixels than the blob itself.
+ */
+static bool isolated(const Blob &bl, uint32_t bw, uint32_t bh) {
+    uint32_t margin = (bw > bh ? bw : bh) * 2;
+    if (margin < 4) margin = 4;
+    uint32_t x0 = bl.minX > margin ? bl.minX - margin : 0;
+    uint32_t y0 = bl.minY > margin ? bl.minY - margin : 0;
+    uint32_t x1 = bl.maxX + margin < W ? bl.maxX + margin : W - 1;
+    uint32_t y1 = bl.maxY + margin < H ? bl.maxY + margin : H - 1;
+    uint32_t around = 0;
+    for (uint32_t y = y0; y <= y1; y++) {
+        const uint8_t *m = mask + (size_t)y * W;
+        for (uint32_t x = x0; x <= x1; x++) around += m[x];
+    }
+    around -= bl.area < around ? bl.area : around;
+    return around <= bl.area;
 }
 
 /**
@@ -322,7 +377,7 @@ static int labelBlobs() {
     }
     if (tooMany) return -1;
 
-    // Area / shape filter, compact in place
+    // Area / shape / isolation filter, compact in place
     int kept = 0;
     const uint32_t maxDim = (uint32_t)(sqrtf((float)cfg.maxArea) * 3.0f) + 2;
     for (int b = 0; b < nBlobs; b++) {
@@ -330,6 +385,7 @@ static int labelBlobs() {
         uint32_t bw = bl.maxX - bl.minX + 1, bh = bl.maxY - bl.minY + 1;
         if (bl.area < cfg.minArea || bl.area > cfg.maxArea) continue;
         if (bw > maxDim || bh > maxDim) continue;
+        if (cfg.isolation && !isolated(bl, bw, bh)) continue;
         bl.cx = (float)bl.sumX / bl.area;
         bl.cy = (float)bl.sumY / bl.area;
         bl.used = false;
@@ -485,7 +541,7 @@ void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
         cfg = pendingCfg;
         cfgPending = false;
         xSemaphoreGive(mtx);
-        if (realloc) Serial.println("[DET] Downscale changed – rebuilding buffers");
+        if (realloc) Log.println("[DET] Downscale changed – rebuilding buffers");
     }
 
     if (w != srcW || h != srcH || realloc || !gray) {
@@ -529,12 +585,32 @@ void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
         return;
     }
 
+    /* A large part of the picture changing at once is the camera shaking (turret moving, wind), an
+     * exposure step or a light switched on - never a mosquito. Skip the frame: no new tracks, no
+     * confirmations, the background catches up within a second. */
+    if (maskHits * 100 > roiPixels * cfg.globalChangePct) {
+        globalSkips++;
+        static uint32_t lastSkipLog = 0;
+        if (ts - lastSkipLog > 5000) {
+            lastSkipLog = ts;
+            Log.printf("[DET] Global change (%lu%% of the ROI) – frame ignored (%lu so far)\n",
+                       (unsigned long)(maskHits * 100 / roiPixels), (unsigned long)globalSkips);
+        }
+        frameCount = frameCount + 1;
+        procMs = millis() - t0;
+        return;
+    }
+
     int nBlobs = labelBlobs();
     if (nBlobs < 0) {
         // Global change (lights, camera move): relearn quickly, drop tracks
         size_t n = (size_t)W * H;
         for (size_t i = 0; i < n; i++) bg[i] = (uint16_t)gray[i] << 4;
+        /* Announce the drop and empty the snapshot, or REST / WS / the turret keep ghost targets
+         * for as long as the frame stays saturated */
+        for (int i = 0; i < MAX_TRACKS; i++) if (tracks[i].active && tracks[i].confirmed) emit(DET_EVT_LOST, tracks[i], ts);
         clearTracks();
+        if (xSemaphoreTake(mtx, pdMS_TO_TICKS(5)) == pdTRUE) { snapshotN = 0; xSemaphoreGive(mtx); }
         blobCount = 0;
     } else {
         blobCount = nBlobs;
@@ -577,6 +653,7 @@ uint32_t detectorWorkHeight()   { return H; }
 uint32_t detectorBlobCount()    { return blobCount; }
 uint32_t detectorFrameCount()   { return frameCount; }
 uint32_t detectorProcessMs()    { return procMs; }
+uint32_t detectorGlobalSkips()  { return globalSkips; }
 uint32_t detectorActiveTracks() {
     uint32_t n = 0;
     for (int t = 0; t < MAX_TRACKS; t++) if (tracks[t].active) n++;

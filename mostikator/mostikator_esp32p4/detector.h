@@ -28,6 +28,9 @@ struct DetectorConfig {
     float    roiX0, roiY0, roiX1, roiY1; // normalised region of interest
     float    hfov, vfov;      // degrees
     uint16_t leadMs;          // prediction lead
+    uint8_t  noiseK;          // extra threshold per unit of the pixel's own noise (0 = off)
+    uint8_t  globalChangePct; // % of the ROI changing at once that marks a shake / exposure change
+    bool     isolation;       // only blobs with no other change around them (not fragments of a bigger object)
 };
 
 enum DetectorState : uint8_t {
@@ -71,6 +74,8 @@ void          detectorArm(bool armed);
 bool          detectorArmed();
 DetectorState detectorState();
 const char   *detectorStateName();
+
+uint32_t detectorGlobalSkips();   /* frames ignored as a global change (shake, exposure) */
 
 /* Called from the camera task for every frame */
 void detectorProcess(const uint8_t *rgb565, uint32_t w, uint32_t h, uint32_t tsMs);

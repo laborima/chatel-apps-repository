@@ -1,5 +1,7 @@
 #include "camera.h"
+#include <atomic>
 #include "config.h"
+#include "remote.h"
 
 #include <ESP_Video.h>
 #include <Wire.h>
@@ -31,7 +33,7 @@ static uint8_t          *jpegBuf = nullptr;
 static size_t            jpegCap = 0;
 static volatile size_t   jpegLen = 0;
 static volatile uint32_t jpegSeq = 0;
-static volatile int      jpegDemand = 0;
+static std::atomic<int>  jpegDemand{0};   /* changed from loop() (core 1) and the MJPEG tasks (core 0) */
 static SemaphoreHandle_t jpegMutex = nullptr;
 static TaskHandle_t      camTask = nullptr;
 
@@ -52,7 +54,7 @@ static bool initJpeg(uint32_t w, uint32_t h) {
         lastError = "jpeg buffer";
         return false;
     }
-    Serial.printf("[CAM] JPEG encoder ready (%u bytes output buffer)\n", (unsigned)jpegCap);
+    Log.printf("[CAM] JPEG encoder ready (%u bytes output buffer)\n", (unsigned)jpegCap);
     return true;
 }
 
@@ -77,7 +79,7 @@ static bool encodeJpeg(const uint8_t *src, size_t srcLen, uint32_t w, uint32_t h
         static uint32_t lastLog = 0;
         if (millis() - lastLog > 5000) {
             lastLog = millis();
-            Serial.printf("[CAM] JPEG encode failed: 0x%x\n", err);
+            Log.printf("[CAM] JPEG encode failed: 0x%x\n", err);
         }
     }
     return err == ESP_OK;
@@ -112,6 +114,10 @@ static void cameraTask(void *) {
             fpsT = now;
         }
         // buffer is returned to the driver when `buf` goes out of scope
+        /* Always yield once per frame: when detection + JPEG take longer than the frame period a
+         * new buffer is always ready, and this task never blocked - loop() starved on the same core
+         * and the task watchdog rebooted the board (core dump: TWDT, running task "cam"). */
+        vTaskDelay(1);
     }
 }
 
@@ -130,17 +136,17 @@ static void applySensorSettings() {
 static void scanSccb() {
     Wire.begin(CAM_SCCB_SDA, CAM_SCCB_SCL, 100000);
     int found = 0;
-    Serial.print("[CAM] SCCB scan:");
+    Log.print("[CAM] SCCB scan:");
     for (uint8_t addr = 0x08; addr < 0x78; addr++) {
         Wire.beginTransmission(addr);
         if (Wire.endTransmission() == 0) {
-            Serial.printf(" 0x%02x", addr);
+            Log.printf(" 0x%02x", addr);
             found++;
         }
     }
-    if (!found) Serial.print(" nothing answers (camera unpowered, ribbon reversed, or wrong SCCB pins)");
-    Serial.println();
-    Serial.println("[CAM] Known: OV5647=0x36  OV5640/OV5645=0x3c  IMX708 (Pi cam v3, unsupported)=0x1a  IMX219 (Pi cam v2)=0x10");
+    if (!found) Log.print(" nothing answers (camera unpowered, ribbon reversed, or wrong SCCB pins)");
+    Log.println();
+    Log.println("[CAM] Known: OV5647=0x36  OV5640/OV5645=0x3c  IMX708 (Pi cam v3, unsupported)=0x1a  IMX219 (Pi cam v2)=0x10");
     Wire.end();
 }
 
@@ -157,32 +163,32 @@ bool cameraBegin(CameraFrameCb cb) {
     if (!camConfig.begin((i2c_port_num_t)CAM_SCCB_I2C_PORT, CAM_SCCB_SCL, CAM_SCCB_SDA,
                          400000, CAM_RESET_PIN, CAM_PWDN_PIN)) {
         lastError = "sccb config";
-        Serial.println("[CAM] SCCB configuration failed");
+        Log.println("[CAM] SCCB configuration failed");
         return false;
     }
 
     ESPVideoCSIConfigClass csiConfig;
     if (!csiConfig.begin(camConfig)) {
         lastError = "csi config";
-        Serial.println("[CAM] CSI configuration failed");
+        Log.println("[CAM] CSI configuration failed");
         return false;
     }
 
     if (!video.begin(csiConfig)) {
         lastError = "video init (sensor not detected?)";
-        Serial.println("[CAM] esp_video init failed – check the OV5647 ribbon and SCCB pins");
+        Log.println("[CAM] esp_video init failed – check the OV5647 ribbon and SCCB pins");
         return false;
     }
 
     if (!captureDev.begin(ESP_VIDEO_MIPI_CSI_DEVICE_NAME, 2)) {
         lastError = "capture device";
-        Serial.println("[CAM] Failed to open the MIPI-CSI capture device");
+        Log.println("[CAM] Failed to open the MIPI-CSI capture device");
         return false;
     }
 
     if (!captureDev.setFormat(ESP_VIDEO_FORMAT_RGB565)) {
         lastError = "format";
-        Serial.println("[CAM] RGB565 format not accepted");
+        Log.println("[CAM] RGB565 format not accepted");
         return false;
     }
 
@@ -190,22 +196,24 @@ bool cameraBegin(CameraFrameCb cb) {
 
     if (!captureDev.startCapture()) {
         lastError = "start capture";
-        Serial.println("[CAM] startCapture failed");
+        Log.println("[CAM] startCapture failed");
         return false;
     }
 
     frameW = captureDev.getWidth();
     frameH = captureDev.getHeight();
-    Serial.printf("[CAM] Capture started %ux%u RGB565\n", (unsigned)frameW, (unsigned)frameH);
+    Log.printf("[CAM] Capture started %ux%u RGB565\n", (unsigned)frameW, (unsigned)frameH);
 
     if (frameW && frameH) {
         if (!initJpeg(frameW, frameH)) {
-            Serial.println("[CAM] JPEG encoder unavailable – stream/capture disabled");
+            Log.println("[CAM] JPEG encoder unavailable – stream/capture disabled");
         }
     }
 
     ready = true;
-    xTaskCreatePinnedToCore(cameraTask, "cam", 16384, nullptr, 3, &camTask, 1);
+    /* Same priority as loopTask (1) on core 1: FreeRTOS time-slices them, the web server, OTA and
+     * the console keep running however heavy the detection gets */
+    xTaskCreatePinnedToCore(cameraTask, "cam", 16384, nullptr, 1, &camTask, 1);
     return true;
 }
 
@@ -227,9 +235,11 @@ bool cameraApplySettings(const CameraSettings &s) {
 }
 
 void cameraJpegDemand(int delta) {
-    int v = jpegDemand + delta;
-    jpegDemand = v < 0 ? 0 : v;
+    int v = jpegDemand.fetch_add(delta) + delta;
+    if (v < 0) jpegDemand.fetch_sub(v);   /* clamp at 0 without losing a concurrent update */
 }
+
+uint32_t cameraJpegSeq() { return jpegSeq; }
 
 size_t cameraJpegMaxSize() { return jpegCap; }
 

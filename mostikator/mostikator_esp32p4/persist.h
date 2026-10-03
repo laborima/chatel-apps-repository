@@ -8,4 +8,6 @@ bool persistLoadDetector(DetectorConfig &cfg);
 void persistSaveDetector(const DetectorConfig &cfg);
 bool persistLoadCamera(CameraSettings &s);
 void persistSaveCamera(const CameraSettings &s);
+bool persistLoadAudioVolume(uint8_t &percent);
+void persistSaveAudioVolume(uint8_t percent);
 void persistClear();

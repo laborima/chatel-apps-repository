@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include "config.h"
+#include "remote.h"
 
 #define NTP_SERVER   "pool.ntp.org"
 #define TZ_PARIS     "CET-1CEST,M3.5.0,M10.5.0/3"
@@ -10,15 +11,25 @@
 #define WIFI_RETRY_BASE_MS       1000
 #define WIFI_RETRY_MAX_MS        60000
 #define WIFI_MAX_FAILURES        10
+#define WIFI_ABSENT_MIN_MS       5000    /* the C6 reports NO_SSID_AVAIL only after its first scan */
 
 enum WifiState {
     WIFI_STATE_IDLE,
-    WIFI_STATE_CONNECTING_SSID1,
-    WIFI_STATE_CONNECTING_SSID2,
+    WIFI_STATE_CONNECTING,
     WIFI_STATE_WAIT_RETRY
 };
 
+#ifdef WIFI_SSID2
+static const char *const ssids[2]  = { WIFI_SSID, WIFI_SSID2 };
+static const char *const passes[2] = { WIFI_PASS, WIFI_PASS2 };
+#else
+static const char *const ssids[2]  = { WIFI_SSID, "" };
+static const char *const passes[2] = { WIFI_PASS, "" };
+#endif
+
 static WifiState     wifiState = WIFI_STATE_WAIT_RETRY;
+static int           ssidIdx = 0;           /* network being tried, then the one that worked: tried first next time */
+static int           tried = 0;             /* networks tried in the current round */
 static unsigned long wifiConnectStart = 0;
 static unsigned long lastWifiCheck = 0;
 static unsigned long wifiRetryDelay = 0;
@@ -26,6 +37,16 @@ static int           wifiConsecutiveFailures = 0;
 static bool          ntpSynced = false;
 static bool          ntpStarted = false;
 static unsigned long lastNtpCheck = 0;
+
+static int ssidCount() { return ssids[1][0] ? 2 : 1; }
+
+static void tryCurrent(unsigned long now) {
+    Log.printf("[WIFI] Trying %s...\n", ssids[ssidIdx]);
+    WiFi.disconnect();
+    WiFi.begin(ssids[ssidIdx], passes[ssidIdx]);
+    wifiConnectStart = now;
+    wifiState = WIFI_STATE_CONNECTING;
+}
 
 void wifiBegin() {
     WiFi.mode(WIFI_STA);
@@ -51,7 +72,7 @@ int wifiLocalHour() {
 void wifiLoop() {
     if (WiFi.status() == WL_CONNECTED) {
         if (wifiState != WIFI_STATE_IDLE) {
-            Serial.printf("[WIFI] Connected to %s – IP: %s (RSSI %d)\n",
+            Log.printf("[WIFI] Connected to %s – IP: %s (RSSI %d)\n",
                           WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
             wifiState = WIFI_STATE_IDLE;
             wifiRetryDelay = WIFI_RETRY_BASE_MS;
@@ -70,7 +91,7 @@ void wifiLoop() {
             struct tm timeinfo;
             if (getLocalTime(&timeinfo, 0)) {
                 ntpSynced = true;
-                Serial.printf("[NTP] Time synced: %02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min);
+                Log.printf("[NTP] Time synced: %02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min);
             }
         }
         return;
@@ -83,57 +104,45 @@ void wifiLoop() {
         case WIFI_STATE_WAIT_RETRY:
             if (now - lastWifiCheck >= wifiRetryDelay) {
                 wifiConsecutiveFailures++;
-                Serial.printf("[WIFI] Disconnected – attempt %d\n", wifiConsecutiveFailures);
+                Log.printf("[WIFI] Disconnected – attempt %d\n", wifiConsecutiveFailures);
 
                 if (wifiConsecutiveFailures >= WIFI_MAX_FAILURES) {
-                    Serial.println("[WIFI] Too many failures – rebooting");
+                    Log.println("[WIFI] Too many failures – rebooting");
                     ESP.restart();
                 }
 
                 if (wifiConsecutiveFailures % 3 == 0) {
-                    Serial.println("[WIFI] Full reset cycle");
+                    Log.println("[WIFI] Full reset cycle");
                     WiFi.disconnect(true);
                     WiFi.mode(WIFI_STA);
                 }
 
-                Serial.printf("[WIFI] Trying %s...\n", WIFI_SSID);
-                WiFi.begin(WIFI_SSID, WIFI_PASS);
-                wifiConnectStart = now;
-                wifiState = WIFI_STATE_CONNECTING_SSID1;
+                tried = 1;
+                tryCurrent(now);   /* the last network that worked first */
             }
             break;
 
-        case WIFI_STATE_CONNECTING_SSID1:
-            if (now - wifiConnectStart >= WIFI_CONNECT_TIMEOUT_MS) {
-                Serial.printf("[WIFI] Failed to connect to %s\n", WIFI_SSID);
-#ifdef WIFI_SSID2
-                Serial.printf("[WIFI] Trying %s...\n", WIFI_SSID2);
-                WiFi.disconnect(true);
-                WiFi.begin(WIFI_SSID2, WIFI_PASS2);
-                wifiConnectStart = now;
-                wifiState = WIFI_STATE_CONNECTING_SSID2;
-#else
-                WiFi.disconnect(true);
-                wifiRetryDelay = min(wifiRetryDelay * 2, (unsigned long)WIFI_RETRY_MAX_MS);
-                if (wifiRetryDelay == 0) wifiRetryDelay = WIFI_RETRY_BASE_MS;
-                lastWifiCheck = now;
-                wifiState = WIFI_STATE_WAIT_RETRY;
-#endif
-            }
-            break;
+        case WIFI_STATE_CONNECTING: {
+            /* An SSID reported absent is not worth the whole timeout: switch to the other one at once */
+            wl_status_t st = WiFi.status();
+            bool absent = st == WL_NO_SSID_AVAIL && now - wifiConnectStart >= WIFI_ABSENT_MIN_MS;
+            if (!absent && now - wifiConnectStart < WIFI_CONNECT_TIMEOUT_MS) break;
 
-        case WIFI_STATE_CONNECTING_SSID2:
-            if (now - wifiConnectStart >= WIFI_CONNECT_TIMEOUT_MS) {
-#ifdef WIFI_SSID2
-                Serial.printf("[WIFI] Failed to connect to %s\n", WIFI_SSID2);
-#endif
-                WiFi.disconnect(true);
-                wifiRetryDelay = min(wifiRetryDelay * 2, (unsigned long)WIFI_RETRY_MAX_MS);
-                if (wifiRetryDelay == 0) wifiRetryDelay = WIFI_RETRY_BASE_MS;
-                lastWifiCheck = now;
-                wifiState = WIFI_STATE_WAIT_RETRY;
-                Serial.printf("[WIFI] Still disconnected, next retry in %lu ms\n", wifiRetryDelay);
+            Log.printf("[WIFI] Failed to connect to %s%s\n", ssids[ssidIdx], absent ? " (not found)" : "");
+            if (tried < ssidCount()) {
+                tried++;
+                ssidIdx = (ssidIdx + 1) % ssidCount();
+                tryCurrent(now);
+                break;
             }
+            ssidIdx = (ssidIdx + 1) % ssidCount();   /* next round starts with the other one */
+            WiFi.disconnect(true);
+            wifiRetryDelay = min(wifiRetryDelay * 2, (unsigned long)WIFI_RETRY_MAX_MS);
+            if (wifiRetryDelay == 0) wifiRetryDelay = WIFI_RETRY_BASE_MS;
+            lastWifiCheck = now;
+            wifiState = WIFI_STATE_WAIT_RETRY;
+            Log.printf("[WIFI] Still disconnected, next retry in %lu ms\n", wifiRetryDelay);
             break;
+        }
     }
 }

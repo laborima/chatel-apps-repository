@@ -4,6 +4,11 @@
 #include "detector.h"
 #include "wifi_manager.h"
 
+#if LCD_ENABLED && TURRET_LINK_ENABLED && \
+    (LCD_RS == TURRET_LINK_TX_PIN || LCD_RS == TURRET_LINK_RX_PIN || LCD_EN == TURRET_LINK_TX_PIN || LCD_EN == TURRET_LINK_RX_PIN)
+#error "LCD RS/EN collide with the turret UART link: move them to free pins in config.h"
+#endif
+
 #if LCD_ENABLED
 #include <LiquidCrystal.h>
 static LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
