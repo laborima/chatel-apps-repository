@@ -208,8 +208,18 @@ flowchart LR
 
 `aim.cpp` sur le P4 : tant que le détecteur est armé et qu'une cible confirmée existe, la cible principale est
 convertie en angles tourelle (`tourelle = gain × caméra + décalage`, par axe) et envoyée en `AIM <pan> <tilt>`
-toutes les 50 ms ; le laser suit (`LASER 1`, éteint 1,5 s après la perte) ; après `aim_settle_ms` de visée un
-`FIRE <aim_burst_ms>` part, au plus toutes les `aim_cooldown_ms`. **Canon désarmé = tir à blanc** : LEDs vertes,
+toutes les 50 ms ; le laser suit (`LASER 1`, éteint 1,5 s après la perte).
+
+**Anticipation** : la tourelle vise la position **future** de l'insecte, extrapolée avec sa vitesse sur
+`âge de l'image + aim_lead_ms (liaison, réaction du servo, vol de l'eau) + temps de rotation du servo` (150°/s,
+calculé deux fois puisqu'il dépend du point visé lui-même, plafonné à 1 s). Le P4 estime en continu où en est la
+tourelle ; le `FIRE <aim_burst_ms>` ne part que quand elle est à moins de 2° du point prédit, la cible suivie depuis
+`aim_settle_ms`, au plus toutes les `aim_cooldown_ms`.
+
+**Journal des tirs** (carte « Derniers tirs », `GET /api/shots`, `GET /api/shots/image?n=<n>&img=before|after`) :
+les 3 derniers tirs, caméra ou manette, avec la vue du détecteur au moment de la décision (cible entourée), une
+photo prise 200 ms après l'ordre et le résultat : cible perdue dans les 700 ms (touchée, ou envolée), toujours
+suivie (ratée), ou tir manette. Le compteur de tirs du tableau de chasse suit (tirs, « touchés » = perdues, ratés). **Canon désarmé = tir à blanc** : LEDs vertes,
 son laser du piezo et blaster sur le HP du P4, pas d'eau. Tout se règle dans la webapp (Réglages du détecteur →
 Mode automatique) ou par `POST /api/config` (`aim_*`), persisté en NVS (`mostik-aim`).
 
@@ -411,6 +421,8 @@ Via SignalK : `https://<serveur-signalk>/signalk-mostikator/device/<route>` → 
 | `/api/stream` | GET | Flux MJPEG (4 clients max) |
 | `/api/auth` | GET | 200 si `X-Mostikator-Key` est bon (ou pas de mot de passe), 401 sinon |
 | `/api/detector.bmp` | GET | Vue détecteur (BMP 8 bits de la grille de travail) |
+| `/api/shots` | GET | 3 derniers tirs (avant / après / résultat) |
+| `/api/shots/image?n=&img=before\|after` | GET | Vue détecteur au tir (BMP) ou photo après (JPEG) |
 | `/api/log` | GET | Fin du journal du firmware (texte, 32 Ko), même historique que la console telnet — carte « Journal du détecteur » de la webapp |
 | `/` | GET | Webapp (LittleFS), fallback SPA |
 
@@ -507,10 +519,12 @@ Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adress
 
 ### Comment marche la détection
 
-1. **Luma réduite** : l'image RGB565 est réduite d'un facteur `downscale` en niveaux de gris (3 → 266×266 pour le
-   mode 800×800, 18 images/s ; 2 → 400×400 mais 9 images/s ; 4 → 200×200). **La taille compte** : à 1 m, un
-   pixel caméra fait ~1,6 mm, un moustique ~3 pixels. Avec `downscale 4` et `min_area 4` il fallait un objet de
-   ~1,3 cm : ni un moustique ni le point laser n'étaient vus, seulement une main.
+1. **Grille réduite** : l'image 800×800 est réduite d'un facteur `downscale` (3 → 266×266). **Tous** les pixels de
+   chaque bloc sont lus, ligne par ligne, et avec `dark_only` le bloc garde son pixel **le plus sombre** (canal
+   vert) au lieu de la moyenne : un moustique d'un ou deux pixels caméra garde tout son contraste au lieu d'être
+   dilué au 1/9 (la première version ne lisait que 4 pixels sur 9 : il pouvait tomber entre les mailles). Sans
+   `dark_only`, moyenne de la luminance. Les deux cœurs du P4 se partagent les étapes 1-2 (moitié haute / basse).
+   **La taille compte** : à 1 m un pixel caméra fait ~1,6 mm, un moustique ~3 pixels.
 2. **Fond adaptatif** : moyenne glissante par pixel (`learn_shift` : 5 → 1/32 par image). `warmup_frames` images
    d'apprentissage à l'armement.
 3. **Masque** : pixel plus sombre que le fond de plus de `threshold + noise_k × bruit du pixel` (`dark_only`, un
@@ -523,11 +537,13 @@ Si la caméra n'est pas détectée, la ligne `[CAM] SCCB scan:` liste les adress
    sensibilité. `noise_k` 0 = ancien comportement.
    Si plus de `global_change_pct` % de la zone change d'un coup (secousse, pas d'exposition, lumière allumée),
    l'image est ignorée pour le suivi (`global_skips` dans `/api/status`).
-4. **Blobs** : composantes connexes 4-voisinage, gardées si `min_area ≤ aire ≤ max_area` (en pixels réduits) et,
+4. **Blobs** : composantes connexes 4-voisinage, seulement sur les lignes qui contiennent un changement (8 ms → 0,04 ms), gardées si `min_area ≤ aire ≤ max_area` (en pixels réduits) et,
    avec `isolation`, si la couronne autour de la tache (2 × sa taille) contient moins de pixels changés qu'elle :
    un moustique est seul dans le ciel, alors que le contour d'une tête ou d'un bras qui bouge se brise en petits
    morceaux voisins de la même taille. Trop de composantes = changement global → réapprentissage du fond.
-5. **Suivi** : association plus proche voisin (`max_match_dist`), vitesse lissée, prédiction à `lead_ms`.
+5. **Suivi** : association plus proche voisin (`max_match_dist`, ×2,5 pour une piste vue une seule fois : sa vitesse
+   est encore inconnue et un insecte rapide est déjà loin), vitesse lissée. Une piste qui sort de l'image en
+   continuant sur sa lancée est abandonnée.
    Une piste devient une **cible** après `confirm_frames` images, disparaît après `miss_frames` sans détection.
 6. **Sortie** : coordonnées normalisées, pan/tilt, confiance ; évènements `acquired` / `lost` ; stats `seen`.
 
@@ -538,6 +554,11 @@ bouge au bord de l'image.
 **Vue détecteur** (bouton 🔬 de la webapp, `GET /api/detector.bmp`) : la grille de travail telle que le détecteur la
 voit, rafraîchie ~3 fois par seconde — rouge = changement compté, cyan = changement clair ignoré (`dark_only`),
 jaune = zone `roi`.
+
+**Vitesse** (2026-10-03, `/api/log` affiche le profil toutes les 10 s) : lecture de l'image 16 ms par moitié (c'est
+la bande passante PSRAM de l'image RGB565 de 1,28 Mo qui limite), masque 8 ms, taches 0,04 ms → 29 ms par image,
+la caméra tourne à **29 images/s armée** (18 avant). L'ISP du P4 refuse la capture GRAY8 avec l'OV5647
+(`CAM_GRAY`), qui aurait divisé la lecture par deux.
 
 Mesure du 2026-10-03 (mur clair, fenêtre exclue de la `roi`) : `min_area 1` laisse passer le bruit du capteur
 (15 fausses cibles/min), `min_area 2` → 0/min, mode automatique compris.
