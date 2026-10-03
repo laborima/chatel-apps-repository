@@ -1,16 +1,218 @@
+<div align="center">
+
+# 🦟 Mostikator
+
+### *Le moustique a tort.*
+
+**Une tourelle à eau façon turbolaser qui repère les moustiques à la caméra, les vise… et les arrose.**
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0)
-[![SignalK](https://img.shields.io/badge/SignalK-integrated-blue.svg)](https://signalk.org/)
 [![ESP32-P4](https://img.shields.io/badge/ESP32--P4-Arduino-orange.svg)](https://www.espressif.com/)
+[![ESP32](https://img.shields.io/badge/ESP32-PS5%20DualSense-blue.svg)](https://www.espressif.com/)
+[![SignalK](https://img.shields.io/badge/SignalK-integrated-blue.svg)](https://signalk.org/)
+[![Webapp](https://img.shields.io/badge/webapp-Next.js%20PWA-black.svg)](signalk-mostikator)
 
-# Mostikator — Le moustique a tort
+<img src="docs/img/turret-top-angled.jpg" alt="La tourelle Mostikator : caméra, laser de visée et buse sur le même support" width="720">
 
-> **L'Empire contre-attaque.**
-> Mosquitoes, you've been warned. *The Empire strikes back.*
+*La tourelle : caméra, laser de visée et buse en laiton sur le même support pivotant.*
 
-Tourelle anti-moustiques : un **module de détection** (ESP32-P4 + caméra) repère les moustiques,
-publie leurs coordonnées sur **SignalK**, et une **tourelle** (canon à eau façon turbolaser) les arrose.
+> **L'Empire contre-attaque.** Mosquitoes, you've been warned. *The Empire strikes back.*
 
-Ce dossier contient la partie **détection** et la partie **tourelle** :
+</div>
+
+---
+
+## Sommaire
+
+- [Ce que fait le Mostikator](#ce-que-fait-le-mostikator)
+- [En images](#en-images)
+- [Comment ça marche](#comment-ça-marche)
+- [Matériel](#matériel)
+- [Montage](#montage) — [alimentation](#alimentation) · [câblage de la tourelle](#câblage-de-la-tourelle) · [circuit d'eau](#circuit-deau) · [assemblage mécanique](#assemblage-mécanique)
+- [Démarrage rapide](#démarrage-rapide)
+- [Documentation technique](#documentation-technique)
+- [Feuille de route](#feuille-de-route)
+
+## Ce que fait le Mostikator
+
+- 👁️ **Détecte** les moustiques : un module **ESP32-P4 + caméra OV5647** apprend le fond, isole les petites taches sombres, les suit et prédit leur trajectoire.
+- 📡 **Publie** les cibles (position, pan/tilt en degrés) en **WebSocket** et en **MQTT → SignalK**.
+- 💦 **Arrose** : une tourelle **ESP32** pilote une pompe 12 V, une électrovanne rapide (< 50 ms), un servo de tilt et un laser de visée. Le jet est éclairé en vert.
+- 🎮 **Se pilote à la manette PS5** (DualSense en Bluetooth), qui a toujours priorité sur la caméra.
+- 🔊 **Fait le bruit du blaster** à chaque tir, sur le haut-parleur du module de détection.
+- 📱 **Tableau de chasse** en webapp (PWA) : vidéo live avec les cibles, vus / tirs / touchés / ratés, réglages en direct. Elle tourne **sur l'ESP32-P4** (LAN) et **sur SignalK** (à distance).
+- 🔧 **Se maintient sans câble** : OTA WiFi, console telnet, journal HTTP, lecture des plantages à distance.
+
+## En images
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/turret-top.jpg" alt="Vue du dessus : tourelle, carte ESP32, relais et alimentation 5 V"><br><sub><b>Vue du dessus.</b> Tourelle à gauche, ESP32 en haut, carte 4 relais au centre, convertisseur 12 V → 5 V et bornier à droite.</sub></td>
+    <td width="50%"><img src="docs/img/turret-side.jpg" alt="Vue de côté : la pompe sous la platine électronique"><br><sub><b>Vue de côté.</b> La pompe 12 V est fixée sur la planche du bas ; la platine électronique est posée dessus.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/img/turret-with-psu.jpg" alt="Le montage avec son alimentation ATX de récupération"><br><sub><b>Alimentation.</b> Une alimentation ATX de PC récupérée fournit le 12 V (fil jaune) et la masse (noir) par un connecteur étanche.</sub></td>
+    <td><img src="docs/img/field-test-laser.jpg" alt="Essai en extérieur : laser et jet éclairés en vert"><br><sub><b>Essai en extérieur.</b> Laser de visée et éclairage vert du jet allumés.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/img/field-test-bucket.jpg" alt="Essai avec la pompe qui aspire dans un seau" width="420"><br><sub><b>Banc d'essai.</b> La pompe auto-amorçante aspire directement dans un seau d'eau.</sub></td>
+  </tr>
+</table>
+
+> 🎬 Un clip de présentation viendra compléter cette section.
+
+## Comment ça marche
+
+```mermaid
+flowchart LR
+    CAM["📷 OV5647<br/>MIPI-CSI"] --> P4["ESP32-P4<br/>détection + webapp"]
+    P4 -- "MQTT / WebSocket<br/>cibles pan·tilt" --> SK["SignalK"]
+    P4 <-- "UART 115200<br/>FIRE · AIM · ARM · HB" --> TUR["ESP32 tourelle"]
+    PS5["🎮 Manette PS5<br/>Bluetooth"] --> TUR
+    TUR --> SERVO["Servo tilt"]
+    TUR --> REL["4 relais"]
+    REL --> POMPE["Pompe 12 V"]
+    REL --> VANNE["Électrovanne"]
+    REL --> LASER["Laser de visée"]
+    REL --> LED["LEDs vertes"]
+    P4 --> HP["🔊 Haut-parleur<br/>son blaster"]
+    SK --> APP["📱 Webapp<br/>tableau de chasse"]
+    P4 --> APP
+```
+
+1. **Voir** — la caméra filme en continu ; le détecteur retire le fond adaptatif et garde les petites taches sombres isolées.
+2. **Suivre** — chaque tache confirmée devient une cible avec sa vitesse et sa position prédite.
+3. **Viser** — la cible est convertie en angles pan/tilt par rapport à l'axe de la caméra.
+4. **Tirer** — la tourelle ouvre l'électrovanne quelques dizaines de millisecondes ; le P4 joue le blaster.
+5. **Compter** — le résultat du tir (touché / raté) alimente le tableau de chasse.
+
+> ⚠️ **État actuel** : la détection, la manette, le tir, le son et la webapp fonctionnent. La **visée automatique** depuis la caméra (cible SignalK → servo) reste à faire : voir la [feuille de route](#feuille-de-route).
+
+## Matériel
+
+| Bloc | Composant |
+|---|---|
+| **Détection** | Waveshare **ESP32-P4-WIFI6** (+ ESP32-C6 WiFi 6, 32 Mo flash / 32 Mo PSRAM) · caméra **OV5647** (Pi Camera v1 ou Waveshare 72°) sur nappe MIPI-CSI · haut-parleur 8 Ω sur le connecteur PH2.0 « SPK » · LCD 16×2 (option) |
+| **Contrôle tourelle** | **ELEGOO ESP32** (WiFi + Bluetooth, CP2102) · manette **PS5 DualSense** |
+| **Mouvement** | Servo de tilt (calibré en µs ↔ degrés, voir [Réglage des servos](#réglage-des-servos-calibration)) · palier à roulement sur équerre métallique |
+| **Hydraulique** | Pompe à eau **12 V 5 l/min 116 psi** auto-amorçante · **électrovanne rapide** 2 voies NF 1/4" 12 V · buse en laiton · tuyaux (aspiration transparente, refoulement noir) |
+| **Puissance** | Carte **4 relais** SRD-05VDC-SL-C (10 A, entrées actives à l'état bas) · convertisseur **DC-DC abaisseur 12 V → 5 V** (sortie USB) · condensateur de lissage · borniers à vis |
+| **Visée & effets** | Laser rouge de visée · LEDs vertes (éclairage du jet) · piezo |
+| **Alimentation** | Alimentation **ATX de récupération** (rail 12 V + masse) |
+| **Structure** | Deux planches en bois, boîtier plastique transparent pour le support de tourelle, équerres métalliques |
+
+## Montage
+
+### Alimentation
+
+Tout part d'une alimentation ATX de PC : seuls le **12 V** (jaune) et la **masse** (noir) sont utilisés. Les charges de puissance ne passent jamais par un ESP32.
+
+```mermaid
+flowchart TD
+    PSU["Alimentation ATX récupérée<br/>+12 V jaune · GND noir"] --> BORN["Borniers à vis<br/>+12 V / GND"]
+    BORN --> CAP["Condensateur<br/>de lissage 12 V"]
+    BORN --> BUCK["Convertisseur DC-DC<br/>12 V → 5 V (sortie USB)"]
+    BORN --> RLY12["Contacts COM des relais<br/>(12 V commuté)"]
+    BUCK -- "5 V" --> VCC["VCC carte relais"]
+    BUCK -- "5 V (USB)" --> ESP["ESP32 tourelle"]
+    BUCK -- "5 V" --> SERVO["Servo de tilt"]
+    RLY12 -- "IN1 · relais 1" --> PUMP["Pompe 12 V"]
+    RLY12 -- "IN2 · relais 2" --> VALVE["Électrovanne 12 V"]
+    RLY12 -- "IN3 · relais 3" --> LASER["Laser de visée"]
+    RLY12 -- "IN4 · relais 4" --> LEDS["LEDs vertes"]
+```
+
+- Le servo est alimenté en **5 V séparé** (jamais par le 3V3 de l'ESP32 : un servo en butée tire environ 0,5 A), **masse commune** avec l'ESP32.
+- Le module de détection (ESP32-P4) est alimenté à part, en **USB-C 5 V**.
+
+### Câblage de la tourelle
+
+Brochage réel du firmware (`mostikator_turret_esp32/config.h`) :
+
+| Fonction | Broche ESP32 | Branché sur |
+|---|---|---|
+| Servo de tilt (signal) | **GPIO13** | Fil de signal du servo |
+| Relais 1 — pompe | **GPIO26** | Carte relais IN1 |
+| Relais 2 — électrovanne | **GPIO27** | Carte relais IN2 |
+| Relais 3 — laser de visée | **GPIO25** | Carte relais IN3 |
+| Relais 4 — LEDs vertes | **GPIO14** | Carte relais IN4 |
+| Piezo (son laser) | **GPIO32** | Piezo → GND |
+| Lien P4 — TX | **GPIO17** (TX2) | **GPIO21** du P4 |
+| Lien P4 — RX | **GPIO16** (RX2) | **GPIO20** du P4 |
+| Masse | **GND** | GND du P4, de la carte relais et du servo |
+
+```text
+              ELEGOO ESP32 (tourelle)                       Carte 4 relais (actifs à l'état bas)
+            +-------------------------+                   +------------------------------------+
+ PS5  ~BT~  |                         |  GPIO26 --------> | IN1  --> pompe 12 V                |
+            |                         |  GPIO27 --------> | IN2  --> électrovanne 12 V         |
+            |                         |  GPIO25 --------> | IN3  --> laser de visée            |
+            |                         |  GPIO14 --------> | IN4  --> LEDs vertes du jet        |
+            |                         |  5 V / GND -----> | VCC / GND                          |
+            |                         |                   +------------------------------------+
+            |                  GPIO13 |--> servo tilt (signal) ; servo alimenté en 5 V séparé
+            |                  GPIO32 |--> piezo
+            |  GPIO17 (TX2) --------->|--> P4 GPIO21 (RX)   \
+            |  GPIO16 (RX2) <---------|<-- P4 GPIO20 (TX)    >  3 fils, logique 3,3 V, masse commune
+            |  GND ------------------ |--- P4 GND           /
+            +-------------------------+
+```
+
+Côté module de détection (`mostikator_esp32p4/config.h`) : caméra sur le connecteur **MIPI-CSI** (SCCB sur GPIO7/8), haut-parleur sur le connecteur **PH2.0 « SPK »** (rien à câbler), lien tourelle sur **GPIO20 (TX) / GPIO21 (RX)**. Le détail est dans [Schéma de montage — module de détection](#schéma-de-montage--module-de-détection).
+
+> Les relais sont à logique inversée (`RELAY_ACTIVE_LOW 1`) : une entrée à l'état bas enclenche le relais. Les charges 12 V passent par les contacts **COM / NO**.
+
+### Circuit d'eau
+
+```mermaid
+flowchart LR
+    SEAU["💧 Réservoir / seau"] -- "tuyau transparent<br/>(aspiration)" --> POMPE["Pompe 12 V<br/>auto-amorçante"]
+    POMPE -- "tuyau noir<br/>(refoulement)" --> VANNE["Électrovanne rapide<br/>NF 12 V"]
+    VANNE --> BUSE["Buse en laiton"]
+```
+
+La pompe tourne en continu quand le canon est **armé** ; c'est l'électrovanne, qui s'ouvre moins de 50 ms, qui dose chaque tir. La pompe s'arrête seule après `PUMP_IDLE_OFF_MS` (90 s d'inactivité). Pour amorcer, **L1** démarre la pompe à la manette.
+
+### Assemblage mécanique
+
+```text
+        ┌──────────────────────────────────────────┐
+        │  Platine électronique (planche du haut)  │   ESP32 · carte relais
+        │  bornier · convertisseur 5 V · condensateur│
+        └───────────────────┬──────────────────────┘
+                            │ posée sur
+  ┌───────┐   ┌─────────────┴────────────┐
+  │Tourelle│   │  Pompe 12 V (fixée par   │      Planche du bas
+  │caméra +│   │  ses pattes)             │      + équerre métallique
+  │laser + │   └──────────────────────────┘
+  │ buse   │ ← palier à roulement sur équerre : pivot de tilt
+  └───────┘
+```
+
+Caméra, laser et buse sont solidaires du même support : ce que la caméra voit est ce que le jet atteint, et le laser matérialise le point d'impact.
+
+## Démarrage rapide
+
+```bash
+# 1. Module de détection (ESP32-P4)
+cp mostikator_esp32p4/config.h.sample mostikator_esp32p4/config.h      # WiFi, MQTT, OTA_PASSWORD
+mostikator_esp32p4/deploy-ota.sh --usb                                  # premier flash
+
+# 2. Tourelle (ESP32)
+cp mostikator_turret_esp32/config.h.sample mostikator_turret_esp32/config.h
+mostikator_turret_esp32/deploy-ota.sh --usb
+
+# 3. Webapp sur l'ESP32-P4
+cd signalk-mostikator && ./deploy-esp.sh
+```
+
+Ensuite : relier les deux cartes (3 fils), appairer la manette (**PS + Create**), armer avec **Options**, tirer avec **✕**. Les détails de chaque étape sont dans la documentation technique ci-dessous.
+
+---
+
+# Documentation technique
+
+Ce dossier contient trois parties :
 
 | Dossier | Rôle |
 |---------|------|
@@ -622,9 +824,21 @@ L'image est écrite dans la partition `spiffs` (offset `0x910000`, cf. `partitio
 
 ---
 
-## Notes d'origine
+## Feuille de route
 
-### Matériel
+- [x] Bruit de laser Star Wars et lumière verte sur le jet (piezo sur la tourelle + codec ES8311 et HP sur le P4)
+- [x] Contrôle manette PS5 (haut/bas, rotation, tir, LEDs) + calibration des servos en NVS
+- [x] Module détection : envoi des coordonnées, suivi du tir et du résultat
+- [x] Affichage mobile de la détection via briand.leslaborie.org (webapp SignalK)
+- [x] Affichage LCD : moustiques vus / tirs / réussis / loupés
+- [x] Schéma de montage de la tourelle (alimentation, câblage, eau) — voir [Montage](#montage)
+- [ ] Visée automatique : cible SignalK → servos, avec corrections (vent, distance, tir de calibration)
+- [ ] Rotation de la tourelle par moteur (canon orientable en pan)
+- [ ] Look turbolaser : tourelle en Lego + cuivre pour le canon et la buse
+- [ ] Classification des blobs par un modèle TFLite Micro (option)
+- [ ] Clip de présentation
+
+## Notes d'origine — liste de matériel
 
 Détection :
 
@@ -635,11 +849,7 @@ Détection :
 
 - Raspberry Pi Zero WH
 - Lot de 2 modules OV5640 AF 70° 5MP pour ESP32-CAM (24 broches 0,5 mm, DVP)
-- Kit Arduino : 1 9V battery snap, jumper wires, 6 phototransistors, 3 potentiomètres 10k, 10 boutons poussoirs,
-  1 TMP36, 1 tilt sensor, 1 LCD alphanumérique 16x2, LEDs (blanche, RGB, 8 rouges, 8 vertes, 8 jaunes, 3 bleues),
-  1 moteur DC 6/9V, 1 servo, 1 piezo PKM22EPP-40, 1 L293D, 1 optocoupleur 4N35, 2 MOSFET IRF520,
-  3 condensateurs 100µF, 5 diodes 1N4007, 3 gels (rouge, vert, bleu), 1 barrette mâle 40x1,
-  résistances 220 Ω (20), 560 Ω (5), 1 kΩ (5), 4,7 kΩ (5), 10 kΩ (20), 1 MΩ (5), 10 MΩ (5)
+- Kit Arduino (capteurs, LCD 16x2, LEDs, servo, piezo, L293D, MOSFET, condensateurs, résistances…)
 
 Tourelle :
 
