@@ -1,6 +1,7 @@
 #include "json_builders.h"
 #include "audio.h"
 #include "turret_link.h"
+#include "aim.h"
 #include "config.h"
 #include "camera.h"
 #include "stats.h"
@@ -25,7 +26,7 @@ size_t jsonStatus(char *buf, size_t cap) {
         "\"blobs\":%u,\"tracks\":%u,\"frames\":%lu,\"process_ms\":%lu,\"global_skips\":%lu},"
         "\"stats\":{\"seen\":%lu,\"shots\":%lu,\"hits\":%lu,\"misses\":%lu},"
         "\"audio\":{\"ready\":%s,\"volume\":%u},"
-        "\"turret\":{\"connected\":%s,\"armed\":%s},"
+        "\"turret\":{\"connected\":%s,\"armed\":%s,\"tracking\":%s,\"auto_shots\":%lu},"
         "\"ws_clients\":%d,\"ws_port\":%d}",
         DEVICE_NAME, wifiIp().c_str(), wifiRssi(), wifiNtpSynced() ? "true" : "false",
         (unsigned long)(millis() / 1000), (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
@@ -37,21 +38,24 @@ size_t jsonStatus(char *buf, size_t cap) {
         (unsigned long)st.seen, (unsigned long)st.shots, (unsigned long)st.hits, (unsigned long)st.misses,
         audioReady() ? "true" : "false", (unsigned)audioVolume(),
         turretLinkConnected() ? "true" : "false", turretLinkArmed() ? "true" : "false",
+        aimTracking() ? "true" : "false", (unsigned long)aimShots(),
         wsClients(), WS_PORT);
 }
 
 size_t jsonConfig(char *buf, size_t cap) {
     DetectorConfig c = detectorGetConfig();
     CameraSettings cs = cameraGetSettings();
+    char aim[320];
+    aimJson(aim, sizeof(aim));
     return snprintf(buf, cap,
         "{\"type\":\"config\",\"detector\":{\"downscale\":%u,\"threshold\":%u,\"min_area\":%u,\"max_area\":%u,"
         "\"confirm_frames\":%u,\"miss_frames\":%u,\"max_match_dist\":%u,\"learn_shift\":%u,\"dark_only\":%s,"
         "\"warmup_frames\":%u,\"roi\":[%.3f,%.3f,%.3f,%.3f],\"hfov\":%.1f,\"vfov\":%.1f,\"lead_ms\":%u,\"noise_k\":%u,\"global_change_pct\":%u,\"isolation\":%s},"
-        "\"camera\":{\"gain\":%ld,\"exposure\":%ld,\"vflip\":%s,\"hflip\":%s,\"quality\":%u}}",
+        "\"camera\":{\"gain\":%ld,\"exposure\":%ld,\"vflip\":%s,\"hflip\":%s,\"quality\":%u},%s}",
         c.downscale, c.threshold, c.minArea, c.maxArea, c.confirmFrames, c.missFrames, c.maxMatchDist,
         c.learnShift, c.darkOnly ? "true" : "false", c.warmupFrames,
         c.roiX0, c.roiY0, c.roiX1, c.roiY1, c.hfov, c.vfov, c.leadMs, c.noiseK, c.globalChangePct, c.isolation ? "true" : "false",
-        (long)cs.gain, (long)cs.exposure, cs.vflip ? "true" : "false", cs.hflip ? "true" : "false", cs.jpegQuality);
+        (long)cs.gain, (long)cs.exposure, cs.vflip ? "true" : "false", cs.hflip ? "true" : "false", cs.jpegQuality, aim);
 }
 
 size_t jsonStats(char *buf, size_t cap) {

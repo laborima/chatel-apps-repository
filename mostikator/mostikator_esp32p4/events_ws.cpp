@@ -28,12 +28,16 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t lengt
             break;
         case WStype_TEXT: {
             String cmd((const char *)payload, length);
-            if (cmd == "arm") {
-                detectorArm(true);
-                appConfigChanged();
-            } else if (cmd == "disarm") {
-                detectorArm(false);
-                appConfigChanged();
+            /* "arm <password>" / "disarm <password>": same CONTROL_PASSWORD as the HTTP commands */
+            bool isArm = cmd.startsWith("arm"), isDisarm = cmd.startsWith("disarm");
+            if (isArm || isDisarm) {
+                String key = cmd.substring(cmd.indexOf(' ') < 0 ? cmd.length() : cmd.indexOf(' ') + 1);
+                if (CONTROL_PASSWORD[0] && key != CONTROL_PASSWORD) {
+                    wsServer.sendTXT(num, "{\"type\":\"error\",\"error\":\"authentication required\"}");
+                } else {
+                    detectorArm(isArm);
+                    appConfigChanged();
+                }
             } else if (cmd == "ping") {
                 wsServer.sendTXT(num, "{\"type\":\"pong\"}");
             } else if (cmd == "snapshot") {

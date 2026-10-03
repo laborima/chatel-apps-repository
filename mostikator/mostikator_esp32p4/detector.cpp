@@ -202,30 +202,39 @@ static bool allocBuffers(uint32_t w, uint32_t h) {
 
 /* ================= STAGE 1: LUMA DOWNSCALE ================= */
 /**
- * Averages a few taps inside each downscale block (step = ds/2, so 4 taps
- * for ds=4, 16 taps for ds=8). Luma from RGB565: 0.30 R + 0.59 G + 0.11 B.
+ * Averages at most 2 taps per axis inside each downscale block (4 taps for ds=2..5, 16 for ds=8).
+ * Luma from RGB565 (0.30 R + 0.59 G + 0.11 B) through a 64 KB table.
  */
+static uint8_t *lumaLut = nullptr;   /* RGB565 -> luma, 64 KB in internal RAM: no multiply per tap */
+
 static void downscale(const uint8_t *rgb, uint32_t w) {
     const uint16_t *px = (const uint16_t *)rgb;
     const uint8_t ds = cfg.downscale;
-    const uint8_t step = ds >= 4 ? ds / 2 : 1;
+    /* 2 taps per axis at most: ds=3 used to read all 9 pixels of each block and was slower than ds=2 */
+    const uint8_t step = ds >= 4 ? ds / 2 : (ds == 3 ? 2 : 1);
+    if (!lumaLut) {
+        lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (!lumaLut) lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_8BIT);
+        if (!lumaLut) return;
+        for (uint32_t p = 0; p < 65536; p++) {
+            uint32_t r = (p >> 11) & 0x1F, g = (p >> 5) & 0x3F, b = p & 0x1F;
+            lumaLut[p] = (uint8_t)((r * 616 + g * 600 + b * 232) >> 8);
+        }
+    }
+    uint32_t taps = 0;
+    for (uint8_t d = 0; d < ds; d += step) taps++;
+    taps *= taps;
+    const uint32_t inv = 65536 / taps;
+    const uint8_t *lut = lumaLut;
     for (uint32_t y = 0; y < H; y++) {
         uint8_t *dst = gray + y * W;
         for (uint32_t x = 0; x < W; x++) {
             uint32_t sum = 0;
-            uint32_t n = 0;
             for (uint8_t dy = 0; dy < ds; dy += step) {
                 const uint16_t *row = px + (size_t)(y * ds + dy) * w + x * ds;
-                for (uint8_t dx = 0; dx < ds; dx += step) {
-                    uint16_t p = row[dx];
-                    uint32_t r = (p >> 11) & 0x1F;
-                    uint32_t g = (p >> 5) & 0x3F;
-                    uint32_t b = p & 0x1F;
-                    sum += (r * 616 + g * 600 + b * 232) >> 8;
-                    n++;
-                }
+                for (uint8_t dx = 0; dx < ds; dx += step) sum += lut[row[dx]];
             }
-            dst[x] = (uint8_t)(sum / n);
+            dst[x] = (uint8_t)((sum * inv) >> 16);
         }
     }
 }
@@ -239,6 +248,7 @@ static void downscale(const uint8_t *rgb, uint32_t w) {
  */
 #define NOISE_LEARN_SHIFT 5   /* 1/32 per frame: settles within the warm-up */
 #define NOISE_CAP        48   /* a passing object must not inflate a pixel's noise for long */
+#define LIT_LEARN_SHIFT  10   /* 1/1024 per frame for pixels brighter than the background (darkOnly) */
 
 static void updateBackgroundAndMask() {
     const int thr = cfg.threshold;
@@ -266,10 +276,16 @@ static void updateBackgroundAndMask() {
                 hits += hit;
             }
             m[x] = hit;
-            int ad = d < 0 ? -d : d;
-            if (ad > NOISE_CAP) ad = NOISE_CAP;
-            nz[x] = (uint16_t)((int32_t)nz[x] + ((((int32_t)ad << 4) - (int32_t)nz[x]) >> NOISE_LEARN_SHIFT));
-            int32_t nb = (int32_t)b[x] + ((((int32_t)yv << 4) - (int32_t)b[x]) >> sh);
+            /* With darkOnly, a pixel lit up (the aiming laser dot, a reflection) is only learned very slowly:
+             * learned at the normal rate, the spot it leaves behind reads "darker than the background" and
+             * the turret chases its own laser. A lasting change of light is still absorbed in about a minute. */
+            const bool lit = dark && -d > eff;
+            if (!lit) {
+                int ad = d < 0 ? -d : d;
+                if (ad > NOISE_CAP) ad = NOISE_CAP;
+                nz[x] = (uint16_t)((int32_t)nz[x] + ((((int32_t)ad << 4) - (int32_t)nz[x]) >> NOISE_LEARN_SHIFT));
+            }
+            int32_t nb = (int32_t)b[x] + ((((int32_t)yv << 4) - (int32_t)b[x]) >> (lit ? LIT_LEARN_SHIFT : sh));
             b[x] = (uint16_t)nb;
         }
     }
@@ -658,4 +674,51 @@ uint32_t detectorActiveTracks() {
     uint32_t n = 0;
     for (int t = 0; t < MAX_TRACKS; t++) if (tracks[t].active) n++;
     return n;
+}
+
+/* ================= DEBUG VIEW ================= */
+static void put16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
+static void put32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
+
+size_t detectorDebugBmp(uint8_t *out, size_t cap) {
+    const uint32_t w = W, h = H;
+    if (!gray || !bg || !mask || !w || !h) return 0;
+    const uint32_t stride = (w + 3) & ~3u;
+    const uint32_t header = 14 + 40 + 256 * 4;
+    const size_t total = header + (size_t)stride * h;
+    if (total > cap) return 0;
+
+    memset(out, 0, header);
+    out[0] = 'B'; out[1] = 'M';
+    put32(out + 2, total);
+    put32(out + 10, header);
+    put32(out + 14, 40);
+    put32(out + 18, w);
+    put32(out + 22, h);            /* positive height: rows stored bottom-up */
+    put16(out + 26, 1);
+    put16(out + 28, 8);
+    put32(out + 34, stride * h);
+    put32(out + 46, 256);
+    uint8_t *pal = out + 54;       /* B, G, R, 0 */
+    for (int i = 0; i < 250; i++) { uint8_t g = (uint8_t)(i * 255 / 249 * 6 / 10); pal[i * 4] = pal[i * 4 + 1] = pal[i * 4 + 2] = g; }
+    const uint8_t extra[][3] = { { 40, 40, 255 }, { 255, 230, 0 }, { 0, 220, 255 } };   /* 250 red, 251 cyan, 252 yellow */
+    for (int i = 0; i < 3; i++) { pal[(250 + i) * 4] = extra[i][0]; pal[(250 + i) * 4 + 1] = extra[i][1]; pal[(250 + i) * 4 + 2] = extra[i][2]; }
+
+    const uint32_t rx0 = (uint32_t)(cfg.roiX0 * w), rx1 = (uint32_t)(cfg.roiX1 * w);
+    const uint32_t ry0 = (uint32_t)(cfg.roiY0 * h), ry1 = (uint32_t)(cfg.roiY1 * h);
+    const int thr = cfg.threshold;
+    for (uint32_t y = 0; y < h; y++) {
+        uint8_t *row = out + header + (size_t)(h - 1 - y) * stride;
+        for (uint32_t x = 0; x < w; x++) {
+            size_t i = (size_t)y * w + x;
+            int d = (int)(bg[i] >> 4) - (int)gray[i];
+            uint8_t v = (uint8_t)(gray[i] * 249 / 255);
+            if (mask[i])                        v = 250;
+            else if (cfg.darkOnly && -d > thr) v = 251;   /* brighter than the background, ignored by darkOnly */
+            if ((y == ry0 || y + 1 == ry1) && x >= rx0 && x < rx1) v = 252;
+            if ((x == rx0 || x + 1 == rx1) && y >= ry0 && y < ry1) v = 252;
+            row[x] = v;
+        }
+    }
+    return total;
 }

@@ -62,6 +62,7 @@
 #include "lcd_display.h"
 #include "audio.h"
 #include "turret_link.h"
+#include "aim.h"
 #include "app_events.h"
 
 static QueueHandle_t evtQueue = nullptr;
@@ -284,6 +285,7 @@ void setup() {
     signalkBegin();
     lcdBegin();
     turretLinkBegin();
+    aimBegin();
 
     if (DET_AUTO_ARM && cameraOk) detectorArm(true);
     ledSet(detectorArmed());
@@ -303,6 +305,7 @@ void loop() {
     lcdLoop();
     turretLinkLoop();
     drainEvents();
+    aimLoop();
     publishTargets();
     publishStatus();
     delay(1);

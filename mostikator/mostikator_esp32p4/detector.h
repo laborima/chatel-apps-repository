@@ -80,6 +80,12 @@ uint32_t detectorGlobalSkips();   /* frames ignored as a global change (shake, e
 /* Called from the camera task for every frame */
 void detectorProcess(const uint8_t *rgb565, uint32_t w, uint32_t h, uint32_t tsMs);
 
+/* What the detector sees, as an 8-bit palettised BMP of the working grid: luma in grey (dimmed),
+ * pixels counted as a change in red, brighter changes ignored because of darkOnly in cyan, ROI frame in yellow.
+ * Returns the BMP size, 0 if the detector has no buffers yet or cap is too small. Debug view, not locked
+ * against the camera task: a torn frame is possible and harmless. */
+size_t detectorDebugBmp(uint8_t *out, size_t cap);
+
 /* Snapshot of confirmed targets (thread-safe copy) */
 size_t detectorGetTargets(Target *out, size_t max);
 /* Best target (highest confidence), false if none */
