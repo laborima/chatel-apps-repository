@@ -48,6 +48,7 @@ struct Target {
     float w, h;          // bounding box, normalised
     float confidence;    // 0..1
     uint32_t ageMs;
+    uint32_t tsMs;       // millis() of the frame that last saw it (x, y are that old: extrapolate with vx, vy)
     uint8_t hits, misses;
 };
 
@@ -77,8 +78,8 @@ const char   *detectorStateName();
 
 uint32_t detectorGlobalSkips();   /* frames ignored as a global change (shake, exposure) */
 
-/* Called from the camera task for every frame */
-void detectorProcess(const uint8_t *rgb565, uint32_t w, uint32_t h, uint32_t tsMs);
+/* Called from the camera task for every frame: GRAY8 (gray) or RGB565 */
+void detectorProcess(const uint8_t *frame, uint32_t w, uint32_t h, uint32_t tsMs, bool gray);
 
 /* What the detector sees, as an 8-bit palettised BMP of the working grid: luma in grey (dimmed),
  * pixels counted as a change in red, brighter changes ignored because of darkOnly in cyan, ROI frame in yellow.

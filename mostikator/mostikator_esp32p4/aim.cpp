@@ -3,6 +3,7 @@
 #include "detector.h"
 #include "remote.h"
 #include "turret_link.h"
+#include "shots.h"
 #include <Preferences.h>
 
 #ifndef AIM_AUTO
@@ -35,11 +36,21 @@
 #ifndef AIM_BURST_MS
 #define AIM_BURST_MS         150
 #endif
+#ifndef AIM_LEAD_MS
+#define AIM_LEAD_MS          80
+#endif
+#ifndef AIM_SERVO_DEG_S
+#define AIM_SERVO_DEG_S      150.0f  /* turret slew limit ("speed" on its console) */
+#endif
+#ifndef AIM_FIRE_TOL_DEG
+#define AIM_FIRE_TOL_DEG     2.0f    /* fire once the turret is estimated within that of the aim point */
+#endif
 
 #define AIM_PERIOD_MS        50      /* AIM refresh while tracking (the turret slews at its own speed) */
 #define AIM_MIN_STEP_DEG     0.3f    /* do not resend an AIM that moved less than that */
 #define AIM_HOLD_MS          1500    /* laser kept on that long after the target is lost */
-#define AIM_BLOB_VERSION     1
+#define AIM_MAX_LEAD_S       1.0f    /* never extrapolate further than that */
+#define AIM_BLOB_VERSION     2   /* 2: leadMs */
 
 static AimConfig     cfg;
 static Preferences   prefs;
@@ -52,6 +63,8 @@ static unsigned long lastAim = 0;
 static unsigned long lastFire = 0;
 static float         sentPan = 1e9f, sentTilt = 1e9f;
 static uint32_t      shots = 0;
+static float         estPan = 0, estTilt = 0;   /* where the turret should be now (slew-limited) */
+static unsigned long estAt = 0;
 
 static AimConfig defaults() {
     AimConfig c;
@@ -65,6 +78,7 @@ static AimConfig defaults() {
     c.settleMs = AIM_SETTLE_MS;
     c.cooldownMs = AIM_COOLDOWN_MS;
     c.burstMs = AIM_BURST_MS;
+    c.leadMs = AIM_LEAD_MS;
     return c;
 }
 
@@ -85,9 +99,15 @@ static void stopTracking(const char *why) {
 void aimBegin() {
     cfg = defaults();
     prefs.begin("mostik-aim", false);
-    if (prefs.getUChar("ver", 0) == AIM_BLOB_VERSION && prefs.getBytesLength("cfg") == sizeof(AimConfig)) {
+    uint8_t ver = prefs.getUChar("ver", 0);
+    size_t len = prefs.getBytesLength("cfg");
+    if (ver == AIM_BLOB_VERSION && len == sizeof(AimConfig)) {
         prefs.getBytes("cfg", &cfg, sizeof(AimConfig));
         Log.println("[AIM] Calibration loaded from NVS");
+    } else if (ver == 1 && len <= sizeof(AimConfig)) {
+        prefs.getBytes("cfg", &cfg, len);   /* version 1 = same fields without leadMs, which keeps its default */
+        cfg.leadMs = AIM_LEAD_MS;
+        Log.println("[AIM] Calibration loaded from NVS (v1)");
     }
     Log.printf("[AIM] auto %s, fire %s, laser %s | pan = %.2f x cam %+.1f | tilt = %.2f x cam %+.1f\n",
                cfg.autoAim ? "on" : "off", cfg.autoFire ? "on" : "off", cfg.laser ? "on" : "off",
@@ -116,26 +136,52 @@ void aimLoop() {
     }
     if (cfg.laser) sendLaser(true);
 
+    /* Where the turret should be now: it slews at AIM_SERVO_DEG_S towards the last AIM sent */
+    float step = AIM_SERVO_DEG_S * (float)(now - estAt) / 1000.0f;
+    estAt = now;
+    if (sentPan < 1e8f) {
+        estPan  += constrain(sentPan - estPan, -step, step);
+        estTilt += constrain(sentTilt - estTilt, -step, step);
+    }
+
+    /* Predicted meeting point: picture age + fixed latency + servo travel, refined twice since the
+     * travel time depends on the point itself */
+    const DetectorConfig dc = detectorGetConfig();
+    const float age = (float)(now - t.tsMs) / 1000.0f;
+    float lead = age + cfg.leadMs / 1000.0f;
+    float pan = 0, tilt = 0;
+    for (int i = 0; i < 3; i++) {
+        if (lead > AIM_MAX_LEAD_S) lead = AIM_MAX_LEAD_S;
+        float x = constrain(t.x + t.vx * lead, 0.0f, 1.0f);
+        float y = constrain(t.y + t.vy * lead, 0.0f, 1.0f);
+        pan  = cfg.panGain  * (x - 0.5f) * dc.hfov + cfg.panOffset;
+        tilt = cfg.tiltGain * (0.5f - y) * dc.vfov + cfg.tiltOffset;
+        float travel = fmaxf(fabsf(pan - estPan), fabsf(tilt - estTilt)) / AIM_SERVO_DEG_S;
+        lead = age + cfg.leadMs / 1000.0f + travel;
+    }
+
     if (now - lastAim >= AIM_PERIOD_MS) {
-        float pan  = cfg.panGain  * t.pan  + cfg.panOffset;
-        float tilt = cfg.tiltGain * t.tilt + cfg.tiltOffset;
         if (fabsf(pan - sentPan) >= AIM_MIN_STEP_DEG || fabsf(tilt - sentTilt) >= AIM_MIN_STEP_DEG) {
             char line[40];
             snprintf(line, sizeof(line), "AIM %.1f %.1f", pan, tilt);
             turretLinkSend(line);
+            if (sentPan > 1e8f) { estPan = pan; estTilt = tilt; }   /* unknown start: assume it is there */
             sentPan = pan;
             sentTilt = tilt;
         }
         lastAim = now;
     }
 
-    if (cfg.autoFire && now - targetSince >= cfg.settleMs && (lastFire == 0 || now - lastFire >= cfg.cooldownMs)) {
+    const bool onTarget = fabsf(estTilt - tilt) <= AIM_FIRE_TOL_DEG && fabsf(estPan - pan) <= AIM_FIRE_TOL_DEG;
+    if (cfg.autoFire && onTarget && now - targetSince >= cfg.settleMs && (lastFire == 0 || now - lastFire >= cfg.cooldownMs)) {
         lastFire = now;
         shots++;
         char line[24];
         snprintf(line, sizeof(line), "FIRE %u", (unsigned)cfg.burstMs);
         turretLinkSend(line);
-        Log.printf("[AIM] Fire at target #%u (pan %.1f tilt %.1f)\n", t.id, sentPan, sentTilt);
+        shotsRecordAuto(t, pan, tilt, (int)(lead * 1000));
+        Log.printf("[AIM] Fire at target #%u: pan %.1f tilt %.1f, lead %d ms, speed (%.2f, %.2f)/s\n",
+                   t.id, pan, tilt, (int)(lead * 1000), t.vx, t.vy);
     }
 }
 
@@ -162,8 +208,8 @@ uint32_t aimShots()    { return shots; }
 size_t aimJson(char *buf, size_t cap) {
     return snprintf(buf, cap,
         "\"aim\":{\"auto\":%s,\"fire\":%s,\"laser\":%s,\"pan_gain\":%.3f,\"pan_offset\":%.2f,"
-        "\"tilt_gain\":%.3f,\"tilt_offset\":%.2f,\"settle_ms\":%u,\"cooldown_ms\":%u,\"burst_ms\":%u}",
+        "\"tilt_gain\":%.3f,\"tilt_offset\":%.2f,\"settle_ms\":%u,\"cooldown_ms\":%u,\"burst_ms\":%u,\"lead_ms\":%u}",
         cfg.autoAim ? "true" : "false", cfg.autoFire ? "true" : "false", cfg.laser ? "true" : "false",
         cfg.panGain, cfg.panOffset, cfg.tiltGain, cfg.tiltOffset,
-        (unsigned)cfg.settleMs, (unsigned)cfg.cooldownMs, (unsigned)cfg.burstMs);
+        (unsigned)cfg.settleMs, (unsigned)cfg.cooldownMs, (unsigned)cfg.burstMs, (unsigned)cfg.leadMs);
 }

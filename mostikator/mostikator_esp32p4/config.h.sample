@@ -42,6 +42,7 @@
 /* Sensor defaults (-1 = keep driver default) */
 #define CAM_GAIN          -1
 #define CAM_EXPOSURE      -1
+#define CAM_GRAY             0    /* 1 = try GRAY8 capture (half the PSRAM traffic). The P4 ISP refuses it with the OV5647 (2026-10-03): falls back to RGB565 */
 #define CAM_VFLIP          0
 #define CAM_HFLIP          0
 
@@ -132,6 +133,7 @@
 #define AIM_SETTLE_MS        100    /* aim held that long before firing */
 #define AIM_COOLDOWN_MS      1000   /* minimum time between two bursts */
 #define AIM_BURST_MS         150
+#define AIM_LEAD_MS          80     /* fixed latency anticipated on top of picture age + servo travel (link, servo, water flight) */
 
 /* ================= OPTIONAL 16x2 LCD (HD44780, 4-bit) ================= */
 /* GPIO20/21 now carry the turret link: move RS/EN to free pins before enabling the LCD

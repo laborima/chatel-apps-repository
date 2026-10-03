@@ -21,7 +21,7 @@ size_t jsonStatus(char *buf, size_t cap) {
     return snprintf(buf, cap,
         "{\"type\":\"status\",\"device\":\"%s\",\"ip\":\"%s\",\"wifi_rssi\":%d,\"ntp_synced\":%s,"
         "\"uptime\":%lu,\"free_heap\":%u,\"free_psram\":%u,"
-        "\"camera\":{\"ready\":%s,\"width\":%u,\"height\":%u,\"fps\":%.1f,\"error\":\"%s\"},"
+        "\"camera\":{\"ready\":%s,\"width\":%u,\"height\":%u,\"fps\":%.1f,\"gray\":%s,\"error\":\"%s\"},"
         "\"detector\":{\"state\":\"%s\",\"armed\":%s,\"fps\":%.1f,\"work_width\":%u,\"work_height\":%u,"
         "\"blobs\":%u,\"tracks\":%u,\"frames\":%lu,\"process_ms\":%lu,\"global_skips\":%lu},"
         "\"stats\":{\"seen\":%lu,\"shots\":%lu,\"hits\":%lu,\"misses\":%lu},"
@@ -30,7 +30,8 @@ size_t jsonStatus(char *buf, size_t cap) {
         "\"ws_clients\":%d,\"ws_port\":%d}",
         DEVICE_NAME, wifiIp().c_str(), wifiRssi(), wifiNtpSynced() ? "true" : "false",
         (unsigned long)(millis() / 1000), (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
-        cameraReady() ? "true" : "false", (unsigned)cameraWidth(), (unsigned)cameraHeight(), cameraFps(), cameraLastError(),
+        cameraReady() ? "true" : "false", (unsigned)cameraWidth(), (unsigned)cameraHeight(), cameraFps(),
+        cameraGray() ? "true" : "false", cameraLastError(),
         detectorStateName(), detectorArmed() ? "true" : "false", detectorFps(),
         (unsigned)detectorWorkWidth(), (unsigned)detectorWorkHeight(),
         (unsigned)detectorBlobCount(), (unsigned)detectorActiveTracks(),

@@ -63,6 +63,7 @@
 #include "audio.h"
 #include "turret_link.h"
 #include "aim.h"
+#include "shots.h"
 #include "app_events.h"
 
 static QueueHandle_t evtQueue = nullptr;
@@ -86,8 +87,8 @@ static void ledSet(bool on) {
 }
 
 /* ================= CAMERA -> DETECTOR ================= */
-static void onCameraFrame(const uint8_t *rgb565, uint32_t w, uint32_t h, uint32_t ts) {
-    detectorProcess(rgb565, w, h, ts);
+static void onCameraFrame(const uint8_t *frame, uint32_t w, uint32_t h, uint32_t ts, bool gray) {
+    detectorProcess(frame, w, h, ts, gray);
 }
 
 /* ================= DETECTOR EVENTS (camera task context) ================= */
@@ -286,6 +287,7 @@ void setup() {
     lcdBegin();
     turretLinkBegin();
     aimBegin();
+    shotsBegin();
 
     if (DET_AUTO_ARM && cameraOk) detectorArm(true);
     ledSet(detectorArmed());
@@ -306,6 +308,7 @@ void loop() {
     turretLinkLoop();
     drainEvents();
     aimLoop();
+    shotsLoop();
     publishTargets();
     publishStatus();
     delay(1);

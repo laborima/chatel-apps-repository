@@ -42,6 +42,20 @@ void statsShot(bool hit, uint16_t targetId) {
     markDirty();
 }
 
+void statsFired(uint16_t targetId) {
+    stats.shots++;
+    stats.lastShotMs = millis();
+    stats.lastTargetId = targetId;
+    stats.lastResult[0] = 0;
+    markDirty();
+}
+
+void statsOutcome(bool hit) {
+    if (hit) stats.hits++; else stats.misses++;
+    strncpy(stats.lastResult, hit ? "hit" : "miss", sizeof(stats.lastResult) - 1);
+    markDirty();
+}
+
 void statsReset() {
     memset(&stats, 0, sizeof(stats));
     markDirty();

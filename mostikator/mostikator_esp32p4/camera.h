@@ -5,7 +5,9 @@
  * MIPI-CSI camera (OV5647) on ESP32-P4 through the ESP_Video library
  * (arduino-esp32 >= 3.3.11), plus the P4 hardware JPEG encoder.
  *
- * A dedicated FreeRTOS task captures RGB565 frames continuously:
+ * A dedicated FreeRTOS task captures frames continuously, in GRAY8 (luma straight from the ISP, 1 byte a
+ * pixel: half the PSRAM traffic of RGB565 and no conversion for the detector) when CAM_GRAY is set and the
+ * pipeline accepts it, RGB565 otherwise:
  *   - every frame is handed to the detector callback (CameraFrameCb)
  *   - when at least one consumer asked for JPEG (cameraJpegDemand > 0)
  *     the frame is also JPEG-encoded in hardware into a shared buffer
@@ -18,13 +20,15 @@ struct CameraSettings {
     uint8_t jpegQuality; // 1-100
 };
 
-typedef void (*CameraFrameCb)(const uint8_t *rgb565, uint32_t width, uint32_t height, uint32_t tsMs);
+/* frame = GRAY8 (gray true, 1 byte a pixel) or RGB565 (2 bytes a pixel) */
+typedef void (*CameraFrameCb)(const uint8_t *frame, uint32_t width, uint32_t height, uint32_t tsMs, bool gray);
 
 bool     cameraBegin(CameraFrameCb cb);
 bool     cameraReady();
 uint32_t cameraWidth();
 uint32_t cameraHeight();
 float    cameraFps();
+bool     cameraGray();   /* frames are GRAY8 (stream and snapshots are black and white) */
 const char *cameraLastError();
 
 CameraSettings cameraGetSettings();

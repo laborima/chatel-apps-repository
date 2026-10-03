@@ -5,12 +5,14 @@
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "esp_timer.h"
 #include <math.h>
 #include <string.h>
 
 #define MAX_LABELS 4096
 #define MAX_BLOBS  64
 #define MAX_TRACKS 16
+#define NEW_TRACK_GATE 2.5f   /* match gate x2.5 for a track seen once (no velocity estimate yet) */
 
 struct Blob {
     uint32_t area;
@@ -49,6 +51,7 @@ static uint32_t  maskHits = 0;      // changed pixels in the ROI on the last fra
 static uint32_t  roiPixels = 1;
 static uint32_t  globalSkips = 0;
 static uint8_t  *mask = nullptr;
+static uint8_t   rowHit[1024];      // rows of the grid holding at least one changed pixel (labelling skips the rest)
 static uint16_t *labels = nullptr;
 static uint16_t  parent[MAX_LABELS];
 static uint8_t   rootToBlob[MAX_LABELS];
@@ -63,6 +66,8 @@ static volatile uint32_t blobCount = 0;
 static volatile uint32_t procMs = 0;
 static volatile float    fps = 0;
 static uint32_t fpsFrames = 0, fpsT = 0;
+
+static uint32_t usDown = 0, usLabel = 0, usHalfDown = 0, usHalfMask = 0, usWait = 0;   /* last frame, per stage (profiling log) */
 
 static Target snapshot[MAX_TRACKS];
 static size_t snapshotN = 0;
@@ -202,40 +207,114 @@ static bool allocBuffers(uint32_t w, uint32_t h) {
 
 /* ================= STAGE 1: LUMA DOWNSCALE ================= */
 /**
- * Averages at most 2 taps per axis inside each downscale block (4 taps for ds=2..5, 16 for ds=8).
- * Luma from RGB565 (0.30 R + 0.59 G + 0.11 B) through a 64 KB table.
+ * Every pixel of each ds x ds block is read, row by row (sequential PSRAM reads: the strided per-block
+ * reads of the first version cost 22 ms a frame and skipped pixels, so a 1-2 px mosquito could fall
+ * between the taps). With darkOnly the block keeps its DARKEST pixel instead of the mean: a mosquito of
+ * one or two camera pixels keeps its full contrast on the reduced grid instead of being diluted 1/9.
+ * Mean pooling uses the luma (0.30 R + 0.59 G + 0.11 B, 64 KB table), darkest-pixel pooling the green channel
+ * alone (see below). Rows [y0, y1) only: the two halves
+ * of the grid run on the two cores.
  */
-static uint8_t *lumaLut = nullptr;   /* RGB565 -> luma, 64 KB in internal RAM: no multiply per tap */
+static uint8_t *lumaLut = nullptr;   /* RGB565 -> luma, 64 KB in internal RAM: no multiply per pixel */
 
-static void downscale(const uint8_t *rgb, uint32_t w) {
-    const uint16_t *px = (const uint16_t *)rgb;
-    const uint8_t ds = cfg.downscale;
-    /* 2 taps per axis at most: ds=3 used to read all 9 pixels of each block and was slower than ds=2 */
-    const uint8_t step = ds >= 4 ? ds / 2 : (ds == 3 ? 2 : 1);
-    if (!lumaLut) {
-        lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-        if (!lumaLut) lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_8BIT);
-        if (!lumaLut) return;
-        for (uint32_t p = 0; p < 65536; p++) {
-            uint32_t r = (p >> 11) & 0x1F, g = (p >> 5) & 0x3F, b = p & 0x1F;
-            lumaLut[p] = (uint8_t)((r * 616 + g * 600 + b * 232) >> 8);
-        }
+static bool lutReady() {
+    if (lumaLut) return true;
+    lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!lumaLut) lumaLut = (uint8_t *)heap_caps_malloc(65536, MALLOC_CAP_8BIT);
+    if (!lumaLut) return false;
+    for (uint32_t p = 0; p < 65536; p++) {
+        uint32_t r = (p >> 11) & 0x1F, g = (p >> 5) & 0x3F, b = p & 0x1F;
+        lumaLut[p] = (uint8_t)((r * 616 + g * 600 + b * 232) >> 8);
     }
-    uint32_t taps = 0;
-    for (uint8_t d = 0; d < ds; d += step) taps++;
-    taps *= taps;
-    const uint32_t inv = 65536 / taps;
-    const uint8_t *lut = lumaLut;
-    for (uint32_t y = 0; y < H; y++) {
-        uint8_t *dst = gray + y * W;
-        for (uint32_t x = 0; x < W; x++) {
-            uint32_t sum = 0;
-            for (uint8_t dy = 0; dy < ds; dy += step) {
-                const uint16_t *row = px + (size_t)(y * ds + dy) * w + x * ds;
-                for (uint8_t dx = 0; dx < ds; dx += step) sum += lut[row[dx]];
+    return true;
+}
+
+static bool frameGray = false;   /* current frame is GRAY8 */
+
+static void downscaleRowsGray(const uint8_t *src, uint32_t w, uint32_t y0, uint32_t y1, uint16_t *acc) {
+    const uint32_t ds = cfg.downscale;
+    const bool minPool = cfg.darkOnly;
+    const uint32_t inv = 65536 / (ds * ds);
+    for (uint32_t y = y0; y < y1; y++) {
+        for (uint32_t x = 0; x < W; x++) acc[x] = minPool ? 255 : 0;
+        for (uint32_t dy = 0; dy < ds; dy++) {
+            const uint8_t *row = src + (size_t)(y * ds + dy) * w;
+            if (minPool && ds == 3) {
+                for (uint32_t x = 0; x < W; x++, row += 3) {
+                    uint32_t a = row[0], b = row[1], c = row[2];
+                    uint32_t m = a < b ? a : b;
+                    m = m < c ? m : c;
+                    if (m < acc[x]) acc[x] = (uint16_t)m;
+                }
+            } else {
+                for (uint32_t x = 0; x < W; x++, row += ds) {
+                    uint32_t a = acc[x];
+                    if (minPool) { for (uint32_t k = 0; k < ds; k++) if (row[k] < a) a = row[k]; }
+                    else         { for (uint32_t k = 0; k < ds; k++) a += row[k]; }
+                    acc[x] = (uint16_t)a;
+                }
             }
-            dst[x] = (uint8_t)((sum * inv) >> 16);
         }
+        uint8_t *dst = gray + y * W;
+        if (minPool) for (uint32_t x = 0; x < W; x++) dst[x] = (uint8_t)acc[x];
+        else         for (uint32_t x = 0; x < W; x++) dst[x] = (uint8_t)((acc[x] * inv) >> 16);
+    }
+}
+
+static void downscaleRows(const uint8_t *rgb, uint32_t w, uint32_t y0, uint32_t y1, uint16_t *acc) {
+    if (frameGray) { downscaleRowsGray(rgb, w, y0, y1, acc); return; }
+    const uint16_t *px = (const uint16_t *)rgb;
+    const uint32_t ds = cfg.downscale;
+    const bool minPool = cfg.darkOnly;
+    const uint8_t *lut = lumaLut;
+    const uint32_t inv = 65536 / (ds * ds);
+    if (minPool) {
+        /* Darkest pixel on the green channel (6 bits, 59 % of luma): a mosquito is dark in every channel, and
+         * plain bit operations beat the 64 KB table that does not fit the L1 cache. Rows are read in turn,
+         * left to right, so the PSRAM is streamed rather than hopped through. */
+        for (uint32_t y = y0; y < y1; y++) {
+            for (uint32_t x = 0; x < W; x++) acc[x] = 0xFFFF;
+            for (uint32_t dy = 0; dy < ds; dy++) {
+                const uint16_t *row = px + (size_t)(y * ds + dy) * w;
+                if (ds == 3) {
+                    for (uint32_t x = 0; x < W; x++, row += 3) {
+                        uint32_t a = row[0] & 0x07E0, b = row[1] & 0x07E0, c = row[2] & 0x07E0;
+                        uint32_t m = a < b ? a : b;
+                        m = m < c ? m : c;
+                        if (m < acc[x]) acc[x] = (uint16_t)m;
+                    }
+                } else {
+                    for (uint32_t x = 0; x < W; x++, row += ds) {
+                        uint32_t m = acc[x];
+                        for (uint32_t k = 0; k < ds; k++) { uint32_t g = row[k] & 0x07E0; if (g < m) m = g; }
+                        acc[x] = (uint16_t)m;
+                    }
+                }
+            }
+            uint8_t *dst = gray + y * W;
+            for (uint32_t x = 0; x < W; x++) dst[x] = (uint8_t)((acc[x] >> 3) | (acc[x] >> 9));   /* G6 -> 0..255 */
+        }
+        return;
+    }
+    for (uint32_t y = y0; y < y1; y++) {
+        for (uint32_t x = 0; x < W; x++) acc[x] = minPool ? 255 : 0;
+        for (uint32_t dy = 0; dy < ds; dy++) {
+            const uint16_t *row = px + (size_t)(y * ds + dy) * w;
+            uint32_t sx = 0;
+            for (uint32_t x = 0; x < W; x++) {
+                uint32_t a = acc[x];
+                if (minPool) {
+                    for (uint32_t k = 0; k < ds; k++) { uint32_t l = lut[row[sx + k]]; if (l < a) a = l; }
+                } else {
+                    for (uint32_t k = 0; k < ds; k++) a += lut[row[sx + k]];
+                }
+                acc[x] = (uint16_t)a;
+                sx += ds;
+            }
+        }
+        uint8_t *dst = gray + y * W;
+        if (minPool) for (uint32_t x = 0; x < W; x++) dst[x] = (uint8_t)acc[x];
+        else         for (uint32_t x = 0; x < W; x++) dst[x] = (uint8_t)((acc[x] * inv) >> 16);
     }
 }
 
@@ -250,7 +329,7 @@ static void downscale(const uint8_t *rgb, uint32_t w) {
 #define NOISE_CAP        48   /* a passing object must not inflate a pixel's noise for long */
 #define LIT_LEARN_SHIFT  10   /* 1/1024 per frame for pixels brighter than the background (darkOnly) */
 
-static void updateBackgroundAndMask() {
+static uint32_t maskRows(uint32_t y0, uint32_t y1) {
     const int thr = cfg.threshold;
     const int k = cfg.noiseK;
     uint32_t hits = 0;
@@ -259,12 +338,13 @@ static void updateBackgroundAndMask() {
     const uint32_t rx0 = (uint32_t)(cfg.roiX0 * W), rx1 = (uint32_t)(cfg.roiX1 * W);
     const uint32_t ry0 = (uint32_t)(cfg.roiY0 * H), ry1 = (uint32_t)(cfg.roiY1 * H);
 
-    for (uint32_t y = 0; y < H; y++) {
+    for (uint32_t y = y0; y < y1; y++) {
         const bool rowIn = (y >= ry0 && y < ry1);
         uint8_t  *g = gray + y * W;
         uint16_t *b = bg + y * W;
         uint16_t *nz = noise + y * W;
         uint8_t  *m = mask + y * W;
+        uint32_t rowHits = hits;
         for (uint32_t x = 0; x < W; x++) {
             int yv = g[x];
             int bv = b[x] >> 4;
@@ -288,9 +368,62 @@ static void updateBackgroundAndMask() {
             int32_t nb = (int32_t)b[x] + ((((int32_t)yv << 4) - (int32_t)b[x]) >> (lit ? LIT_LEARN_SHIFT : sh));
             b[x] = (uint16_t)nb;
         }
+        rowHit[y] = hits != rowHits;
     }
-    maskHits = hits;
+    return hits;
+}
+
+/* ================= TWO-CORE SPLIT ================= */
+/* The camera task (core 1) does the bottom half of stages 1-2, a helper on core 0 the top half. */
+static TaskHandle_t      helperTask = nullptr;
+static TaskHandle_t      callerTask = nullptr;
+static const uint8_t    *jobRgb = nullptr;
+static uint32_t          jobW = 0, jobSplit = 0;
+static volatile uint32_t jobHits = 0;
+static uint16_t         *accTop = nullptr, *accBottom = nullptr;   /* one row accumulator per core */
+
+static void helperFn(void *) {
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        downscaleRows(jobRgb, jobW, 0, jobSplit, accTop);
+        jobHits = maskRows(0, jobSplit);
+        xTaskNotifyGive(callerTask);
+    }
+}
+
+/* Stages 1 + 2 over the whole grid; returns false when the buffers are missing */
+static bool downscaleAndMask(const uint8_t *rgb, uint32_t w, bool mask) {
+    if (!lutReady()) return false;
+    if (!accTop) {
+        accTop = (uint16_t *)heap_caps_malloc(1024 * sizeof(uint16_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        accBottom = (uint16_t *)heap_caps_malloc(1024 * sizeof(uint16_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (!accTop || !accBottom) return false;
+    }
+    if (W > 1024) return false;
+    const uint32_t rx0 = (uint32_t)(cfg.roiX0 * W), rx1 = (uint32_t)(cfg.roiX1 * W);
+    const uint32_t ry0 = (uint32_t)(cfg.roiY0 * H), ry1 = (uint32_t)(cfg.roiY1 * H);
     roiPixels = (rx1 > rx0 && ry1 > ry0) ? (rx1 - rx0) * (ry1 - ry0) : 1;
+
+    if (!helperTask) {
+        callerTask = xTaskGetCurrentTaskHandle();
+        xTaskCreatePinnedToCore(helperFn, "det2", 4096, nullptr, 2, &helperTask, 0);
+    }
+    if (!mask || !helperTask) {   /* warm-up: downscale only, one core is plenty */
+        downscaleRows(rgb, w, 0, H, accBottom);
+        if (mask) maskHits = maskRows(0, H);
+        return true;
+    }
+    jobRgb = rgb; jobW = w; jobSplit = H / 2;
+    xTaskNotifyGive(helperTask);
+    int64_t a = esp_timer_get_time();
+    downscaleRows(rgb, w, jobSplit, H, accBottom);
+    int64_t b = esp_timer_get_time();
+    uint32_t hits = maskRows(jobSplit, H);
+    int64_t c = esp_timer_get_time();
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    usHalfDown = (uint32_t)(b - a); usHalfMask = (uint32_t)(c - b); usWait = (uint32_t)(esp_timer_get_time() - c);
+    maskHits = hits + jobHits;
+    return true;
 }
 
 /* ================= STAGE 3: CONNECTED COMPONENTS (4-connectivity) ================= */
@@ -340,12 +473,16 @@ static int labelBlobs() {
     bool overflow = false;
     parent[0] = 0;
 
+    /* Rows without any changed pixel (nearly all of them) are skipped: labels of a skipped row are never
+     * read, the "up" neighbour of the next row is taken as empty instead */
     for (uint32_t y = 0; y < H; y++) {
+        if (!rowHit[y]) continue;
+        const bool upLive = y && rowHit[y - 1];
         for (uint32_t x = 0; x < W; x++) {
             size_t i = (size_t)y * W + x;
             if (!mask[i]) { labels[i] = 0; continue; }
             uint16_t left = x ? labels[i - 1] : 0;
-            uint16_t up   = y ? labels[i - W] : 0;
+            uint16_t up   = upLive ? labels[i - W] : 0;
             if (left && up) {
                 labels[i] = left < up ? left : up;
                 if (left != up) unite(left, up);
@@ -366,6 +503,7 @@ static int labelBlobs() {
     int nBlobs = 0;
     bool tooMany = false;
     for (uint32_t y = 0; y < H; y++) {
+        if (!rowHit[y]) continue;
         for (uint32_t x = 0; x < W; x++) {
             size_t i = (size_t)y * W + x;
             uint16_t l = labels[i];
@@ -432,6 +570,7 @@ static void fillTarget(const Track &t, Target &o, uint32_t ts) {
     c *= 1.0f - (float)t.misses / (float)(cfg.missFrames + 1);
     o.confidence = c < 0 ? 0 : c;
     o.ageMs = ts - t.firstMs;
+    o.tsMs = t.lastMs;
     o.hits = t.hits;
     o.misses = t.misses;
 }
@@ -460,18 +599,21 @@ static void updateTracks(int nBlobs, uint32_t ts) {
     }
     for (int b = 0; b < nBlobs; b++) blobs[b].used = false;
 
-    // Greedy global nearest-neighbour assignment
-    const float maxD2 = (float)cfg.maxMatchDist * (float)cfg.maxMatchDist;
+    /* Greedy global nearest-neighbour assignment, on distances normalised by each track's gate: a track
+     * seen once has no velocity yet, so a fast insect can be far from where it was - its gate is wider */
+    const float gate = (float)cfg.maxMatchDist;
     for (;;) {
-        float bestD2 = maxD2;
+        float bestN = 1.0f;
         int bestT = -1, bestB = -1;
         for (int t = 0; t < MAX_TRACKS; t++) {
             if (!tracks[t].active || matched[t] >= 0) continue;
+            const float g = tracks[t].hits <= 1 ? gate * NEW_TRACK_GATE : gate;
+            const float inv = 1.0f / (g * g);
             for (int b = 0; b < nBlobs; b++) {
                 if (blobs[b].used) continue;
                 float dx = blobs[b].cx - px[t], dy = blobs[b].cy - py[t];
-                float d2 = dx * dx + dy * dy;
-                if (d2 < bestD2) { bestD2 = d2; bestT = t; bestB = b; }
+                float n = (dx * dx + dy * dy) * inv;
+                if (n < bestN) { bestN = n; bestT = t; bestB = b; }
             }
         }
         if (bestT < 0) break;
@@ -506,7 +648,8 @@ static void updateTracks(int nBlobs, uint32_t ts) {
         } else {
             tr.misses++;
             tr.cx = px[t]; tr.cy = py[t];   // coast on the last velocity
-            if (tr.misses > cfg.missFrames) {
+            const bool outside = tr.cx < 0 || tr.cy < 0 || tr.cx >= (float)W || tr.cy >= (float)H;
+            if (tr.misses > cfg.missFrames || outside) {   /* coasted out of the picture: gone */
                 if (tr.confirmed) emit(DET_EVT_LOST, tr, ts);
                 tr.active = false;
             }
@@ -547,13 +690,15 @@ static void updateTracks(int nBlobs, uint32_t ts) {
 }
 
 /* ================= MAIN ENTRY ================= */
-void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
+void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts, bool grayIn) {
     uint32_t t0 = millis();
 
     bool realloc = false;
     if (cfgPending) {
         xSemaphoreTake(mtx, portMAX_DELAY);
         realloc = pendingCfg.downscale != cfg.downscale;
+        /* darkOnly switches the grid between darkest-pixel and mean pooling: the background must be relearned */
+        if (pendingCfg.darkOnly != cfg.darkOnly) warm = 0;
         cfg = pendingCfg;
         cfgPending = false;
         xSemaphoreGive(mtx);
@@ -573,7 +718,11 @@ void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
         return;
     }
 
-    downscale(rgb, w);
+    if (grayIn != frameGray) { frameGray = grayIn; warm = 0; }   /* luma scale changes with the format */
+    int64_t t1 = esp_timer_get_time();
+    const bool warming = warm < cfg.warmupFrames;
+    if (!downscaleAndMask(rgb, w, !warming)) return;
+    usDown = (uint32_t)(esp_timer_get_time() - t1);
 
     if (warm < cfg.warmupFrames) {
         size_t n = (size_t)W * H;
@@ -592,7 +741,6 @@ void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
         return;
     }
 
-    updateBackgroundAndMask();
 
     if (state != DET_ARMED) {
         if (armedRequested) state = DET_ARMED;
@@ -617,7 +765,16 @@ void detectorProcess(const uint8_t *rgb, uint32_t w, uint32_t h, uint32_t ts) {
         return;
     }
 
+    t1 = esp_timer_get_time();
     int nBlobs = labelBlobs();
+    usLabel = (uint32_t)(esp_timer_get_time() - t1);
+    static uint32_t lastProfile = 0;
+    if (ts - lastProfile > 10000) {
+        lastProfile = ts;
+        Log.printf("[DET] Profile %ux%u: downscale+mask %lu us (half: downscale %lu, mask %lu, wait core 0 %lu), blobs %lu us\n",
+                   (unsigned)W, (unsigned)H, (unsigned long)usDown, (unsigned long)usHalfDown, (unsigned long)usHalfMask,
+                   (unsigned long)usWait, (unsigned long)usLabel);
+    }
     if (nBlobs < 0) {
         // Global change (lights, camera move): relearn quickly, drop tracks
         size_t n = (size_t)W * H;

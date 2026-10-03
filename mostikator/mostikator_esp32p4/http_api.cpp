@@ -9,6 +9,7 @@
 #include "app_events.h"
 #include "audio.h"
 #include "aim.h"
+#include "shots.h"
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -181,7 +182,7 @@ static void handleSound() {
  *             roi_x0 roi_y0 roi_x1 roi_y1 hfov vfov lead_ms noise_k global_change_pct isolation
  *   camera:   gain exposure vflip hflip quality
  *   aim:      aim_auto aim_fire aim_laser aim_pan_gain aim_pan_offset aim_tilt_gain aim_tilt_offset
- *             aim_settle_ms aim_cooldown_ms aim_burst_ms (camera -> turret calibration, tools/calibrate_aim.py)
+ *             aim_settle_ms aim_cooldown_ms aim_burst_ms aim_lead_ms (camera -> turret calibration, tools/calibrate_aim.py)
  *   reset=1   -> factory defaults
  */
 static void handleConfig() {
@@ -265,6 +266,7 @@ static void handleConfig() {
         if (argLong("aim_settle_ms", 0, 5000, v))       { ac.settleMs = v; aimChanged = true; }
         if (argLong("aim_cooldown_ms", 200, 60000, v))  { ac.cooldownMs = v; aimChanged = true; }
         if (argLong("aim_burst_ms", 20, 2000, v))       { ac.burstMs = v; aimChanged = true; }
+        if (argLong("aim_lead_ms", 0, 1000, v))         { ac.leadMs = v; aimChanged = true; }
         if (aimChanged) aimSetConfig(ac, true);
 
         if (detChanged) {
@@ -311,6 +313,23 @@ static void handleDetectorView() {
     cors();
     server.sendHeader("Cache-Control", "no-store");
     server.send_P(200, "image/bmp", (const char *)buf, n);
+}
+
+/* GET /api/shots -> the last shots (newest first); GET /api/shots/image?n=<n>&img=before|after */
+static void handleShots() {
+    shotsJson(json, sizeof(json));
+    sendJson(200, json);
+}
+
+static void handleShotImage() {
+    uint32_t n = (uint32_t)server.arg("n").toInt();
+    bool after = server.arg("img") == "after";
+    size_t len = 0;
+    const uint8_t *img = shotsImage(n, after, &len);
+    if (!img) { sendJson(404, "{\"error\":\"no such shot image\"}"); return; }
+    cors();
+    server.sendHeader("Cache-Control", "max-age=3600");   /* a shot never changes once taken */
+    server.send_P(200, after ? "image/jpeg" : "image/bmp", (const char *)img, len);
 }
 
 /* ================= CAPTURE / STREAM ================= */
@@ -505,6 +524,8 @@ void httpBegin() {
     server.on("/api/stream", HTTP_GET, handleStream);
     server.on("/api/log", HTTP_GET, handleLog);
     server.on("/api/detector.bmp", HTTP_GET, handleDetectorView);
+    server.on("/api/shots", HTTP_GET, handleShots);
+    server.on("/api/shots/image", HTTP_GET, handleShotImage);
 
     const char *optionRoutes[] = { "/api/", "/api/status", "/api/targets", "/api/stats", "/api/stats/reset",
                                    "/api/arm", "/api/disarm", "/api/auth", "/api/shot", "/api/sound", "/api/config", "/api/capture", "/api/stream", "/api/log" };

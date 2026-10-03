@@ -23,6 +23,11 @@ static volatile bool     ready = false;
 static volatile uint32_t frameW = 0;
 static volatile uint32_t frameH = 0;
 static volatile float    fps = 0;
+static bool              grayMode = false;
+
+#ifndef CAM_GRAY
+#define CAM_GRAY 1
+#endif
 static const char       *lastError = "";
 
 static CameraSettings settings = { CAM_GAIN, CAM_EXPOSURE, CAM_VFLIP != 0, CAM_HFLIP != 0, JPEG_QUALITY };
@@ -63,8 +68,8 @@ static bool encodeJpeg(const uint8_t *src, size_t srcLen, uint32_t w, uint32_t h
     jpeg_encode_cfg_t cfg = {};
     cfg.height = h;
     cfg.width = w;
-    cfg.src_type = JPEG_ENCODE_IN_FORMAT_RGB565;
-    cfg.sub_sample = JPEG_DOWN_SAMPLING_YUV420;
+    cfg.src_type = grayMode ? JPEG_ENCODE_IN_FORMAT_GRAY : JPEG_ENCODE_IN_FORMAT_RGB565;
+    cfg.sub_sample = grayMode ? JPEG_DOWN_SAMPLING_GRAY : JPEG_DOWN_SAMPLING_YUV420;
     cfg.image_quality = settings.jpegQuality;
 
     if (xSemaphoreTake(jpegMutex, pdMS_TO_TICKS(50)) != pdTRUE) return false;
@@ -96,7 +101,7 @@ static void cameraTask(void *) {
         }
         uint32_t w = buf.getWidth();
         uint32_t h = buf.getHeight();
-        if (w == 0 || h == 0 || buf.formatType() != ESP_VIDEO_FORMAT_RGB565) {
+        if (w == 0 || h == 0 || buf.formatType() != (grayMode ? ESP_VIDEO_FORMAT_GRAY8 : ESP_VIDEO_FORMAT_RGB565)) {
             vTaskDelay(1);
             continue;
         }
@@ -104,7 +109,7 @@ static void cameraTask(void *) {
         frameH = h;
         uint32_t now = millis();
 
-        if (frameCb) frameCb(buf.data(), w, h, now);
+        if (frameCb) frameCb(buf.data(), w, h, now, grayMode);
         if (jpegDemand > 0) encodeJpeg(buf.data(), buf.size(), w, h);
 
         frames++;
@@ -186,7 +191,9 @@ bool cameraBegin(CameraFrameCb cb) {
         return false;
     }
 
-    if (!captureDev.setFormat(ESP_VIDEO_FORMAT_RGB565)) {
+    grayMode = CAM_GRAY && captureDev.setFormat(ESP_VIDEO_FORMAT_GRAY8);
+    if (CAM_GRAY && !grayMode) Log.println("[CAM] GRAY8 not accepted – falling back to RGB565");
+    if (!grayMode && !captureDev.setFormat(ESP_VIDEO_FORMAT_RGB565)) {
         lastError = "format";
         Log.println("[CAM] RGB565 format not accepted");
         return false;
@@ -202,7 +209,7 @@ bool cameraBegin(CameraFrameCb cb) {
 
     frameW = captureDev.getWidth();
     frameH = captureDev.getHeight();
-    Log.printf("[CAM] Capture started %ux%u RGB565\n", (unsigned)frameW, (unsigned)frameH);
+    Log.printf("[CAM] Capture started %ux%u %s\n", (unsigned)frameW, (unsigned)frameH, grayMode ? "GRAY8" : "RGB565");
 
     if (frameW && frameH) {
         if (!initJpeg(frameW, frameH)) {
@@ -221,6 +228,7 @@ bool     cameraReady()  { return ready; }
 uint32_t cameraWidth()  { return frameW; }
 uint32_t cameraHeight() { return frameH; }
 float    cameraFps()    { return fps; }
+bool     cameraGray()   { return grayMode; }
 const char *cameraLastError() { return lastError; }
 
 CameraSettings cameraGetSettings() { return settings; }

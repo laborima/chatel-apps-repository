@@ -18,6 +18,8 @@ struct Stats {
 void  statsBegin();
 Stats statsGet();
 void  statsTargetSeen();
-void  statsShot(bool hit, uint16_t targetId);
+void  statsShot(bool hit, uint16_t targetId);   /* shot + result reported at once (POST /api/shot) */
+void  statsFired(uint16_t targetId);            /* shot ordered, result unknown yet (shot log) */
+void  statsOutcome(bool hit);                    /* result of a shot already counted by statsFired() */
 void  statsReset();
 void  statsLoop();   // flushes to NVS when dirty

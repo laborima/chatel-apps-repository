@@ -2,6 +2,7 @@
 #include "config.h"
 #include "remote.h"
 #include "audio.h"
+#include "shots.h"
 
 #if TURRET_LINK_ENABLED
 
@@ -21,6 +22,7 @@ static void execute(char *cmd) {
     /* "FIRE <ms>": the turret just opened the valve, manually or not. */
     if (!strcmp(argv[0], "FIRE")) {
         audioLaserFx();
+        shotsRecordTurret();
         Log.printf("[LNK] Turret fired (%s ms) – pew pew\n", argc >= 2 ? argv[1] : "?");
         return;
     }

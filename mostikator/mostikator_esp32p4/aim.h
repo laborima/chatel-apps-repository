@@ -7,11 +7,15 @@
  * While the detector is armed and a confirmed target exists, the primary target's angles (camera axis)
  * are turned into turret angles with a linear calibration per axis
  *     turret = gain * camera + offset
- * and sent as "AIM <pan> <tilt>" every AIM_PERIOD_MS. The aiming laser follows the target ("LASER 1"),
- * and once the aim has held AIM_SETTLE_MS a burst is ordered ("FIRE <ms>"), at most every cooldown.
+ * and sent as "AIM <pan> <tilt>" every AIM_PERIOD_MS. The angles are those of the PREDICTED position:
+ * the target is extrapolated with its velocity over the age of the picture + leadMs + the time the
+ * servo needs to get there, so the jet meets the insect where it will be, not where it was.
+ * The aiming laser follows the target ("LASER 1"), and once the turret has caught up with the aim point
+ * (estimated from its slew speed) and the target is settleMs old, a burst is ordered ("FIRE <ms>"), at
+ * most every cooldownMs.
  * A disarmed water gun turns the burst into a dry shot: green LEDs + blaster, no water.
  *
- * The turret refuses all of it while the PS5 controller is in use (manual always wins).
+ * The turret refuses all of it while the PS5 controller is in manual mode (touchpad = camera mode).
  * The calibration comes from tools/calibrate_aim.py (laser dot seen by the camera at several angles).
  */
 struct AimConfig {
@@ -23,6 +27,7 @@ struct AimConfig {
     uint16_t settleMs;      // aim held that long before firing
     uint16_t cooldownMs;    // minimum time between two bursts
     uint16_t burstMs;       // valve opening per burst (ignored by a disarmed gun)
+    uint16_t leadMs;        // fixed latency to anticipate: serial link + servo reaction + water flight time
 };
 
 void      aimBegin();
