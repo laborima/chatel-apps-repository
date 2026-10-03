@@ -25,10 +25,23 @@ const CAMERA_FIELDS = [
     { key: "exposure", label: "Exposition (-1 = auto)", min: -1, max: 100000, step: 1 },
 ];
 
+const AIM_FIELDS = [
+    { key: "aim_settle_ms", label: "Visée avant tir (ms)", min: 0, max: 5000, step: 50, help: "La cible doit être suivie ce temps avant le tir" },
+    { key: "aim_cooldown_ms", label: "Entre deux tirs (ms)", min: 200, max: 60000, step: 100 },
+    { key: "aim_burst_ms", label: "Durée du jet (ms)", min: 20, max: 2000, step: 10, help: "Ignorée canon désarmé : tir à blanc (LEDs + son)" },
+    { key: "aim_tilt_gain", label: "Tilt : gain", min: -10, max: 10, step: 0.01, help: "tourelle = gain × caméra + décalage (tools/calibrate_aim.py)" },
+    { key: "aim_tilt_offset", label: "Tilt : décalage (°)", min: -180, max: 180, step: 0.1 },
+    { key: "aim_pan_offset", label: "Pan : décalage (°)", min: -180, max: 180, step: 0.1 },
+];
+
 const formFromConfig = (config) => {
     const d = config?.detector || {};
     const c = config?.camera || {};
+    const a = config?.aim || {};
     return {
+        aim_auto: a.auto ? 1 : 0, aim_fire: a.fire ? 1 : 0, aim_laser: a.laser ? 1 : 0,
+        aim_settle_ms: a.settle_ms, aim_cooldown_ms: a.cooldown_ms, aim_burst_ms: a.burst_ms,
+        aim_tilt_gain: a.tilt_gain, aim_tilt_offset: a.tilt_offset, aim_pan_offset: a.pan_offset,
         threshold: d.threshold, min_area: d.min_area, max_area: d.max_area,
         confirm_frames: d.confirm_frames, miss_frames: d.miss_frames, max_match_dist: d.max_match_dist,
         learn_shift: d.learn_shift, warmup_frames: d.warmup_frames, lead_ms: d.lead_ms,
@@ -122,6 +135,15 @@ export default function DetectorControls({ config, onSave, onReset, disabled }) 
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {CAMERA_FIELDS.map((f) => <NumberField key={f.key} f={f} {...fieldProps} />)}
+                    </div>
+                    <p className="text-[0.7rem] uppercase tracking-wider text-mk-muted pt-2 border-t border-mk-border">Mode automatique (caméra → tourelle)</p>
+                    <div className="flex flex-wrap gap-4">
+                        <Toggle k="aim_auto" label="Visée automatique" {...fieldProps} />
+                        <Toggle k="aim_fire" label="Tir automatique" {...fieldProps} />
+                        <Toggle k="aim_laser" label="Laser pendant le suivi" {...fieldProps} />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {AIM_FIELDS.map((f) => <NumberField key={f.key} f={f} {...fieldProps} />)}
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-mk-border">
                         <button className="mk-btn mk-btn-laser" onClick={save} disabled={disabled || saving || !dirty}>

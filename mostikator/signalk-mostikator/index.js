@@ -9,7 +9,8 @@ const http = require('http');
  *
  *      /signalk-mostikator/device/<route>  ->  http://ESP_IP:ESP_PORT/api/<route>
  *
- *    Routes: status, targets, stats, config, arm, disarm, shot, sound, capture, stream, log
+ *    Routes: status, auth, targets, stats, config, arm, disarm, shot, sound, capture, stream, log
+ *    Commands need the device control password (X-Mostikator-Key header), forwarded as is.
  *
  * 2. Metadata for the SignalK paths published by the device through the
  *    MQTT bridge (environment.mostikator.*).
@@ -141,7 +142,7 @@ module.exports = function (app) {
         if (req.method === 'OPTIONS') {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-            res.set('Access-Control-Allow-Headers', 'Content-Type');
+            res.set('Access-Control-Allow-Headers', 'Content-Type, X-Mostikator-Key');
             res.sendStatus(204);
             return;
         }
@@ -159,6 +160,8 @@ module.exports = function (app) {
 
         const host = deviceHost();
         const headers = { 'Host': `${host}:${devicePort}` };
+        /* Control password checked by the device itself (arm, sound, settings...) */
+        if (req.headers['x-mostikator-key']) headers['X-Mostikator-Key'] = req.headers['x-mostikator-key'];
         if (parsedBody !== null) {
             headers['Content-Type'] = 'application/x-www-form-urlencoded';
             headers['Content-Length'] = Buffer.byteLength(parsedBody);
@@ -179,7 +182,7 @@ module.exports = function (app) {
         const proxyReq = http.request(options, (proxyRes) => {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-            res.set('Access-Control-Allow-Headers', 'Content-Type');
+            res.set('Access-Control-Allow-Headers', 'Content-Type, X-Mostikator-Key');
             if (isSlow) res.set('X-Accel-Buffering', 'no'); // keep nginx from buffering the MJPEG stream
             res.writeHead(proxyRes.statusCode, proxyRes.headers);
             proxyRes.pipe(res, { end: true });

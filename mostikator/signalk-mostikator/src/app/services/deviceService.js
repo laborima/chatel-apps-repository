@@ -33,6 +33,37 @@ export const getDeviceWsUrl = (wsPort = 82) => {
     return `ws://${base.hostname}:${wsPort}/`;
 };
 
+/* ---------- control password ----------
+ * Commands (arm, sound, settings, shots) need the device CONTROL_PASSWORD in the X-Mostikator-Key header.
+ * Asked once on the first refused command, then remembered by this browser. Reading never needs it. */
+const KEY_STORAGE = "mostikator.controlKey";
+
+export const getControlKey = () => {
+    try { return window.localStorage.getItem(KEY_STORAGE) || ""; } catch { return ""; }
+};
+export const setControlKey = (key) => {
+    try {
+        if (key) window.localStorage.setItem(KEY_STORAGE, key);
+        else window.localStorage.removeItem(KEY_STORAGE);
+    } catch { /* private mode: asked again next time */ }
+    window.dispatchEvent(new Event("mostikator-auth"));
+};
+export const hasControlKey = () => !!getControlKey();
+
+/** Asks for the password, checks it on the device and keeps it. Returns true when accepted. */
+export const login = async () => {
+    const key = window.prompt("Mot de passe de contrôle du Mostikator");
+    if (!key) return false;
+    const response = await fetch(`${getDeviceBaseUrl()}/auth`, { headers: { "X-Mostikator-Key": key }, cache: "no-store" });
+    if (!response.ok) {
+        window.alert(response.status === 429 ? "Trop d'essais, réessayez dans une minute." : "Mot de passe refusé.");
+        return false;
+    }
+    setControlKey(key);
+    return true;
+};
+export const logout = () => setControlKey("");
+
 const request = async (path, options = {}, timeoutMs = 8000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -44,7 +75,9 @@ const request = async (path, options = {}, timeoutMs = 8000) => {
         if (!response.ok) {
             let detail = "";
             try { detail = (await response.json()).error || ""; } catch { /* ignore */ }
-            throw new Error(`Device error ${response.status}${detail ? ` – ${detail}` : ""}`);
+            const error = new Error(`Device error ${response.status}${detail ? ` – ${detail}` : ""}`);
+            error.status = response.status;
+            throw error;
         }
         return await response.json();
     } finally {
@@ -52,15 +85,25 @@ const request = async (path, options = {}, timeoutMs = 8000) => {
     }
 };
 
-/* Empty / undefined fields are dropped: the firmware would otherwise read "undefined" as 0 */
-const post = (path, params = {}) =>
-    request(path, {
+/* Empty / undefined fields are dropped: the firmware would otherwise read "undefined" as 0.
+ * A 401 asks for the control password once and replays the command. */
+const post = async (path, params = {}) => {
+    const send = () => request(path, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Mostikator-Key": getControlKey() },
         body: new URLSearchParams(
             Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
         ).toString()
     });
+    try {
+        return await send();
+    } catch (err) {
+        if (err.status !== 401) throw err;
+        setControlKey("");
+        if (!(await login())) throw new Error("Commande refusée – authentification requise");
+        return send();
+    }
+};
 
 export const getStatus  = () => request("/status");
 export const getTargets = () => request("/targets");
@@ -90,6 +133,7 @@ export const getLog = async (timeoutMs = 8000) => {
 };
 
 export const getStreamUrl  = () => `${getDeviceBaseUrl()}/stream`;
+export const getDetectorViewUrl = () => `${getDeviceBaseUrl()}/detector.bmp?t=${Date.now()}`;
 export const getCaptureUrl = () => `${getDeviceBaseUrl()}/capture?t=${Date.now()}`;
 
 /**

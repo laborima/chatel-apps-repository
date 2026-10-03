@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getStreamUrl, getCaptureUrl } from "../services/deviceService";
+import { getStreamUrl, getCaptureUrl, getDetectorViewUrl } from "../services/deviceService";
 
 /**
  * Live MJPEG view from the ESP32-P4 with a tactical overlay:
  * region of interest, locked targets (id, velocity vector, predicted
  * position) and a centre crosshair. Star Wars targeting computer vibes.
+ *
+ * "Vue détecteur" shows the detector's own working grid instead (GET /detector.bmp, refreshed ~3 times a
+ * second): what counts as a change in red, bright changes ignored by "objets sombres" in cyan.
+ * The dashed red line is where the laser can go (fixed pan, from the aim calibration).
  */
 export default function VideoCard({ status, config, targets, armed, onArm, onDisarm }) {
     const [playing, setPlaying] = useState(false);
@@ -14,6 +18,8 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     const [snapshot, setSnapshot] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [streamKey, setStreamKey] = useState(0);
+    const [detOn, setDetOn] = useState(false);
+    const [detView, setDetView] = useState(null);     /* object URL of the last detector picture */
 
     const containerRef = useRef(null);
     const imgRef = useRef(null);
@@ -31,7 +37,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
         const canvas = canvasRef.current;
         const img = imgRef.current;
         if (!canvas) return;
-        const rect = (img && playing ? img : canvas.parentElement)?.getBoundingClientRect();
+        const rect = canvas.parentElement?.getBoundingClientRect();
         if (!rect || rect.width === 0) return;
         const dpr = window.devicePixelRatio || 1;
         if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
@@ -44,7 +50,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
 
         /* object-contain letterboxes the picture (fullscreen, or before the status arrives):
          * draw in the area the image really covers, or every target lands beside its mosquito */
-        const srcW = img?.naturalWidth || camW, srcH = img?.naturalHeight || camH;
+        const srcW = (playing && img?.naturalWidth) || camW, srcH = (playing && img?.naturalHeight) || camH;
         const scale = Math.min(rect.width / srcW, rect.height / srcH);
         const W = srcW * scale, H = srcH * scale;
         ctx.translate((rect.width - W) / 2, (rect.height - H) / 2);
@@ -57,6 +63,22 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
             ctx.lineWidth = 1;
             ctx.strokeRect(roi[0] * W, roi[1] * H, (roi[2] - roi[0]) * W, (roi[3] - roi[1]) * H);
             ctx.setLineDash([]);
+        }
+
+        // Laser line: the turret has no pan servo, the laser stays on one column of the picture
+        const aim = config?.aim;
+        const hfov = config?.detector?.hfov;
+        if (aim && hfov && aim.pan_gain) {
+            const camPan = (0 - aim.pan_offset) / aim.pan_gain;
+            const lx = (0.5 + camPan / hfov) * W;
+            if (lx >= 0 && lx <= W) {
+                ctx.strokeStyle = "rgba(255,40,40,0.45)";
+                ctx.setLineDash([3, 5]);
+                ctx.beginPath();
+                ctx.moveTo(lx, 0); ctx.lineTo(lx, H);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
         }
 
         // Centre crosshair
@@ -118,7 +140,7 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     }, [config, playing, camW, camH]);
 
     /* Animate only while a picture is shown: an idle card must not burn a phone's battery at 60 fps */
-    const live = playing || !!snapshot;
+    const live = playing || !!snapshot || !!detView;
     useEffect(() => {
         if (!live) {
             const once = requestAnimationFrame(draw);
@@ -131,11 +153,12 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
     }, [draw, live, targets]);
 
     /* ---------- stream control ---------- */
-    const startStream = () => { setStreamError(false); setSnapshot(null); setStreamKey((k) => k + 1); setPlaying(true); };
+    const startStream = () => { setStreamError(false); setSnapshot(null); setDetOn(false); setStreamKey((k) => k + 1); setPlaying(true); };
     const stopStream = () => { setPlaying(false); if (imgRef.current) imgRef.current.src = ""; };
 
     const takeSnapshot = () => {
         setPlaying(false);
+        setDetOn(false);
         setSnapshot(getCaptureUrl());
     };
 
@@ -154,6 +177,32 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
         document.addEventListener("fullscreenchange", onChange);
         return () => document.removeEventListener("fullscreenchange", onChange);
     }, []);
+
+    /* ---------- detector view ---------- */
+    useEffect(() => {
+        if (!detOn) return;
+        let stop = false, timer = null, current = null;
+        const next = async () => {
+            try {
+                const r = await fetch(getDetectorViewUrl(), { cache: "no-store" });
+                if (r.ok) {
+                    const url = URL.createObjectURL(await r.blob());
+                    if (stop) { URL.revokeObjectURL(url); return; }
+                    setDetView(url);
+                    if (current) URL.revokeObjectURL(current);
+                    current = url;
+                }
+            } catch { /* device busy: next round */ }
+            if (!stop) timer = setTimeout(next, 300);
+        };
+        next();
+        return () => { stop = true; clearTimeout(timer); if (current) URL.revokeObjectURL(current); };
+    }, [detOn]);
+    const toggleDetView = () => {
+        if (!detOn) { stopStream(); setSnapshot(null); }
+        setDetView(null);
+        setDetOn((on) => !on);
+    };
 
     // Stop the stream when the tab is hidden (saves the ESP32 bandwidth)
     useEffect(() => {
@@ -207,10 +256,15 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                     <img src={snapshot} alt="Capture" className="absolute inset-0 w-full h-full object-contain"
                         onError={() => setStreamError(true)} />
                 )}
+                {detOn && detView && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={detView} alt="Vue détecteur" className="absolute inset-0 w-full h-full object-contain"
+                        style={{ imageRendering: "pixelated" }} />
+                )}
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
                 {playing && <div className="mk-scanline" />}
 
-                {!playing && !snapshot && (
+                {!playing && !snapshot && !detOn && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
                         <div className="text-5xl">{cameraReady ? "🎯" : "📷"}</div>
                         <p className="text-mk-muted text-sm max-w-md">
@@ -232,6 +286,10 @@ export default function VideoCard({ status, config, targets, armed, onArm, onDis
                         ? <button className="mk-btn text-xs" onClick={stopStream}>■ Stop</button>
                         : <button className="mk-btn text-xs" onClick={startStream} disabled={!cameraReady}>▶ Flux</button>}
                     <button className="mk-btn text-xs" onClick={takeSnapshot} disabled={!cameraReady}>📸 Capture</button>
+                    <button className={`mk-btn text-xs ${detOn ? "mk-btn-laser" : ""}`} onClick={toggleDetView} disabled={!cameraReady}
+                        title="Ce que voit le détecteur : rouge = changement compté, cyan = changement clair ignoré">
+                        🔬 Vue détecteur
+                    </button>
                     <button className="mk-btn text-xs" onClick={toggleFullscreen}>{isFullscreen ? "⤢ Quitter" : "⤢ Plein écran"}</button>
                     <div className="ml-auto">
                         {armed
