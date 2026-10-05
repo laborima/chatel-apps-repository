@@ -25,7 +25,7 @@
 ## Sommaire
 
 - [Ce que fait le Mostikator](#ce-que-fait-le-mostikator)
-- [En images](#en-images)
+- [En images](#en-images) — [la webapp](#la-webapp)
 - [Comment ça marche](#comment-ça-marche)
 - [Matériel](#matériel)
 - [Montage](#montage) — [alimentation](#alimentation) · [câblage de la tourelle](#câblage-de-la-tourelle) · [circuit d'eau](#circuit-deau) · [assemblage mécanique](#assemblage-mécanique)
@@ -60,6 +60,25 @@
 </table>
 
 > 🎬 Un clip de présentation viendra compléter cette section.
+
+### La webapp
+
+<img src="docs/img/webapp/webapp-dashboard.png" alt="Webapp Mostikator : tableau de chasse, ordinateur de visée avec trois cibles verrouillées, liste des cibles, son du blaster et journal de bord">
+
+*Le tableau de chasse : compteurs, ordinateur de visée sur le flux vidéo (cibles verrouillées, vecteur de prédiction, ligne du laser en pointillés rouges), cibles avec leur solution pan/tilt, volume du blaster et journal de bord.*
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/webapp/webapp-detector-view.png" alt="Vue détecteur : la grille de travail en niveaux de gris, changements comptés en rouge"><br><sub><b>Vue détecteur.</b> La grille de travail du P4 (image / 3) : en rouge les changements comptés, en cyan les changements clairs ignorés par « objets sombres ».</sub></td>
+    <td width="50%"><img src="docs/img/webapp/webapp-shots.png" alt="Derniers tirs : vue du détecteur au moment du tir et photo juste après"><br><sub><b>Derniers tirs.</b> Ce que voyait le détecteur quand il a décidé de tirer (cible entourée), et la photo prise juste après le jet.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/img/webapp/webapp-settings.png" alt="Réglages du détecteur, de la caméra et du mode automatique"><br><sub><b>Réglages en direct.</b> Détecteur, caméra et mode automatique (visée, tir, laser, anticipation), enregistrés sur le module.</sub></td>
+    <td align="center"><img src="docs/img/webapp/webapp-mobile.png" alt="La webapp sur téléphone" width="260"><br><sub><b>Sur téléphone.</b> PWA installable, servie par l'ESP32-P4 en local ou par SignalK à distance.</sub></td>
+  </tr>
+</table>
+
+<sub>Captures faites avec un détecteur simulé : l'API et le WebSocket du P4 sont imités, et la scène caméra est une image de démonstration générée.</sub>
 
 ## Comment ça marche
 
@@ -774,7 +793,8 @@ sont dans le core) pourra s'insérer après l'étape 4 pour classer les blobs.
 
 ## Webapp + plugin `signalk-mostikator/`
 
-Next.js 16 (export statique, Tailwind 4, PWA), même squelette que `signalk-poi-lab`. Deux cibles de build :
+Next.js 16 (export statique, Tailwind 4, PWA), même squelette que `signalk-poi-lab`. Aperçu : [captures d'écran](#la-webapp).
+Deux cibles de build :
 
 | Cible | Commande | Servie par | URL API |
 |-------|----------|-----------|---------|
