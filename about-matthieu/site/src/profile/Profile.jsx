@@ -1,14 +1,14 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
-import data from '../data/projects.json';
+import showcase from '../data/showcase.json';
 import highlights from '../data/highlights.json';
 import './profile.css';
 
 // the live 3D sea (three.js + the rider model) loads after the page is on screen
 const HeroScene = lazy(() => import('./HeroScene'));
 
-const LANG_DOT = { JavaScript: '#f1e05a', Java: '#b07219', HTML: '#e34c26', Shell: '#89e051', Python: '#3572a5', TypeScript: '#3178c6', 'C++': '#f34b7d', C: '#9a9a9a' };
-const year = (iso) => new Date(iso).getFullYear();
 const IMG = `${import.meta.env.BASE_URL}img/photos/`;
+const PROJ = `${import.meta.env.BASE_URL}img/projects/`;
+const USER = { name: 'Matthieu Laborie', login: 'laborima', url: 'https://github.com/laborima' };
 const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two full rows of three
     { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée' },
     { src: 'planche-2.webp', alt: 'Matthieu au planing dans le clapot' },
@@ -40,7 +40,7 @@ const Icon = {
 };
 
 export default function Profile({ onPlay }) {
-    const { user, repos, fetchedAt } = data;
+    const user = USER;
     const [scrolled, setScrolled] = useState(false);
     const [hero3d, setHero3d] = useState(false);
     const [photo, setPhoto] = useState(null);
@@ -52,13 +52,6 @@ export default function Profile({ onPlay }) {
         const t = !slow && setTimeout(() => setHero3d(true), 250);
         return () => { window.removeEventListener('scroll', f); clearTimeout(t); };
     }, []);
-    const stars = repos.reduce((a, r) => a + (r.stars || 0), 0);
-    const facts = [
-        [repos.length, 'projets open source'],
-        [stars, 'étoiles sur GitHub'],
-        [new Date().getFullYear() - year(user.since), 'ans sur GitHub'],
-        ['3D', 'voile, Signal K et un jeu'],
-    ];
     return (
         <div className="about">
             <a className="skip" href="#projets">Aller au contenu</a>
@@ -71,7 +64,6 @@ export default function Profile({ onPlay }) {
                         <li><a href="#mer">Sur l'eau</a></li>
                         <li><a href="#projets">Projets</a></li>
                         <li><a href="#ride">Ride</a></li>
-                        <li><a href="#realisations">Réalisations</a></li>
                     </ul>
                     <div className="nav-end">
                         <a className="icon-btn" href={user.url} target="_blank" rel="noreferrer" aria-label="GitHub">{Icon.github}</a>
@@ -98,11 +90,6 @@ export default function Profile({ onPlay }) {
                 <p className="hero-caption">En direct : mon avatar sur la mer d'Ocearo, au crépuscule</p>
             </header>
 
-            <section className="proof" aria-label="En chiffres">
-                <div className="wrap">
-                    <ul>{facts.map(([n, t]) => <li key={t}><b>{n}</b><span>{t}</span></li>)}</ul>
-                </div>
-            </section>
 
             <section className="section water" id="mer">
                 <div className="wrap water-grid">
@@ -131,27 +118,27 @@ export default function Profile({ onPlay }) {
             <section className="section" id="projets">
                 <div className="wrap">
                     <div className="section-head">
-                        <p className="eyebrow">Open source</p>
-                        <h2>Projets</h2>
-                        <p className="lead">Du tableau de bord 3D de voilier aux capteurs connectés : ce que je construis sur mon temps libre.</p>
+                        <p className="eyebrow">Projets</p>
+                        <h2>Ce que je construis</h2>
+                        <p className="lead">Sur mon temps libre, entre la mer, l'électronique et le code.</p>
                     </div>
-                    <div className="cards">
-                        {repos.map((r) => (
-                            <a className="card" key={r.name} href={r.homepage || r.url} target="_blank" rel="noreferrer">
-                                <div className="card-top">
-                                    <h3>{r.name}</h3>
-                                    <span className="card-go">{Icon.arrow}</span>
+                    <div className="projects">
+                        {showcase.projects.map((p, i) => (
+                            <article key={p.id} className={`project ${i % 2 ? 'flip' : ''}`}>
+                                <div className={`project-img ${p.contain ? 'contain' : ''}`}><img src={PROJ + p.image} alt={p.alt} loading="lazy" /></div>
+                                <div className="project-copy">
+                                    <p className="eyebrow">{p.kicker}</p>
+                                    <h3>{p.name}</h3>
+                                    <p>{p.text}</p>
+                                    {p.links.length ? (
+                                        <div className="project-links">
+                                            {p.links.map((l) => <a key={l.url} className="btn btn-ghost btn-s" href={l.url} target="_blank" rel="noreferrer">{l.label}{Icon.arrow}</a>)}
+                                        </div>
+                                    ) : null}
                                 </div>
-                                <p>{r.description}</p>
-                                <div className="meta">
-                                    {r.language && <span><i style={{ background: LANG_DOT[r.language] || '#999' }} />{r.language}</span>}
-                                    <span>★ {r.stars}</span>
-                                    <span>{year(r.pushedAt)}</span>
-                                </div>
-                            </a>
+                            </article>
                         ))}
                     </div>
-                    <p className="note">Liste tirée de GitHub le {new Date(fetchedAt).toLocaleDateString('fr-FR')}.</p>
                 </div>
             </section>
 
@@ -177,20 +164,10 @@ export default function Profile({ onPlay }) {
                 </div>
             </section>
 
-            <section className="section" id="realisations">
+            <section className="section workshop" id="atelier">
                 <div className="wrap">
-                    <div className="section-head">
-                        <p className="eyebrow">Parcours</p>
-                        <h2>Réalisations</h2>
-                    </div>
-                    <ol className="timeline">
-                        {highlights.achievements.filter((a) => !a.todo || import.meta.env.DEV).map((a) => (   // drafts: dev only
-                            <li key={a.title} className={a.todo ? 'todo' : ''}>
-                                <span className="when">{a.when}</span>
-                                <div><h3>{a.title}</h3><p>{a.text}</p></div>
-                            </li>
-                        ))}
-                    </ol>
+                    <p className="eyebrow">Dans l'atelier</p>
+                    <p className="workshop-line">Bientôt ici : {showcase.workshop.map((w, i) => <React.Fragment key={w}>{i ? (i === showcase.workshop.length - 1 ? ' et ' : ', ') : ''}<b>{w}</b></React.Fragment>)}.</p>
                 </div>
             </section>
 
