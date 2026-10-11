@@ -27,7 +27,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: ./chatel-meteo-planner/package-lock.json
+          cache-dependency-path: |
+            ./chatel-meteo-planner/package-lock.json
+            ./about-matthieu/site/package-lock.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -41,6 +43,18 @@ jobs:
         env:
           NODE_ENV: production
         run: npm run build
+
+      # About Matthieu (profile page + the Ride windsurf / wing foil game), published under /about-matthieu/
+      - name: Install about-matthieu dependencies
+        working-directory: ./about-matthieu/site
+        run: npm ci
+
+      - name: Build about-matthieu
+        working-directory: ./about-matthieu/site
+        run: npm run build
+
+      - name: Add about-matthieu to the site
+        run: cp -r ./about-matthieu/site/dist ./chatel-meteo-planner/out/about-matthieu
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

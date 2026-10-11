@@ -16,6 +16,7 @@ Applications and tools for Chatelaillon-Plage, built around [SignalK](https://si
 | [chatel-meteo-planner](chatel-meteo-planner/) | Weather & water sports activity planner | Next.js 16, React 19, Tailwind CSS 4 |
 | [chatel-signalk-weatherprovider](chatel-signalk-weatherprovider/) | SignalK plugin — real-time weather data from meteolarochelle.fr | Node.js, SignalK plugin |
 | [signalk-esp-pond-sensor](signalk-esp-pond-sensor/) | ESP32 pond monitoring sensor + POI Laboratory webapp | Arduino/C++, Next.js 16 |
+| [about-matthieu](about-matthieu/) | About the author, and **Ride**, a windsurf / wing foil game on the Ocearo sea — [live](https://laborima.github.io/chatel-apps-repository/about-matthieu/) | Vite, React 19, three.js, Blender |
 
 ## Architecture
 
@@ -23,6 +24,7 @@ Applications and tools for Chatelaillon-Plage, built around [SignalK](https://si
 chatel-apps-repository/
 ├── chatel-meteo-planner/              # SignalK webapp — weather planner
 ├── chatel-signalk-weatherprovider/    # SignalK plugin — weather provider
+├── about-matthieu/                    # About page + Ride game (published under /about-matthieu/)
 ├── signalk-esp-pond-sensor/
 │   ├── signalk_esp_pond_sensor/       # ESP32 firmware (Arduino)
 │   └── signalk-poi-lab/              # SignalK webapp — pond monitoring

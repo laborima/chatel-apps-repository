@@ -16,6 +16,7 @@ Applications et outils pour Chatelaillon-Plage, integres autour de [SignalK](htt
 | [chatel-meteo-planner](chatel-meteo-planner/) | Planificateur meteo et activites nautiques | Next.js 16, React 19, Tailwind CSS 4 |
 | [chatel-signalk-weatherprovider](chatel-signalk-weatherprovider/) | Plugin SignalK — donnees meteo temps reel depuis meteolarochelle.fr | Node.js, SignalK plugin |
 | [signalk-esp-pond-sensor](signalk-esp-pond-sensor/) | Capteur ESP32 pour monitoring de bassin + webapp POI Laboratory | Arduino/C++, Next.js 16 |
+| [about-matthieu](about-matthieu/) | À propos de l'auteur, et **Ride**, un jeu de planche à voile et wing foil sur la mer d'Ocearo — [en ligne](https://laborima.github.io/chatel-apps-repository/about-matthieu/) | Vite, React 19, three.js, Blender |
 
 ## Architecture
 

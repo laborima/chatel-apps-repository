@@ -1,0 +1,13 @@
+# personal photos and heavy intermediate data stay out of git
+photos/
+**/photos/
+# ...except the few chosen for the about page (resized, metadata stripped)
+!site/public/img/photos/
+*.blend
+*.blend1
+*.npz
+*.npy
+node_modules/
+dist/
+.DS_Store
+dist-artifact/

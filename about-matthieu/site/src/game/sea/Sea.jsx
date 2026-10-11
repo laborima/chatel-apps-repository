@@ -1,0 +1,396 @@
+// Sea and sky for the windsurf game.
+// Shaders ported from ocearo-ui (app/components/3dview/ocean/FsdOcean.js, Apache-2.0,
+// same author): Gerstner wave spectrum from the wind, sky reflection, sun glitter,
+// whitecaps and the wake along the track. Here the data come from the game
+// (wind, heading, speed, position) instead of Signal K, and 1 scene unit = 1 metre.
+import React, { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { seaParams } from '../physics';
+
+const BOAT_SCALE = 1.0;
+const RADIUS = 2400;
+const SEGMENTS = 320;
+const SKY_RADIUS = 3800;
+const TRAIL = 32;
+const TRAIL_STEP = 1.0;
+// Board footprint at the waterline (semi-length, semi-beam), metres
+const HULL = [1.2, 0.37];
+const DEFINES = { FBM_OCTAVES: 4, RIPPLES: 6, TRAIL_SEGMENTS: TRAIL - 1 };
+// ocearo-ui "day" theme
+export const PALETTE = { sea: '#134868', seaScatter: '#2b97a3', seaFoam: '#f3f7f9', skyZenith: '#4f86b8', skyHorizon: '#dbe6ed' };
+/** Dusk, for the about page: near-black sky, a blue glow on the horizon, a low sun laying a path on the water. */
+export const DUSK = { sea: '#03141f', seaScatter: '#0a5468', seaFoam: '#a9dcec', skyZenith: '#02060b', skyHorizon: '#0f3a52',
+    sun: [0.62, 0.78, 0.09], sunI: 0.75 };
+
+const common = `
+    uniform float uTime;
+    uniform float uAmp;
+    uniform float uDir;
+    uniform float uWaveLength;
+    uniform float uChop;
+    uniform vec2 uOffset;
+    uniform float uHeave;
+    uniform float uSwellLen;
+    uniform float uSwellAmp;
+    uniform float uSwellSteep;
+`;
+
+// Wave field: a spectrum of Gerstner trains spread around the downwind
+// direction (sharp crests, round troughs) plus a long swell, displaced on the
+// GPU and anchored to the sea (uOffset = our position) so the waves stream
+// past the hull. Shorter waves are only in the pixel normals (see fragment).
+const seaVertex = `
+    ${common}
+    varying vec3 vPos;
+    varying vec3 vNormalW;
+    varying vec2 vSea;
+    varying float vHeight;
+    varying float vJacobian;
+    varying float vDist;
+
+    #define NW 6
+    const float WL[NW] = float[NW](1.0, 0.74, 0.58, 0.45, 0.36, 0.29);
+    const float WA[NW] = float[NW](0.46, 0.30, 0.22, 0.15, 0.11, 0.08);
+    const float WD[NW] = float[NW](0.0, 0.43, -0.37, 0.86, -0.74, 0.18);
+    const float WP[NW] = float[NW](0.0, 1.7, 4.1, 2.3, 5.2, 0.9);
+
+    // Grid spacing around this vertex (the grid is warped x' = R·(0.05·u + 0.95·u³)):
+    // a wave shorter than ~4 vertices cannot be drawn, it only shimmers
+    float gSpacing;
+
+    void wave(vec2 p, float angle, float L, float a, float steep, float phase,
+              inout vec3 disp, inout vec3 dDx, inout vec3 dDy) {
+        a *= 1.0 - smoothstep(0.3, 0.6, gSpacing / L);
+        vec2 d = vec2(sin(angle), cos(angle));
+        float k = 6.2831853 / L;
+        float c = sqrt(9.81 * ${BOAT_SCALE.toFixed(2)} / k);
+        float f = k * (dot(d, p) - c * uTime) + phase;
+        float q = clamp(steep / (k * a * float(NW) + 1e-4), 0.0, 1.0);
+        float s = sin(f);
+        float co = cos(f);
+        disp += vec3(d.x * q * a * co, d.y * q * a * co, a * s);
+        // Partial derivatives of the displaced surface (x, y, z) along x and y
+        dDx += vec3(-q * d.x * d.x * k * a * s, -q * d.x * d.y * k * a * s, d.x * k * a * co);
+        dDy += vec3(-q * d.x * d.y * k * a * s, -q * d.y * d.y * k * a * s, d.y * k * a * co);
+    }
+
+    void main() {
+        vec2 local = position.xy;
+        vec2 sea = local + uOffset;
+        float dist = length(local);
+        // Calmer far away (clean horizon) and under the hull, which does not heave
+        float fade = 1.0 - smoothstep(900.0, 2200.0, dist);   // game: the board rides the real waves (no calm patch under the hull)
+        vec2 gu = pow(abs(local) / ${(0.95 * RADIUS).toFixed(1)}, vec2(1.0 / 3.0));
+        float gmax = max(gu.x, gu.y);
+        gSpacing = ${(2 * RADIUS / SEGMENTS).toFixed(4)} * (0.05 + 2.85 * gmax * gmax);
+        vec3 disp = vec3(0.0);
+        vec3 dDx = vec3(0.0);
+        vec3 dDy = vec3(0.0);
+        for (int i = 0; i < NW; i++) {
+            wave(sea, uDir + WD[i], uWaveLength * WL[i], uAmp * WA[i], uChop, WP[i], disp, dDx, dDy);
+        }
+        // Long swell, from a little off the wind
+        wave(sea, uDir + 0.55, uSwellLen, uSwellAmp, uSwellSteep, 0.0, disp, dDx, dDy);
+        disp *= fade;
+        dDx *= fade;
+        dDy *= fade;
+        vec3 tx = vec3(1.0, 0.0, 0.0) + dDx;
+        vec3 ty = vec3(0.0, 1.0, 0.0) + dDy;
+        vNormalW = normalize(cross(tx, ty));
+        // Horizontal compression: below ~0.6 the crest is about to break
+        vJacobian = (1.0 + dDx.x) * (1.0 + dDy.y) - dDx.y * dDy.x;
+        vHeight = disp.z / max(uAmp, 1e-3);
+        vSea = sea + disp.xy;
+        vDist = dist;
+        // The water around the hull rises and falls with the boat (heave)
+        vPos = vec3(local + disp.xy, disp.z + uHeave * (1.0 - smoothstep(6.0, 40.0, dist)));
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(vPos, 1.0);
+    }
+`;
+
+const skyFunction = `
+    uniform vec3 uZenith;
+    uniform vec3 uHorizon;
+    uniform vec3 uSunDir;
+    uniform float uSunI;
+    // Sky radiance in a direction (z up): horizon haze to zenith, a soft sun
+    vec3 skyColor(vec3 d) {
+        float up = clamp(d.z, 0.0, 1.0);
+        vec3 c = mix(uHorizon, uZenith, pow(up, 0.45));
+        float s = max(dot(d, uSunDir), 0.0);
+        c += uSunI * (pow(s, 6.0) * 0.18 + pow(s, 120.0) * 0.6) * vec3(1.0, 0.94, 0.82);
+        return c;
+    }
+`;
+
+const noise = `
+    // Sin-free hash (Dave Hoskins): sin() of large arguments loses float
+    // precision on the GPU and the noise falls apart into blocks far from
+    // the session origin. Lattice wrapped to keep the inputs small.
+    float hash(vec2 p) {
+        vec3 p3 = fract(vec3(mod(p, 1024.0).xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+    }
+    float vnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+    }
+    float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < FBM_OCTAVES; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(17.1, 9.3); a *= 0.5; }
+        return v;
+    }
+`;
+
+const seaFragment = `
+    ${common}
+    ${skyFunction}
+    ${noise}
+    uniform vec3 uCam;
+    uniform vec3 uDeep;
+    uniform vec3 uScatter;
+    uniform vec3 uFoamColor;
+    uniform float uWind;
+    uniform float uFog;
+    uniform vec4 uTrail[${TRAIL}];
+    uniform float uTrailReach;
+    uniform vec2 uBow;
+    uniform float uSpeed;
+    uniform vec2 uHull;
+    uniform float uOcclude;
+    varying vec3 vPos;
+    varying vec3 vNormalW;
+    varying vec2 vSea;
+    varying float vHeight;
+    varying float vJacobian;
+    varying float vDist;
+
+    // Foam left by the hull: a turbulent band along our real track that
+    // widens and fades with age, the two Kelvin arms (19.5°) and the bow wave
+    float wakeFoam(vec2 p) {
+        if (length(p) > uTrailReach) return 0.0;
+        float best = 1e6;
+        float age = 0.0;
+        for (int i = 0; i < TRAIL_SEGMENTS; i++) {
+            vec4 a = uTrail[i];
+            vec4 b = uTrail[i + 1];
+            if (b.z < 0.0) break;
+            vec2 ab = b.xy - a.xy;
+            float t = clamp(dot(p - a.xy, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
+            float d = length(p - a.xy - ab * t);
+            if (d < best) { best = d; age = mix(a.z, b.z, t); }
+        }
+        float moving = smoothstep(0.3, 1.6, uSpeed);
+        float width = uHull.y * 0.55 + age * 0.12;
+        float grain = fbm(vSea * 1.3 + vec2(0.0, uTime * 0.2));
+        float band = (1.0 - smoothstep(width * 0.35, width, best)) * exp(-age / 22.0);
+        band *= 0.45 + 0.75 * grain;
+
+        // Boat frame: x ahead, y to port
+        vec2 side = vec2(-uBow.y, uBow.x);
+        float ahead = dot(p, uBow);
+        float lat = dot(p, side);
+        float behind = -ahead - uHull.x * 0.6;
+        float arms = 0.0;
+        if (behind > 0.0) {
+            float off = abs(abs(lat) - uHull.y * 0.7 - behind * 0.354);
+            float w = 0.2 + behind * 0.02;
+            arms = (1.0 - smoothstep(0.0, w, off)) * exp(-behind / (10.0 + uSpeed * 5.0));
+            // Broken, lacy foam rather than a painted line
+            arms *= smoothstep(0.42, 0.75, fbm(vSea * 2.4 - vec2(uTime * 0.3))) * 0.7;
+        }
+        // Bow wave and the water pushed along the topsides
+        float e = length(vec2(ahead / uHull.x, lat / uHull.y));
+        float hug = smoothstep(1.45, 1.0, e) * smoothstep(0.92, 1.05, e) * (0.35 + 0.65 * smoothstep(-0.6, 0.9, ahead / uHull.x));
+        hug *= 0.5 + 0.7 * fbm(vSea * 3.0 + vec2(uTime * 0.5));
+        return clamp((band + arms + hug * 0.9) * moving, 0.0, 1.0);
+    }
+
+    void main() {
+        // Seen through the water: only the hull's underwater part gets this pass
+        vec2 bowP = vec2(dot(vPos.xy, uBow), dot(vPos.xy, vec2(-uBow.y, uBow.x)));
+        float inHull = length(bowP / uHull);
+        if (uOcclude > 0.5 && inHull > 1.02) discard;
+
+        // Short wind waves and ripples, in the normal only, faded with distance
+        // and wherever a pixel spans too much sea to show them (they would
+        // sparkle from one frame to the next near the horizon)
+        float footprint = length(fwidth(vSea));
+        float detail = (1.0 - smoothstep(30.0, 260.0, vDist)) * (0.5 + 0.5 * uWind);
+        vec2 grad = vec2(0.0);
+        for (int i = 0; i < RIPPLES; i++) {
+            float fi = float(i);
+            float ang = uDir + (hash(vec2(fi, 3.7)) - 0.5) * 2.2;
+            vec2 d = vec2(sin(ang), cos(ang));
+            float L = uWaveLength * (0.22 - fi * 0.028);
+            float k = 6.2831853 / L;
+            float f = k * (dot(d, vSea) - sqrt(9.81 * ${BOAT_SCALE.toFixed(2)} / k) * uTime) + fi * 1.9;
+            grad += d * cos(f) * 0.07 * (1.0 - smoothstep(0.15, 0.4, footprint / L));
+        }
+        // Capillary texture: soft noise drifting downwind (wide finite
+        // differences, so no value-noise cells show in the sun glitter),
+        // faded out before it would alias into stripes
+        vec2 drift = vec2(sin(uDir), cos(uDir)) * uTime * 0.6;
+        mat2 rot = mat2(0.8, -0.6, 0.6, 0.8);
+        vec2 q = rot * (vSea * 0.7) - drift;
+        float e1 = fbm(q);
+        float e2 = fbm(q + vec2(0.35, 0.0));
+        float e3 = fbm(q + vec2(0.0, 0.35));
+        grad += vec2(e2 - e1, e3 - e1) * 0.45 * (0.3 + 0.7 * uWind) * (1.0 - smoothstep(15.0, 90.0, vDist)) * (1.0 - smoothstep(0.12, 0.5, footprint));
+        vec3 n = normalize(vNormalW - vec3(grad * detail, 0.0));
+
+        vec3 v = normalize(uCam - vPos);
+        float ndv = max(dot(n, v), 0.0);
+        float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
+        vec3 r = reflect(-v, n);
+        r.z = abs(r.z);
+        vec3 refl = skyColor(r);
+
+        // Water body: deep colour, light scattered through the crests (more
+        // when looking towards the sun), slopes facing the sky a little lighter
+        float h = clamp(vHeight * 0.5 + 0.5, 0.0, 1.0);
+        vec2 look = normalize(-v.xy + 1e-5);
+        vec2 sunH = normalize(uSunDir.xy + 1e-5);
+        float towardSun = pow(clamp(dot(look, sunH) * 0.5 + 0.5, 0.0, 1.0), 3.0);
+        float sss = h * h * (0.45 + 0.75 * towardSun) * (0.35 + 0.65 * uSunI);
+        vec3 body = mix(uDeep, uScatter, clamp(sss, 0.0, 1.0));
+        float diffuse = max(dot(n, uSunDir), 0.0);
+        body *= 0.78 + 0.22 * n.z + 0.18 * diffuse * uSunI;
+        vec3 color = mix(body, refl, fresnel);
+
+        // Sun glitter: a sharp core and a broad sheen
+        vec3 hv = normalize(uSunDir + v);
+        float nh = max(dot(n, hv), 0.0);
+        float spec = pow(nh, 500.0) * 2.2 + pow(nh, 70.0) * 0.18;
+        color += uSunI * step(0.0, uSunDir.z) * spec * vec3(1.0, 0.95, 0.86);
+
+        // White water: breaking crests from the wind, foam patches, our wake
+        float grain = fbm(vSea * 0.55 + vec2(uTime * 0.05, 0.0));
+        float streak = fbm(vec2(dot(vSea, vec2(cos(uDir), -sin(uDir))) * 0.35, dot(vSea, vec2(sin(uDir), cos(uDir))) * 0.06));
+        float crest = smoothstep(0.82, 0.38, vJacobian) * smoothstep(-0.1, 0.6, vHeight);
+        float caps = crest * smoothstep(0.35, 0.8, grain + crest * 0.45) * uWind;
+        caps += smoothstep(0.66, 0.9, streak) * 0.18 * uWind * uWind * (1.0 - smoothstep(60.0, 250.0, vDist));
+        float foam = clamp(caps * (1.0 - smoothstep(300.0, 900.0, vDist)) + wakeFoam(vPos.xy), 0.0, 1.0);
+        vec3 foamLit = uFoamColor * (0.82 + 0.18 * diffuse * uSunI);
+        color = mix(color, foamLit, foam);
+
+        // Aerial perspective: the sea dissolves into the horizon haze
+        float fog = 1.0 - exp(-pow(vDist * uFog, 1.4));
+        vec3 haze = skyColor(normalize(vec3(normalize(vPos.xy - uCam.xy + 1e-4), 0.02)));
+        color = mix(color, haze, clamp(fog, 0.0, 1.0));
+
+        gl_FragColor = vec4(color, uOcclude > 0.5 ? 0.72 : 1.0);
+        #include <colorspace_fragment>
+    }
+`;
+
+const skyVertex = `
+    varying vec3 vDir;
+    void main() {
+        vDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const skyFragment = `
+    ${skyFunction}
+    uniform vec3 uDeep;
+    varying vec3 vDir;
+    void main() {
+        // World is y up; the shared sky function is z up
+        vec3 d = normalize(vec3(vDir.x, -vDir.z, vDir.y));
+        vec3 color = skyColor(d);
+        // Below the horizon (seen only past the sea's edge): the sea's own tone
+        color = mix(color, mix(uHorizon, uDeep, 0.35), smoothstep(0.0, -0.06, d.z));
+        gl_FragColor = vec4(color, 1.0);
+        #include <colorspace_fragment>
+    }
+`;
+
+
+const _cam = new THREE.Vector3();
+const SUN = new THREE.Vector3(0.35, 0.55, 0.62).normalize();   // afternoon sun, east-north-up
+
+export const SkyDome = ({ heading, palette = PALETTE }) => {
+    const sunV = palette.sun ? new THREE.Vector3(...palette.sun).normalize() : SUN;
+    const uniforms = useMemo(() => ({
+        uZenith: { value: new THREE.Color(palette.skyZenith) }, uHorizon: { value: new THREE.Color(palette.skyHorizon) },
+        uDeep: { value: new THREE.Color(palette.sea) }, uSunDir: { value: new THREE.Vector3() }, uSunI: { value: palette.sunI ?? 1 },
+    }), [palette]);
+    const material = useMemo(() => new THREE.ShaderMaterial({ uniforms, vertexShader: skyVertex, fragmentShader: skyFragment, side: THREE.BackSide, depthWrite: false, fog: false }), [uniforms]);
+    useFrame(() => {
+        const h = heading.current, c = Math.cos(h), s = Math.sin(h);
+        const wx = sunV.x * c - sunV.y * s, wz = -sunV.x * s - sunV.y * c;
+        uniforms.uSunDir.value.set(wx, -wz, sunV.z).normalize();
+    });
+    useEffect(() => () => material.dispose(), [material]);
+    return <mesh material={material} renderOrder={-3} frustumCulled={false}><sphereGeometry args={[SKY_RADIUS, 48, 24]} /></mesh>;
+};
+
+/**
+ * state: a ref to { heading (rad, compass), x (m east), y (m north), speed (m/s), tws (m/s), twd (rad, wind from) }
+ * The board stays at the origin; the sea turns with the heading and streams past it.
+ */
+const Sea = ({ state, y = 0, palette = PALETTE }) => {
+    const seaRef = useRef(); const groupRef = useRef(); const trail = useRef([]);
+    const heading = useMemo(() => ({ get current() { return state.current.heading; } }), [state]);
+    const uniforms = useMemo(() => ({
+        uTime: { value: 0 }, uAmp: { value: 0.3 }, uDir: { value: 0 }, uWaveLength: { value: 15 }, uChop: { value: 0.6 },
+        uOffset: { value: new THREE.Vector2() }, uHeave: { value: 0 }, uCam: { value: new THREE.Vector3() }, uSwellLen: { value: 70 }, uSwellAmp: { value: 0.16 }, uSwellSteep: { value: 0.2 },
+        uSunDir: { value: palette.sun ? new THREE.Vector3(...palette.sun).normalize() : SUN.clone() }, uSunI: { value: palette.sunI ?? 1 },
+        uZenith: { value: new THREE.Color(palette.skyZenith) }, uHorizon: { value: new THREE.Color(palette.skyHorizon) },
+        uDeep: { value: new THREE.Color(palette.sea) }, uScatter: { value: new THREE.Color(palette.seaScatter) },
+        uFoamColor: { value: new THREE.Color(palette.seaFoam) }, uWind: { value: 0.3 }, uFog: { value: 1 / 2600 },
+        uTrail: { value: Array.from({ length: TRAIL }, () => new THREE.Vector4(0, 0, -1, 0)) }, uTrailReach: { value: 0 },
+        uBow: { value: new THREE.Vector2(0, 1) }, uSpeed: { value: 0 }, uHull: { value: new THREE.Vector2(...HULL) }, uOcclude: { value: 0 },
+    }), [palette]);
+    const seaMaterial = useMemo(() => new THREE.ShaderMaterial({ uniforms, defines: DEFINES, vertexShader: seaVertex, fragmentShader: seaFragment, depthWrite: false }), [uniforms]);
+    const waterline = useMemo(() => new THREE.ShaderMaterial({ uniforms: { ...uniforms, uOcclude: { value: 1 } }, defines: DEFINES, vertexShader: seaVertex, fragmentShader: seaFragment, transparent: true, depthWrite: false }), [uniforms]);
+    const grid = useMemo(() => {
+        const g = new THREE.PlaneGeometry(2, 2, SEGMENTS, SEGMENTS); const p = g.attributes.position;
+        const warp = (u) => RADIUS * (0.05 * u + 0.95 * u * u * u);
+        for (let i = 0; i < p.count; i++) p.setXY(i, warp(p.getX(i)), warp(p.getY(i)));
+        return g;
+    }, []);
+    const hullGrid = useMemo(() => new THREE.PlaneGeometry(HULL[0] * 3, HULL[0] * 3, 32, 32), []);
+    useEffect(() => () => { seaMaterial.dispose(); waterline.dispose(); grid.dispose(); hullGrid.dispose(); }, [seaMaterial, waterline, grid, hullGrid]);
+
+    useFrame((three, delta) => {
+        const s = state.current; const mesh = seaRef.current; if (!mesh) return;
+        const w = seaParams(s);              // same numbers as the board's wave model (physics.js)
+        uniforms.uTime.value = s.time;
+        uniforms.uAmp.value = w.amp; uniforms.uChop.value = w.chop; uniforms.uWaveLength.value = w.len;
+        uniforms.uWind.value = w.whitecaps; uniforms.uDir.value = w.dir;
+        uniforms.uSwellLen.value = w.swellLen; uniforms.uSwellAmp.value = w.swellAmp; uniforms.uSwellSteep.value = w.swellSteep;
+        uniforms.uOffset.value.set(s.x, s.y);
+        groupRef.current.rotation.y = s.heading;
+        mesh.updateWorldMatrix(true, false);
+        uniforms.uCam.value.copy(mesh.worldToLocal(_cam.copy(three.camera.position)));
+        // wake
+        const now = three.clock.elapsedTime; const pts = trail.current;
+        if (!pts[0] || Math.hypot(s.x - pts[0].x, s.y - pts[0].y) > TRAIL_STEP) { pts.unshift({ x: s.x, y: s.y, t: now }); if (pts.length > TRAIL + 4) pts.length = TRAIL + 4; }
+        uniforms.uSpeed.value = s.speed;
+        uniforms.uBow.value.set(Math.sin(s.heading), Math.cos(s.heading));
+        const stern = HULL[0] * 0.85; const out = uniforms.uTrail.value;
+        out[0].set(-Math.sin(s.heading) * stern, -Math.cos(s.heading) * stern, 0, 0);
+        let n = 1, reach = stern;
+        for (const p of pts) { if (n >= TRAIL) break; const x = p.x - s.x, yy = p.y - s.y; if (Math.hypot(x, yy) <= stern + 0.3) continue; out[n++].set(x, yy, now - p.t, 0); reach = Math.max(reach, Math.hypot(x, yy)); }
+        for (; n < TRAIL; n++) out[n].set(0, 0, -1, 0);
+        uniforms.uTrailReach.value = reach + 20;
+    });
+    return (
+        <>
+            <SkyDome heading={heading} palette={palette} />
+            <group ref={groupRef} position={[0, y, 0]}>
+                <mesh ref={seaRef} rotation={[-Math.PI / 2, 0, 0]} geometry={grid} material={seaMaterial} renderOrder={-1} frustumCulled={false} />
+                <mesh rotation={[-Math.PI / 2, 0, 0]} geometry={hullGrid} material={waterline} renderOrder={10} frustumCulled={false} />
+            </group>
+        </>
+    );
+};
+export default Sea;
