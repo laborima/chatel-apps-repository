@@ -41,7 +41,7 @@ const HeroScene = () => {
                 <hemisphereLight args={['#5d8fb0', '#020a12', 0.55]} />
                 <directionalLight position={[6, 2.2, -3]} intensity={1.6} color="#ffd9b0" />
                 <directionalLight position={[-4, 3, 5]} intensity={0.5} color="#3fc8ff" />
-                <Sea state={state} y={0} palette={DUSK} />
+                <Sea state={state} y={0} palette={DUSK} hull={false} />
                 <Suspense fallback={null}><Windsurfer state={state} /></Suspense>
                 <Spray state={state} />
                 <Drift state={state} still={still} />

@@ -399,7 +399,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
                 <hemisphereLight args={['#dbe6ed', '#134868', 0.9]} />
                 <directionalLight position={[3, 6, 4]} intensity={2.2} />
                 <Suspense fallback={null}>
-                    <Sea state={state} y={0} />
+                    <Sea state={state} y={0} hull={false} />
                     <Windsurfer key={craft} state={state} url={urls[craft]} />
                 </Suspense>
                 <Course state={state} session={{ get current() { return g.session; } }} />

@@ -163,6 +163,7 @@ const seaFragment = `
     uniform float uSpeed;
     uniform vec2 uHull;
     uniform float uOcclude;
+    uniform float uHug;
     varying vec3 vPos;
     varying vec3 vNormalW;
     varying vec2 vSea;
@@ -208,7 +209,7 @@ const seaFragment = `
         float e = length(vec2(ahead / uHull.x, lat / uHull.y));
         float hug = smoothstep(1.45, 1.0, e) * smoothstep(0.92, 1.05, e) * (0.35 + 0.65 * smoothstep(-0.6, 0.9, ahead / uHull.x));
         hug *= 0.5 + 0.7 * fbm(vSea * 3.0 + vec2(uTime * 0.5));
-        return clamp((band + arms + hug * 0.9) * moving, 0.0, 1.0);
+        return clamp((band + arms + hug * 0.9 * uHug) * moving, 0.0, 1.0);
     }
 
     void main() {
@@ -266,16 +267,19 @@ const seaFragment = `
         // Sun glitter: a sharp core and a broad sheen
         vec3 hv = normalize(uSunDir + v);
         float nh = max(dot(n, hv), 0.0);
-        float spec = pow(nh, 500.0) * 2.2 + pow(nh, 70.0) * 0.18;
+        float spec = pow(nh, 900.0) * 1.5 + pow(nh, 90.0) * 0.1;
         color += uSunI * step(0.0, uSunDir.z) * spec * vec3(1.0, 0.95, 0.86);
+        color = color / (1.0 + max(color - 0.85, 0.0) * 0.8);       // soft shoulder: glints, not flat white patches
 
         // White water: breaking crests from the wind, foam patches, our wake
         float grain = fbm(vSea * 0.55 + vec2(uTime * 0.05, 0.0));
         float streak = fbm(vec2(dot(vSea, vec2(cos(uDir), -sin(uDir))) * 0.35, dot(vSea, vec2(sin(uDir), cos(uDir))) * 0.06));
-        float crest = smoothstep(0.82, 0.38, vJacobian) * smoothstep(-0.1, 0.6, vHeight);
-        float caps = crest * smoothstep(0.35, 0.8, grain + crest * 0.45) * uWind;
+        float crest = smoothstep(0.72, 0.3, vJacobian) * smoothstep(-0.1, 0.6, vHeight);
+        // lacy, broken white water on the crests rather than flat painted patches
+        float lace = fbm(vSea * 2.3 + vec2(uTime * 0.15, -uTime * 0.05));
+        float caps = crest * smoothstep(0.58, 0.95, grain * 0.5 + lace * 0.7 + crest * 0.15) * uWind * 0.6;
         caps += smoothstep(0.66, 0.9, streak) * 0.18 * uWind * uWind * (1.0 - smoothstep(60.0, 250.0, vDist));
-        float foam = clamp(caps * (1.0 - smoothstep(300.0, 900.0, vDist)) + wakeFoam(vPos.xy), 0.0, 1.0);
+        float foam = clamp(caps * (1.0 - smoothstep(300.0, 900.0, vDist)) + wakeFoam(vPos.xy), 0.0, 0.88);
         vec3 foamLit = uFoamColor * (0.82 + 0.18 * diffuse * uSunI);
         color = mix(color, foamLit, foam);
 
@@ -336,7 +340,8 @@ export const SkyDome = ({ heading, palette = PALETTE }) => {
  * state: a ref to { heading (rad, compass), x (m east), y (m north), speed (m/s), tws (m/s), twd (rad, wind from) }
  * The board stays at the origin; the sea turns with the heading and streams past it.
  */
-const Sea = ({ state, y = 0, palette = PALETTE }) => {
+/** hull: false for a board (no bow-wave ring round the hull, no see-through waterline pass, both made for a boat). */
+const Sea = ({ state, y = 0, palette = PALETTE, hull = true }) => {
     const seaRef = useRef(); const groupRef = useRef(); const trail = useRef([]);
     const heading = useMemo(() => ({ get current() { return state.current.heading; } }), [state]);
     const uniforms = useMemo(() => ({
@@ -347,9 +352,11 @@ const Sea = ({ state, y = 0, palette = PALETTE }) => {
         uDeep: { value: new THREE.Color(palette.sea) }, uScatter: { value: new THREE.Color(palette.seaScatter) },
         uFoamColor: { value: new THREE.Color(palette.seaFoam) }, uWind: { value: 0.3 }, uFog: { value: 1 / 2600 },
         uTrail: { value: Array.from({ length: TRAIL }, () => new THREE.Vector4(0, 0, -1, 0)) }, uTrailReach: { value: 0 },
-        uBow: { value: new THREE.Vector2(0, 1) }, uSpeed: { value: 0 }, uHull: { value: new THREE.Vector2(...HULL) }, uOcclude: { value: 0 },
-    }), [palette]);
-    const seaMaterial = useMemo(() => new THREE.ShaderMaterial({ uniforms, defines: DEFINES, vertexShader: seaVertex, fragmentShader: seaFragment, depthWrite: false }), [uniforms]);
+        uBow: { value: new THREE.Vector2(0, 1) }, uSpeed: { value: 0 }, uHull: { value: new THREE.Vector2(...HULL) }, uOcclude: { value: 0 }, uHug: { value: hull ? 1 : 0 },
+    }), [palette, hull]);
+    // Without the waterline pass (hull = false) the sea writes depth: overlapping crests then sort by distance
+    // (no far water drawn over a near crest) and whatever is under the surface (a foil, a shark's belly) is hidden.
+    const seaMaterial = useMemo(() => new THREE.ShaderMaterial({ uniforms, defines: DEFINES, vertexShader: seaVertex, fragmentShader: seaFragment, depthWrite: !hull }), [uniforms, hull]);
     const waterline = useMemo(() => new THREE.ShaderMaterial({ uniforms: { ...uniforms, uOcclude: { value: 1 } }, defines: DEFINES, vertexShader: seaVertex, fragmentShader: seaFragment, transparent: true, depthWrite: false }), [uniforms]);
     const grid = useMemo(() => {
         const g = new THREE.PlaneGeometry(2, 2, SEGMENTS, SEGMENTS); const p = g.attributes.position;
@@ -388,7 +395,7 @@ const Sea = ({ state, y = 0, palette = PALETTE }) => {
             <SkyDome heading={heading} palette={palette} />
             <group ref={groupRef} position={[0, y, 0]}>
                 <mesh ref={seaRef} rotation={[-Math.PI / 2, 0, 0]} geometry={grid} material={seaMaterial} renderOrder={-1} frustumCulled={false} />
-                <mesh rotation={[-Math.PI / 2, 0, 0]} geometry={hullGrid} material={waterline} renderOrder={10} frustumCulled={false} />
+                {hull ? <mesh rotation={[-Math.PI / 2, 0, 0]} geometry={hullGrid} material={waterline} renderOrder={10} frustumCulled={false} /> : null}
             </group>
         </>
     );

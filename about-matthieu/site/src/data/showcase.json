@@ -43,16 +43,21 @@
       "kicker": "Châtelaillon-Plage",
       "text": "La question du matin : y aura-t-il du vent ? Vent, météo et marée croisés pour trouver le bon créneau, jusque sur la montre, avec un plugin météo pour Signal K.",
       "image": "chatel-windsurf.webp",
-      "alt": "Le logo de Châtel Météo Planner : un planchiste dans une rose des vents",
-      "contain": true,
+      "alt": "Châtel Météo Planner : vent en temps réel, marée, soleil, prévisions, carte du vent et webcam du port",
       "links": [
-        {
-          "label": "L'application",
-          "url": "https://laborima.github.io/chatel-apps-repository/"
-        },
         {
           "label": "GitHub",
           "url": "https://github.com/laborima/chatel-apps-repository/tree/master/chatel-meteo-planner"
+        }
+      ],
+      "more": [
+        {
+          "src": "chatel-windsurf-2.webp",
+          "alt": "Les activités recommandées selon le profil, avec leur score et le meilleur créneau"
+        },
+        {
+          "src": "chatel-windsurf-3.webp",
+          "alt": "L'application sur téléphone"
         }
       ]
     },
