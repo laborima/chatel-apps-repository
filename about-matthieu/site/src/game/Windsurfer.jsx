@@ -4,6 +4,14 @@ import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 import { makeArmIK } from './armIK';
 
+/** Set a clip's weight; a clip at zero is disabled, so the mixer does not interpolate its ~300 tracks for nothing. */
+const weigh = (a, v) => {
+    if (!a) return;
+    const on = v > 0.001;
+    if (a.enabled !== on) a.enabled = on;
+    if (on) a.setEffectiveWeight(v);
+};
+
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/windsurfer.glb`;
 
 // Manoeuvre clips, scrubbed by the simulation (port tack -> starboard tack, the last frame is the mirrored "Ride")
@@ -41,7 +49,7 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
         ride.setLoop(THREE.LoopRepeat, Infinity).play();
         [...Object.values(MAN_CLIPS), ...POSES].forEach((n) => {
             const a = actions[n]; if (!a) return;
-            a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.play(); a.paused = true; a.setEffectiveWeight(0);
+            a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.play(); a.paused = true; weigh(a, 0);
         });
         scene.traverse((o) => {
             if (!o.isMesh) return;
@@ -61,7 +69,7 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
 
         // manoeuvre ended: back to "Ride" from its first frame (the clip's last frame is that pose, mirrored)
         if (lastMan.current && lastMan.current !== m) {
-            const prev = actions[MAN_CLIPS[lastMan.current.kind]]; if (prev) prev.setEffectiveWeight(0);
+            const prev = actions[MAN_CLIPS[lastMan.current.kind]]; if (prev) weigh(prev, 0);
             actions.Ride.time = 0;
         }
         lastMan.current = m;
@@ -71,9 +79,9 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
             const a = actions[clipName]; const u = Math.min(0.999, m.t / m.dur);
             a.time = u * a.getClip().duration;
             const fade = Math.min(1, u / 0.08);                       // short blend in from the current Ride frame
-            a.setEffectiveWeight(fade);
+            weigh(a, fade);
             POSES.forEach((n) => { w[n] = 0; });
-            actions.Ride.setEffectiveWeight(1 - fade);
+            weigh(actions.Ride, 1 - fade);
         } else {
             const air = s.mode === 'air';
             const bearAway = s.planing && s.turn * -side > 0.4;   // carving the leeward rail
@@ -88,8 +96,8 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
             let sum = 0;
             POSES.forEach((n) => { w[n] += (target[n] - w[n]) * (n === 'Crouch' ? Math.min(1, dt * 20) : k); sum += w[n]; });
             const norm = Math.max(1, sum);
-            POSES.forEach((n) => actions[n]?.setEffectiveWeight(w[n] / norm));
-            actions.Ride.setEffectiveWeight(Math.max(0, 1 - sum / norm));
+            POSES.forEach((n) => weigh(actions[n], w[n] / norm));
+            weigh(actions.Ride, Math.max(0, 1 - sum / norm));
         }
 
         g.rotation.order = 'YXZ';

@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
 import * as THREE from 'three';
 import Sea from './sea/Sea';
 import Windsurfer, { MODEL_URL } from './Windsurfer';
@@ -8,6 +9,8 @@ import Spray from './Spray';
 import { createAudio } from './audio';
 import { MODES, COURSE, CHALLENGES, newSession, updateSession, loadSave, storeSave, toward, fmtTime } from './session';
 import { createDemo } from './demo';
+import Sharks from './Sharks';
+import { createSharks, updateSharks } from './sharks';
 import { MainMenu, EndScreen } from './Menus';
 
 export const MODEL_URLS = { windsurf: MODEL_URL, wing: `${import.meta.env.BASE_URL}models/wingfoil.glb` };
@@ -77,6 +80,7 @@ const Rig = ({ state, input, view, onTick, game }) => {
         lastMode.current = s.mode;
         if (playing) {
             const sess = g.session;
+            if (g.sharksActive) updateSharks(g.sharks, s, dt);
             updateSession(sess, s, g.demo ? g.demoSave : g.save, dt, g.craft);
             if (g.demo?.done) { g.demo.doneT = (g.demo.doneT ?? 0) + dt; if (g.demo.doneT > 3) g.onDemoEnd(); }
             for (const p of sess.popups) {
@@ -162,6 +166,7 @@ const Legend = ({ s }) => (
 /** What the next key does, right now. */
 const hintFor = (s, inp) => {
     if (s.mode === 'air') return [['↑', 'forward'], ['↓', 'back'], ['← →', 'table-top'], ['F', 'pied'], ['G', 'main']];
+    if (s.mode === 'sail' && s.sharkAhead != null) return [['!', `Requin de Tintin droit devant, ${Math.round(s.sharkAhead)} m : évite-le ou saute par-dessus`]];
     if (s.mode !== 'sail' || s.man) return null;
     const mod = inp.up ? 'up' : inp.down ? 'down' : null;
     if (mod) return COMBOS.filter((c) => c[0] === mod && canDo(s, c[2])).map((c) => [`${CAP[mod]} + ${CAP[c[1]]}`, NAMES[c[2]]]);
@@ -256,7 +261,7 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, wind, 
                 ))}
             </div>
             <div className="hud-bottom">
-                {(() => { const h = hintFor(s, input.current); return h ? <div className="hint" aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
+                {(() => { const h = hintFor(s, input.current); return h ? <div className={`hint ${h[0][0] === '!' ? 'warn' : ''}`} aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
                 <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ← → diriger · <b>Figures</b> en haut à droite</p>
                 <div className="controls">
                     <div className="stick" role="group" aria-label="Diriger et tourner">
@@ -328,16 +333,19 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
     const gestures = useCamGestures(view);
     // everything the frame loop needs, without re-rendering the canvas
     const game = useRef(null);
-    if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf' };
+    if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf', sharksOn: true, sharksActive: false, sharks: null };
     const g = game.current;
 
     const start = (m = mode, c = craft) => {
         g.audio.start(); g.demo = null;
+        g.sharks = createSharks(); g.sharksActive = g.sharksOn && (m === 'freestyle' || m === 'ride');
         state.current = initialState({ windKn: wind, sea, craft: c });
         g.session = newSession(m); g.craft = c; g.phase = 'play'; setPhase('play');
         input.current = {}; view.current.yaw = 0; view.current.pitch = 0;
     };
-    const toMenu = () => { g.phase = 'menu'; g.session = null; g.demo = null; setPhase('menu'); };
+    const toMenu = () => { g.phase = 'menu'; g.session = null; g.demo = null; g.sharksActive = false; setPhase('menu'); };
+    const [sharksOn, setSharksOn] = useState(true);
+    const onSharks = () => { g.sharksOn = !g.sharksOn; setSharksOn(g.sharksOn); };
     const startDemo = () => {
         g.audio.start();
         state.current = initialState({ windKn: 22, sea: 'vagues', craft });     // waves for the ramps
@@ -373,10 +381,21 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
         window.addEventListener('keydown', down); window.addEventListener('keyup', up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     });
+    // the sound stops with the game, and pauses while the tab is hidden
+    useEffect(() => {
+        const vis = () => (document.hidden ? g.audio.pause() : g.audio.resume());
+        document.addEventListener('visibilitychange', vis);
+        return () => { document.removeEventListener('visibilitychange', vis); g.audio.stop(); };
+    }, [g]);
+    // resolution follows the frame rate: big dense tablet screens drop to fewer pixels instead of stuttering
+    const maxDpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5);
+    const [dpr, setDpr] = useState(maxDpr);
     const ready = { windsurf: !!urls.windsurf, wing: !!urls.wing };
     return (
         <div className={`game phase-${phase}`} {...gestures}>
-            <Canvas camera={{ position: [-4.5, 2.6, 7.5], fov: 45, near: 0.1, far: 6000 }} dpr={[1, 2]} gl={{ antialias: true }}>
+            <Canvas camera={{ position: [-4.5, 2.6, 7.5], fov: 45, near: 0.1, far: 6000 }} dpr={dpr} gl={{ antialias: dpr < 1.3, powerPreference: 'high-performance' }}>
+                <PerformanceMonitor flipflops={4} onDecline={() => setDpr((d) => Math.max(0.6, +(d - 0.2).toFixed(2)))}
+                                    onIncline={() => setDpr((d) => Math.min(maxDpr, +(d + 0.2).toFixed(2)))} onFallback={() => setDpr(0.75)} />
                 <hemisphereLight args={['#dbe6ed', '#134868', 0.9]} />
                 <directionalLight position={[3, 6, 4]} intensity={2.2} />
                 <Suspense fallback={null}>
@@ -385,6 +404,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
                 </Suspense>
                 <Course state={state} session={{ get current() { return g.session; } }} />
                 <Spray state={state} />
+                <Sharks state={state} pack={{ get current() { return g.sharks; } }} enabled={{ get current() { return g.phase === 'play' && g.sharksActive; } }} />
                 <Rig state={state} input={input} view={view} onTick={setSnap} game={game} />
             </Canvas>
             {phase === 'play' ? (
@@ -393,7 +413,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
             ) : null}
             {phase === 'menu' ? (
                 <MainMenu mode={mode} setMode={setMode} craft={craft} onCraft={onCraft} ready={ready} wind={wind} sea={sea} onSettings={onSettings}
-                          save={g.save} onStart={() => start()} onDemo={startDemo} onExit={onExit} muted={muted} onMute={onMute} />
+                          save={g.save} sharksOn={sharksOn} onSharks={onSharks} onStart={() => start()} onDemo={startDemo} onExit={onExit} muted={muted} onMute={onMute} />
             ) : null}
             {phase === 'end' && snap.sess ? (
                 <EndScreen sess={snap.sess} craft={craft} save={g.save} onAgain={() => start()} onMenu={toMenu} />

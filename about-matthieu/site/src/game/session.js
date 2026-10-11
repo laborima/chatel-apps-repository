@@ -41,6 +41,7 @@ export const CHALLENGES = [
     { id: 'vulcan', label: 'Vulcan', test: ({ ev }) => ev?.key === 'vulcan' },
     { id: 'spock', label: 'Spock', test: ({ ev }) => ev?.key === 'spock' },
     { id: 'combo5', label: 'Combo ×5', test: ({ sess }) => sess.combo >= 5 },
+    { id: 'sharkJump', label: 'Sauter par-dessus un requin de Tintin', test: ({ ev }) => ev?.key === 'sharkJump' },
     { id: 'free5k', label: 'Freestyle : 10 000 points', test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 10000 },
     { id: 'free15k', label: 'Freestyle : 30 000 points', test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 30000 },
     { id: 'slalom', label: 'Slalom : finir le parcours', test: ({ sess, mode }) => mode === 'slalom' && sess.finished },
@@ -99,7 +100,7 @@ export const updateSession = (sess, s, save, dt, craft) => {
         if (sess.mode === 'freestyle') {
             const pts = scoreEvent(sess, e, s.time);
             if (pts) { sess.score += pts; sess.tricks += 1; sess.popups.push({ id: e.id, text: e.text, pts, mult: sess.mult, t: s.time }); }
-            else if (e.key === 'crash') sess.popups.push({ id: e.id, text: 'Chute ! Combo perdu', pts: 0, bad: true, t: s.time });
+            else if (e.key === 'crash') sess.popups.push({ id: e.id, text: `${e.text} Combo perdu`, pts: 0, bad: true, t: s.time });
         } else {
             sess.popups.push({ id: e.id, text: e.text, pts: e.pts, bad: e.bad, t: s.time });
             if (!e.bad && e.pts) { sess.score += e.pts; sess.tricks += 1; }

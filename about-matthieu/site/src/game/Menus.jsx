@@ -27,7 +27,7 @@ export const Challenges = ({ save, highlight = [] }) => {
 };
 
 /** Start screen: mode, sport, sea and wind, records, challenges. */
-export const MainMenu = ({ mode, setMode, craft, onCraft, ready, wind, sea, onSettings, save, onStart, onDemo, onExit, muted, onMute }) => {
+export const MainMenu = ({ mode, setMode, craft, onCraft, ready, wind, sea, onSettings, save, sharksOn, onSharks, onStart, onDemo, onExit, muted, onMute }) => {
     const [showCh, setShowCh] = useState(false);
     return (
         <div className="overlay menu" role="dialog" aria-label="Menu du jeu">
@@ -66,6 +66,7 @@ export const MainMenu = ({ mode, setMode, craft, onCraft, ready, wind, sea, onSe
                         Défis {CHALLENGES.filter((c) => save.done[c.id]).length}/{CHALLENGES.length}
                     </button>
                     <button className="ghost-btn" onClick={onMute} aria-pressed={!muted}>{muted ? 'Son coupé' : 'Son activé'}</button>
+                    <button className="ghost-btn" onClick={onSharks} aria-pressed={sharksOn} title="En freestyle et en balade">{sharksOn ? 'Requins de Tintin : oui' : 'Requins de Tintin : non'}</button>
                     {onExit ? <button className="ghost-btn" onClick={onExit}>← Retour à la fiche</button> : null}
                 </div>
                 {showCh ? <Challenges save={save} /> : null}

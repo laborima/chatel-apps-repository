@@ -97,7 +97,7 @@
       "id": "requin-tintin",
       "name": "Le requin de Tintin",
       "kicker": "Fait maison",
-      "text": "Le requin du Trésor de Rackham le Rouge, sorti de la BD : coque noire et blanche, ailerons, bulle de pilotage, et une hélice sous le ventre.",
+      "text": "Le requin du Trésor de Rackham le Rouge, sorti de la BD. Il ne plonge pas, mais on monte dedans, sous la bulle de pilotage, et il navigue, hélice sous le ventre.",
       "image": "requin-tintin.webp",
       "alt": "Le requin de Tintin construit par Matthieu, posé sur la plage",
       "links": [],
@@ -117,8 +117,5 @@
       "alt": "Le jet ski noir fait maison, posé dans l'herbe au bord d'un lac",
       "links": []
     }
-  ],
-  "workshop": [
-    "une turbine à gaz"
   ]
 }

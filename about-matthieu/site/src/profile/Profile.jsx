@@ -13,7 +13,7 @@ const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two ful
     { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée' },
     { src: 'planche-2.webp', alt: 'Matthieu au planing dans le clapot' },
     { src: 'planche-3.webp', alt: 'Matthieu accroché au harnais, pieds dans les straps' },
-    { src: 'planche-5.webp', alt: 'Matthieu à l\'empannage, la voile qui bascule', wide: true },
+    { src: 'planche-saut.webp', alt: 'Matthieu en saut devant la plage, la planche à la verticale', wide: true },
     { src: 'combi.webp', alt: 'Matthieu en combinaison et harnais, de retour sur la plage' },
 ];
 
@@ -179,12 +179,6 @@ export default function Profile({ onPlay }) {
                 </div>
             </section>
 
-            <section className="section workshop" id="atelier">
-                <div className="wrap">
-                    <p className="eyebrow">Sur l'établi</p>
-                    <p className="workshop-line">Bientôt ici : {showcase.workshop.map((w, i) => <React.Fragment key={w}>{i ? (i === showcase.workshop.length - 1 ? ' et ' : ', ') : ''}<b>{w}</b></React.Fragment>)}.</p>
-                </div>
-            </section>
 
             <footer className="about-foot">
                 <div className="wrap">

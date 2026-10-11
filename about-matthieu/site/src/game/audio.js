@@ -22,6 +22,11 @@ export const createAudio = () => {
             const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000;
             waterG = ctx.createGain(); waterG.gain.value = 0; waterF.connect(lp); lp.connect(waterG); waterG.connect(master); loop(waterF);
         },
+        /** Leaving the game: silence everything and release the audio device. */
+        stop() { if (ctx) { ctx.close?.(); ctx = null; } },
+        /** Tab hidden / shown. */
+        pause() { ctx?.suspend?.(); },
+        resume() { ctx?.resume?.(); },
         setMuted(m) { muted = m; if (ctx) master.gain.setTargetAtTime(m ? 0 : 0.7, ctx.currentTime, 0.05); },
         get muted() { return muted; },
         /** Every frame: wind with the apparent wind, hiss with the board speed (quiet in the air). */

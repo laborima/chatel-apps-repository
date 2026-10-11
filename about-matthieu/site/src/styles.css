@@ -159,3 +159,5 @@ kbd { font: 600 11px/1 var(--mono); display: inline-block; min-width: 20px; text
 .demo-keys { font: 500 13px var(--mono); color: #d8f36b; }
 .demo-btn { border-color: #d8f36b; color: #d8f36b; }
 @media (max-width: 760px) { .demo-banner { top: calc(max(12px, env(safe-area-inset-top)) + 150px); } }
+.hint.warn { background: rgba(120, 18, 24, .82); }
+.hint.warn kbd { background: #ff3b45; border-color: #ff3b45; color: #fff; }
