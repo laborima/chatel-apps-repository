@@ -88,9 +88,9 @@
       "id": "aquaponie",
       "name": "Bassin d'aquaponie",
       "kicker": "Fait maison",
-      "text": "Mon bassin d'aquaponie, instrumenté de bout en bout : des sondes dans l'eau et dans l'air, et une caméra ESP32 alimentée par un panneau solaire pour garder un œil sur le bassin.",
+      "text": "Mon bassin d'aquaponie : les poissons derrière une vitre, le bac de culture juste au-dessus, et l'eau qui revient au bassin par la gouttière. Instrumenté de bout en bout, avec des sondes dans l'eau et dans l'air et une caméra ESP32 solaire.",
       "image": "aquaponie.webp",
-      "alt": "La caméra du bassin : un dôme ESP32-CAM et son panneau solaire",
+      "alt": "Le bassin d'aquaponie : poissons rouges derrière une vitre, bac de culture en bois au-dessus, terrasse en bois",
       "links": []
     },
     {
