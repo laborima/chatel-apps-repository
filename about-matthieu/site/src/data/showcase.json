@@ -8,9 +8,18 @@
       "image": "ocearo.webp",
       "alt": "Le tableau de bord Ocearo en mode nuit",
       "links": [
-        { "label": "Le site", "url": "https://laborima.github.io/ocearo-ui/" },
-        { "label": "ocearo-ui", "url": "https://github.com/laborima/ocearo-ui" },
-        { "label": "ocearo-core", "url": "https://github.com/laborima/ocearo-core" }
+        {
+          "label": "Le site",
+          "url": "https://laborima.github.io/ocearo-ui/"
+        },
+        {
+          "label": "ocearo-ui",
+          "url": "https://github.com/laborima/ocearo-ui"
+        },
+        {
+          "label": "ocearo-core",
+          "url": "https://github.com/laborima/ocearo-core"
+        }
       ]
     },
     {
@@ -20,7 +29,12 @@
       "text": "Visualiseur de grilles NetCDF d'océan et de climat plus grandes que la mémoire : cartes, coupes verticales et globe 3D, en local ou par OPeNDAP. Né en 2006 chez Mercator Océan, réécrit aujourd'hui.",
       "image": "gridviewer.webp",
       "alt": "GridViewer : la température de surface des océans sur un globe 3D",
-      "links": [{ "label": "GitHub", "url": "https://github.com/laborima/gridviewer" }]
+      "links": [
+        {
+          "label": "GitHub",
+          "url": "https://github.com/laborima/gridviewer"
+        }
+      ]
     },
     {
       "id": "chatel-windsurf",
@@ -31,8 +45,14 @@
       "alt": "Le logo de Châtel Météo Planner : un planchiste dans une rose des vents",
       "contain": true,
       "links": [
-        { "label": "L'application", "url": "https://laborima.github.io/chatel-apps-repository/" },
-        { "label": "GitHub", "url": "https://github.com/laborima/chatel-apps-repository/tree/master/chatel-meteo-planner" }
+        {
+          "label": "L'application",
+          "url": "https://laborima.github.io/chatel-apps-repository/"
+        },
+        {
+          "label": "GitHub",
+          "url": "https://github.com/laborima/chatel-apps-repository/tree/master/chatel-meteo-planner"
+        }
       ]
     },
     {
@@ -42,7 +62,12 @@
       "text": "Une tourelle à eau façon turbolaser qui repère les moustiques à la caméra, les vise… et les arrose. Détection à une trentaine d'images par seconde sur ESP32-P4, tir prédictif, et pilotage à la manette PS5.",
       "image": "mostikator.webp",
       "alt": "La tourelle Mostikator : caméra, laser de visée et buse sur le même support pivotant",
-      "links": [{ "label": "GitHub", "url": "https://github.com/laborima/chatel-apps-repository/tree/master/mostikator" }]
+      "links": [
+        {
+          "label": "GitHub",
+          "url": "https://github.com/laborima/chatel-apps-repository/tree/master/mostikator"
+        }
+      ]
     },
     {
       "id": "poi-lab",
@@ -51,7 +76,12 @@
       "text": "Le suivi du bassin en direct : température de l'eau, pH, conductivité, niveau, lumière et météo, mesurés par un boîtier ESP32 à écran et publiés dans Signal K, avec une webapp pour tout voir.",
       "image": "poi-lab.webp",
       "alt": "Le boîtier POI Monitor : ESP32 et son écran dans un boîtier étanche",
-      "links": [{ "label": "GitHub", "url": "https://github.com/laborima/chatel-apps-repository/tree/master/signalk-esp-pond-sensor" }]
+      "links": [
+        {
+          "label": "GitHub",
+          "url": "https://github.com/laborima/chatel-apps-repository/tree/master/signalk-esp-pond-sensor"
+        }
+      ]
     },
     {
       "id": "aquaponie",
@@ -61,7 +91,19 @@
       "image": "aquaponie.webp",
       "alt": "La caméra du bassin : un dôme ESP32-CAM et son panneau solaire",
       "links": []
+    },
+    {
+      "id": "requin-tintin",
+      "name": "Le requin de Tintin",
+      "kicker": "Fait maison",
+      "text": "Le requin du Trésor de Rackham le Rouge, construit en vrai : coque noire et blanche, ailerons, et la bulle du pilote sur le dos.",
+      "image": "requin-tintin.webp",
+      "alt": "Le requin de Tintin construit par Matthieu, posé sur la plage",
+      "links": []
     }
   ],
-  "workshop": ["le requin de Tintin", "un jet ski", "une turbine à gaz"]
+  "workshop": [
+    "un jet ski",
+    "une turbine à gaz"
+  ]
 }
