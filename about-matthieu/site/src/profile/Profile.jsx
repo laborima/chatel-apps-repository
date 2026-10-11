@@ -36,6 +36,7 @@ const Lightbox = ({ i, onClose, onGo }) => {
 const Icon = {
     github: <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z" /></svg>,
     play: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z" /></svg>,
+    linkedin: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3v-11Zm6.5 0h3.8v1.5h.06c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.77 2.65 4.77 6.1v5.46h-4v-4.84c0-1.16-.02-2.64-1.61-2.64-1.61 0-1.86 1.26-1.86 2.56v4.92h-4v-11Z" /></svg>,
     arrow: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" d="M7 17 17 7M9 7h8v8" /></svg>,
 };
 
@@ -66,6 +67,7 @@ export default function Profile({ onPlay }) {
                         <li><a href="#ride">Ride</a></li>
                     </ul>
                     <div className="nav-end">
+                        {showcase.linkedin ? <a className="icon-btn" href={showcase.linkedin} target="_blank" rel="noreferrer" aria-label="Parcours pro sur LinkedIn">{Icon.linkedin}</a> : null}
                         <a className="icon-btn" href={user.url} target="_blank" rel="noreferrer" aria-label="GitHub">{Icon.github}</a>
                         <button className="btn btn-primary btn-s" onClick={onPlay}>{Icon.play}Jouer</button>
                     </div>
@@ -85,6 +87,7 @@ export default function Profile({ onPlay }) {
                     <div className="cta">
                         <button className="btn btn-primary" onClick={onPlay}>{Icon.play}Jouer à Ride</button>
                         <a className="btn btn-ghost" href={user.url} target="_blank" rel="noreferrer">{Icon.github}GitHub · {user.login}</a>
+                        {showcase.linkedin ? <a className="btn btn-ghost" href={showcase.linkedin} target="_blank" rel="noreferrer">{Icon.linkedin}Parcours pro</a> : null}
                     </div>
                 </div>
                 <p className="hero-caption">En direct : mon avatar sur la mer d'Ocearo, au crépuscule</p>
@@ -173,7 +176,7 @@ export default function Profile({ onPlay }) {
 
             <footer className="about-foot">
                 <div className="wrap">
-                    <span>© {new Date().getFullYear()} {user.name}</span>
+                    <span>© {new Date().getFullYear()} {user.name}{showcase.linkedin ? <> · <a href={showcase.linkedin} target="_blank" rel="noreferrer">parcours pro sur LinkedIn</a></> : null}</span>
                     <span>Mer, ciel et vagues : <a href="https://github.com/laborima/ocearo-ui" target="_blank" rel="noreferrer">Ocearo UI</a> · Polices Geist</span>
                 </div>
             </footer>

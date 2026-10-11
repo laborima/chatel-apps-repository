@@ -9,6 +9,7 @@ Status of the overall plan as understood so far (to be replaced by Matthieu's ow
 5. **Better avatar**: a phone 3D scan (RealityScan / Polycam), wrapped with `avatar/scripts/scan_wrap.py`, then the windsurfer rebuilt with it.
 
 ## Open points
-- Achievements and beCPG career text: to write (placeholders in `site/src/data/highlights.json`).
+- Professional background: a link to the LinkedIn profile (set `linkedin` in `site/src/data/showcase.json`).
+- Projects shown on the page: `site/src/data/showcase.json` (pictures in `site/public/img/projects/`).
 - Hands do not close on the boom yet; knees splay a little seen from behind; hair reads slightly long in three.js.
 - Game: no buoys / race yet, no sound, French only.

@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "projects": "node scripts/fetch-projects.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

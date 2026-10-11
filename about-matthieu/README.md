@@ -1,6 +1,6 @@
 # about-matthieu
 
-Personal "about the author" page for **Matthieu Laborie** (CTO at beCPG, author of
+Personal "about the author" page for **Matthieu Laborie** (author of
 [Ocearo](https://github.com/laborima/ocearo-ui)), with a small windsurfing game behind
 its main button. The page is meant to be linked from the "About" screen of the apps.
 
@@ -18,7 +18,6 @@ cd site
 npm install
 npm run dev          # http://localhost:5173
 npm run build        # static files in site/dist (relative paths: works from any sub-folder)
-npm run projects     # refresh the GitHub project list (GITHUB_TOKEN optional)
 ```
 
 The game opens at `#windsurf`. Keys: ← / → (or Q / D) to bear away and head up; on a phone, the two round buttons.

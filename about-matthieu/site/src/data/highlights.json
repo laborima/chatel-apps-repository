@@ -1,37 +1,8 @@
 {
-  "tagline": "CTO de beCPG. Sur mon temps libre, je construis Ocearo, un tableau de bord 3D open source pour la navigation à voile, et des outils autour de Signal K.",
+  "tagline": "Entre la mer, l'électronique et le code : je construis Ocearo, un tableau de bord 3D open source pour la navigation à voile, et bien d'autres projets.",
   "facts": [
-    "CTO chez beCPG",
     "Auteur d'Ocearo",
-    "Voile et planche à voile"
-  ],
-  "achievements": [
-    {
-      "when": "2026",
-      "title": "Ocearo UI 2.1",
-      "text": "Tableau de bord 3D Signal K : AIS, laylines, bathymétrie SHOM, météo et marées, sur Raspberry Pi, tablette ou téléphone."
-    },
-    {
-      "when": "2026",
-      "title": "Ocearo Core",
-      "text": "Plugin Signal K « la voix du bateau » : veille anticollision COLREG, veille au mouillage, coaching de voile, synthèse vocale locale."
-    },
-    {
-      "when": "2026",
-      "title": "GridViewer",
-      "text": "Visualiseur de grilles NetCDF océan et climat plus grandes que la mémoire : cartes, coupes verticales, globe 3D."
-    },
-    {
-      "when": "À compléter",
-      "title": "beCPG",
-      "text": "Ton parcours et tes réalisations chez beCPG : à rédiger (je n'invente rien).",
-      "todo": true
-    },
-    {
-      "when": "À compléter",
-      "title": "Autres réalisations",
-      "text": "Prix, conférences, projets marquants : à compléter.",
-      "todo": true
-    }
+    "Voile et planche à voile",
+    "Électronique et Signal K"
   ]
 }
