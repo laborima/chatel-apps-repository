@@ -5,7 +5,7 @@
       "id": "ocearo",
       "name": "Ocearo",
       "kicker": "Navigation · Signal K",
-      "text": "Tableau de bord 3D de navigation, open source : le bateau, le trafic AIS, les laylines, la bathymétrie SHOM, la météo et les marées, en direct. Avec Ocearo Core, la « voix du bateau » : veille anticollision, veille au mouillage et coaching de voile.",
+      "text": "Le bateau, le trafic AIS, les laylines, les fonds, la météo et la marée, réunis dans une seule vue 3D, en direct. Ocearo Core lui donne une voix : veille anticollision, alarme de mouillage, coaching de voile. Open source, sur Raspberry Pi, tablette ou téléphone.",
       "image": "ocearo.webp",
       "alt": "Le tableau de bord Ocearo en mode nuit",
       "links": [
@@ -27,7 +27,7 @@
       "id": "gridviewer",
       "name": "GridViewer",
       "kicker": "Océanographie",
-      "text": "Visualiseur de grilles NetCDF d'océan et de climat plus grandes que la mémoire : cartes, coupes verticales et globe 3D, en local ou par OPeNDAP. Né en 2006 chez Mercator Océan, réécrit aujourd'hui.",
+      "text": "Des grilles d'océan et de climat plus grosses que la mémoire, ouvertes en un clin d'œil : cartes, coupes verticales, globe 3D. Un logiciel de 2006, né chez Mercator Océan, remis à flot.",
       "image": "gridviewer.webp",
       "alt": "GridViewer : la température de surface des océans sur un globe 3D",
       "links": [
@@ -41,7 +41,7 @@
       "id": "chatel-windsurf",
       "name": "Châtel Windsurf",
       "kicker": "Châtelaillon-Plage",
-      "text": "Trouver le bon créneau pour aller naviguer à Châtelaillon-Plage : un planificateur de sessions selon le vent, la météo et la marée, une montre Wear OS et un plugin météo pour Signal K.",
+      "text": "La question du matin : y aura-t-il du vent ? Vent, météo et marée croisés pour trouver le bon créneau, jusque sur la montre, avec un plugin météo pour Signal K.",
       "image": "chatel-windsurf.webp",
       "alt": "Le logo de Châtel Météo Planner : un planchiste dans une rose des vents",
       "contain": true,
@@ -60,7 +60,7 @@
       "id": "mostikator",
       "name": "Mostikator",
       "kicker": "Le moustique a tort",
-      "text": "Une tourelle à eau façon turbolaser qui repère les moustiques à la caméra, les vise… et les arrose. Détection à une trentaine d'images par seconde sur ESP32-P4, tir prédictif, et pilotage à la manette PS5.",
+      "text": "Une tourelle façon turbolaser repère les moustiques à la caméra, anticipe leur vol… et les arrose. Une trentaine d'images par seconde sur ESP32-P4, et une manette PS5 pour reprendre la main.",
       "image": "mostikator.webp",
       "alt": "La tourelle Mostikator : caméra, laser de visée et buse sur le même support pivotant",
       "links": [
@@ -74,7 +74,7 @@
       "id": "poi-lab",
       "name": "POI Laboratory",
       "kicker": "Signal K · ESP32",
-      "text": "Le suivi du bassin en direct : température de l'eau, pH, conductivité, niveau, lumière et météo, mesurés par un boîtier ESP32 à écran et publiés dans Signal K, avec une webapp pour tout voir.",
+      "text": "Le tableau de bord du bassin : température de l'eau, pH, conductivité, niveau, lumière et météo, relevés par un petit boîtier ESP32 à écran et envoyés dans Signal K.",
       "image": "poi-lab.webp",
       "alt": "Le boîtier POI Monitor : ESP32 et son écran dans un boîtier étanche",
       "links": [
@@ -88,7 +88,7 @@
       "id": "aquaponie",
       "name": "Bassin d'aquaponie",
       "kicker": "Fait maison",
-      "text": "Mon bassin d'aquaponie : les poissons derrière une vitre, le bac de culture juste au-dessus, et l'eau qui revient au bassin par la gouttière. Instrumenté de bout en bout, avec des sondes dans l'eau et dans l'air et une caméra ESP32 solaire.",
+      "text": "Les poissons nourrissent les plantes, les plantes filtrent l'eau. Un bassin vitré, un bac de culture au-dessus, une gouttière pour le retour, et des capteurs partout.",
       "image": "aquaponie.webp",
       "alt": "Le bassin d'aquaponie : poissons rouges derrière une vitre, bac de culture en bois au-dessus, terrasse en bois",
       "links": []
@@ -97,14 +97,28 @@
       "id": "requin-tintin",
       "name": "Le requin de Tintin",
       "kicker": "Fait maison",
-      "text": "Le requin du Trésor de Rackham le Rouge, construit en vrai : coque noire et blanche, ailerons, et la bulle du pilote sur le dos.",
+      "text": "Le requin du Trésor de Rackham le Rouge, sorti de la BD : coque noire et blanche, ailerons, bulle de pilotage, et une hélice sous le ventre.",
       "image": "requin-tintin.webp",
       "alt": "Le requin de Tintin construit par Matthieu, posé sur la plage",
+      "links": [],
+      "more": [
+        {
+          "src": "requin-tintin-2.webp",
+          "alt": "Le requin sur le quai, avant la mise à l'eau, l'hélice sous le ventre"
+        }
+      ]
+    },
+    {
+      "id": "jet-ski",
+      "name": "Jet ski",
+      "kicker": "Fait maison",
+      "text": "Un jet ski construit de A à Z, de la coque au guidon, ici au bord du lac avant sa mise à l'eau.",
+      "image": "jet-ski.webp",
+      "alt": "Le jet ski noir fait maison, posé dans l'herbe au bord d'un lac",
       "links": []
     }
   ],
   "workshop": [
-    "un jet ski",
     "une turbine à gaz"
   ]
 }

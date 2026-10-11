@@ -14,21 +14,21 @@ const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two ful
     { src: 'planche-2.webp', alt: 'Matthieu au planing dans le clapot' },
     { src: 'planche-3.webp', alt: 'Matthieu accroché au harnais, pieds dans les straps' },
     { src: 'planche-5.webp', alt: 'Matthieu à l\'empannage, la voile qui bascule', wide: true },
-    { src: 'planche-4.webp', alt: 'Matthieu en planche à voile, gerbe sous la planche' },
+    { src: 'combi.webp', alt: 'Matthieu en combinaison et harnais, de retour sur la plage' },
 ];
 
 /** Full-screen photo viewer: arrows / swipe-free buttons, Escape or a click outside closes it. */
-const Lightbox = ({ i, onClose, onGo }) => {
+const Lightbox = ({ i, list, onClose, onGo }) => {
     useEffect(() => {
         const k = (e) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') onGo(1); if (e.key === 'ArrowLeft') onGo(-1); };
         window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
     }, [onClose, onGo]);
-    const p = PHOTOS[i];
+    const p = list[i]; const many = list.length > 1;
     return (
         <div className="lightbox" role="dialog" aria-modal="true" aria-label={p.alt} onClick={onClose}>
-            <img src={IMG + p.src} alt={p.alt} onClick={(e) => e.stopPropagation()} />
-            <button className="lb-btn lb-prev" aria-label="Photo précédente" onClick={(e) => { e.stopPropagation(); onGo(-1); }}>‹</button>
-            <button className="lb-btn lb-next" aria-label="Photo suivante" onClick={(e) => { e.stopPropagation(); onGo(1); }}>›</button>
+            <img src={p.url} alt={p.alt} onClick={(e) => e.stopPropagation()} />
+            {many ? <button className="lb-btn lb-prev" aria-label="Photo précédente" onClick={(e) => { e.stopPropagation(); onGo(-1); }}>‹</button> : null}
+            {many ? <button className="lb-btn lb-next" aria-label="Photo suivante" onClick={(e) => { e.stopPropagation(); onGo(1); }}>›</button> : null}
             <button className="lb-btn lb-close" aria-label="Fermer" onClick={onClose}>×</button>
         </div>
     );
@@ -44,7 +44,8 @@ export default function Profile({ onPlay }) {
     const user = USER;
     const [scrolled, setScrolled] = useState(false);
     const [hero3d, setHero3d] = useState(false);
-    const [photo, setPhoto] = useState(null);
+    const [photo, setPhoto] = useState(null);           // { list: [{ url, alt }], i }
+    const gallery = PHOTOS.map((p) => ({ url: IMG + p.src, alt: p.alt }));
     useEffect(() => {
         const f = () => setScrolled(window.scrollY > 24); f();
         window.addEventListener('scroll', f, { passive: true });
@@ -104,11 +105,11 @@ export default function Profile({ onPlay }) {
                         <div className="section-head">
                             <p className="eyebrow">Sur l'eau</p>
                             <h2>La mer d'abord</h2>
-                            <p className="lead">À la barre d'un voilier ou sur ma planche à voile, c'est sur l'eau que naissent mes projets : Ocearo vient de là.</p>
+                            <p className="lead">À la barre ou sur une planche à voile : c'est sur l'eau que naissent la plupart de ces projets.</p>
                         </div>
                         <div className="gallery">
                             {PHOTOS.map((p, i) => (
-                                <button key={p.src} className={`shot ${p.wide ? 'wide' : ''}`} onClick={() => setPhoto(i)} aria-label={`Agrandir : ${p.alt}`}>
+                                <button key={p.src} className={`shot ${p.wide ? 'wide' : ''}`} onClick={() => setPhoto({ list: gallery, i })} aria-label={`Agrandir : ${p.alt}`}>
                                     <img src={IMG + p.src} alt={p.alt} loading="lazy" />
                                 </button>
                             ))}
@@ -116,14 +117,15 @@ export default function Profile({ onPlay }) {
                     </div>
                 </div>
             </section>
-            {photo !== null ? <Lightbox i={photo} onClose={() => setPhoto(null)} onGo={(d) => setPhoto((photo + d + PHOTOS.length) % PHOTOS.length)} /> : null}
+            {photo ? <Lightbox i={photo.i} list={photo.list} onClose={() => setPhoto(null)}
+                               onGo={(d) => setPhoto({ ...photo, i: (photo.i + d + photo.list.length) % photo.list.length })} /> : null}
 
             <section className="section" id="projets">
                 <div className="wrap">
                     <div className="section-head">
                         <p className="eyebrow">Projets</p>
-                        <h2>Ce que je construis</h2>
-                        <p className="lead">Sur mon temps libre, entre la mer, l'électronique et le code.</p>
+                        <h2>L'atelier</h2>
+                        <p className="lead">Du logiciel de navigation au requin de bande dessinée : tout est fait main, le plus souvent en open source.</p>
                     </div>
                     <div className="projects">
                         {showcase.projects.map((p, i) => (
@@ -133,6 +135,16 @@ export default function Profile({ onPlay }) {
                                     <p className="eyebrow">{p.kicker}</p>
                                     <h3>{p.name}</h3>
                                     <p>{p.text}</p>
+                                    {p.more ? (
+                                        <div className="project-more">
+                                            {p.more.map((m, k) => (
+                                                <button key={m.src} className="shot mini" aria-label={`Agrandir : ${m.alt}`}
+                                                        onClick={() => setPhoto({ list: [{ url: PROJ + p.image, alt: p.alt }, ...p.more.map((x) => ({ url: PROJ + x.src, alt: x.alt }))], i: k + 1 })}>
+                                                    <img src={PROJ + m.src} alt={m.alt} loading="lazy" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : null}
                                     {p.links.length ? (
                                         <div className="project-links">
                                             {p.links.map((l) => <a key={l.url} className="btn btn-ghost btn-s" href={l.url} target="_blank" rel="noreferrer">{l.label}{Icon.arrow}</a>)}
@@ -169,7 +181,7 @@ export default function Profile({ onPlay }) {
 
             <section className="section workshop" id="atelier">
                 <div className="wrap">
-                    <p className="eyebrow">Dans l'atelier</p>
+                    <p className="eyebrow">Sur l'établi</p>
                     <p className="workshop-line">Bientôt ici : {showcase.workshop.map((w, i) => <React.Fragment key={w}>{i ? (i === showcase.workshop.length - 1 ? ' et ' : ', ') : ''}<b>{w}</b></React.Fragment>)}.</p>
                 </div>
             </section>
