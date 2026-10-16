@@ -11,7 +11,7 @@ const PROJ = `${import.meta.env.BASE_URL}img/projects/`;
 const USER = { name: 'Matthieu Laborie', login: 'laborima', url: 'https://github.com/laborima' };
 const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two full rows of three
     { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée' },
-    { src: 'planche-2.webp', alt: 'Matthieu au planing dans le clapot' },
+    { src: 'plongee.webp', alt: 'Matthieu en combinaison de plongée, de retour sur le bateau, masque autour du cou' },
     { src: 'planche-3.webp', alt: 'Matthieu accroché au harnais, pieds dans les straps' },
     { src: 'planche-saut.webp', alt: 'Matthieu en saut devant la plage, la planche à la verticale', wide: true },
     { src: 'combi.webp', alt: 'Matthieu en combinaison et harnais, de retour sur la plage' },
@@ -105,7 +105,7 @@ export default function Profile({ onPlay }) {
                         <div className="section-head">
                             <p className="eyebrow">Sur l'eau</p>
                             <h2>La mer d'abord</h2>
-                            <p className="lead">À la barre ou sur une planche à voile : c'est sur l'eau que naissent la plupart de ces projets.</p>
+                            <p className="lead">À la barre, sur une planche à voile ou sous l'eau : c'est en mer que naissent la plupart de ces projets.</p>
                         </div>
                         <div className="gallery">
                             {PHOTOS.map((p, i) => (
