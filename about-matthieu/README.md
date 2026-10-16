@@ -44,8 +44,9 @@ Code: Apache-2.0 (as Ocearo UI). Texts, photos and the avatar: © Matthieu Labor
 
 ## Play
 
-Live: https://laborima.github.io/chatel-apps-repository/about-matthieu/ (the game is at `#windsurf`), built and
-published with the rest of the repository by `.github/workflows/publish.yml` on every push to `master`.
+Live: https://laborima.github.io/ (the game is at `#windsurf`), built from this folder by the workflow of
+[laborima/laborima.github.io](https://github.com/laborima/laborima.github.io), which picks up changes pushed to `master`
+within the hour. The old address, /chatel-apps-repository/about-matthieu/, redirects there.
 
 Controls: keyboard (arrows, Space, V, E, C, F, G), touch buttons, or a PlayStation / standard gamepad
 (left stick or d-pad, ✕ jump, □ tack, ○ jibe, △ 360, L1 / R1 let go of a foot / a hand). Hold ↑ or ↓ on the water

@@ -29,7 +29,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             ./chatel-meteo-planner/package-lock.json
-            ./about-matthieu/site/package-lock.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -44,17 +43,25 @@ jobs:
           NODE_ENV: production
         run: npm run build
 
-      # About Matthieu (profile page + the Ride windsurf / wing foil game), published under /about-matthieu/
-      - name: Install about-matthieu dependencies
-        working-directory: ./about-matthieu/site
-        run: npm ci
-
-      - name: Build about-matthieu
-        working-directory: ./about-matthieu/site
-        run: npm run build
-
-      - name: Add about-matthieu to the site
-        run: cp -r ./about-matthieu/site/dist ./chatel-meteo-planner/out/about-matthieu
+      # About Matthieu now lives at https://laborima.github.io/ (built from about-matthieu/site by the
+      # laborima/laborima.github.io workflow): the old address redirects there, keeping #windsurf
+      - name: Redirect about-matthieu
+        run: |
+          mkdir -p ./chatel-meteo-planner/out/about-matthieu
+          cat > ./chatel-meteo-planner/out/about-matthieu/index.html <<'HTML'
+          <!doctype html>
+          <html lang="fr">
+          <head>
+          <meta charset="utf-8">
+          <title>Matthieu Laborie</title>
+          <link rel="canonical" href="https://laborima.github.io/">
+          <meta name="robots" content="noindex">
+          <meta http-equiv="refresh" content="0; url=https://laborima.github.io/">
+          <script>location.replace('https://laborima.github.io/' + location.hash);</script>
+          </head>
+          <body><p>La page a déménagé : <a href="https://laborima.github.io/">laborima.github.io</a></p></body>
+          </html>
+          HTML
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
