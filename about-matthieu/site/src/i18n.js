@@ -1,10 +1,13 @@
-// French or English: the browser's preferred languages decide (French if French comes before English, English
-// otherwise); a ?lang=fr|en link or the FR / EN button overrides it and is remembered. Plain module state, so the game
+// French, English or Brazilian Portuguese: the browser's preferred languages decide (the first of them that the site
+// speaks; English when none); a ?lang=fr|en|pt link or the language menu overrides it and is remembered. Portuguese
+// covers the page; texts without a Portuguese version (the game) fall back to English. Plain module state, so the game
 // logic (physics.js, session.js) can read it too; React components subscribe with useLang().
 import { useEffect, useState } from 'react';
 
 const KEY = 'about-matthieu.lang';
-const LANGS = ['fr', 'en'];
+export const LANGS = ['fr', 'en', 'pt'];
+export const LANG_NAMES = { fr: 'Français', en: 'English', pt: 'Português' };
+const HTML_LANG = { fr: 'fr', en: 'en', pt: 'pt-BR' };
 
 export const detectLang = () => {
     try {
@@ -29,10 +32,10 @@ export const setLang = (l) => {
     if (!LANGS.includes(l) || l === lang) return;
     lang = l;
     try { localStorage.setItem(KEY, l); } catch { /* keep it for this visit only */ }
-    if (typeof document !== 'undefined') document.documentElement.lang = l;
+    if (typeof document !== 'undefined') document.documentElement.lang = HTML_LANG[l];
     subs.forEach((f) => f(l));
 };
-if (typeof document !== 'undefined') document.documentElement.lang = lang;
+if (typeof document !== 'undefined') document.documentElement.lang = HTML_LANG[lang];
 
 /** [lang, setLang]: re-renders the component when the language changes. */
 export const useLang = () => {
@@ -41,8 +44,13 @@ export const useLang = () => {
     return [l, setLang];
 };
 
-/** Pick the text for the current language: tr('Bonjour', 'Hello'). */
-export const tr = (fr, en) => (lang === 'en' ? en : fr);
+/** Pick the text for the current language: tr('Bonjour', 'Hello', 'Olá') (no Portuguese: the English one). */
+export const tr = (fr, en, pt) => (lang === 'fr' ? fr : lang === 'pt' && pt !== undefined ? pt : en);
 
-/** A field of a data object in the current language: field(p, 'text') reads p.text_en in English when there is one. */
-export const field = (o, k) => (lang === 'en' && o?.[`${k}_en`] != null ? o[`${k}_en`] : o?.[k]);
+/** A field of a data object in the current language: field(p, 'text') reads p.text_en / p.text_pt when there is one
+ *  (Portuguese falls back to English, then French). */
+export const field = (o, k) => {
+    if (lang === 'fr') return o?.[k];
+    if (lang === 'pt' && o?.[`${k}_pt`] != null) return o[`${k}_pt`];
+    return o?.[`${k}_en`] ?? o?.[k];
+};

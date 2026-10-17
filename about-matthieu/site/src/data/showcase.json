@@ -12,7 +12,8 @@
         {
           "label": "Le site",
           "url": "https://ocearo.leslaborie.org/",
-          "label_en": "Website"
+          "label_en": "Website",
+          "label_pt": "Site"
         },
         {
           "label": "ocearo-ui",
@@ -25,7 +26,10 @@
       ],
       "kicker_en": "Navigation · Signal K",
       "text_en": "The boat, AIS traffic, laylines, depth, weather and tide in a single live 3D view. Ocearo Core adds voice assistance: collision watch, anchor alarm, trim advice. Open source, on a Raspberry Pi, a tablet or a phone.",
-      "alt_en": "The Ocearo dashboard by day: the boat in 3D on the sea, its instruments and the traffic"
+      "alt_en": "The Ocearo dashboard by day: the boat in 3D on the sea, its instruments and the traffic",
+      "kicker_pt": "Navegação · Signal K",
+      "text_pt": "O barco, o tráfego AIS, as laylines, a profundidade, o tempo e a maré em uma única visão 3D, em tempo real. O Ocearo Core acrescenta assistência por voz: vigilância anticolisão, alarme de âncora, dicas de regulagem. Código aberto, em Raspberry Pi, tablet ou celular.",
+      "alt_pt": "O painel do Ocearo de dia: o barco em 3D no mar, seus instrumentos e o tráfego"
     },
     {
       "id": "gridviewer",
@@ -42,7 +46,10 @@
       ],
       "kicker_en": "Oceanography",
       "text_en": "A viewer for ocean and climate grids larger than memory: maps, vertical sections, a 3D globe. Written in 2006 at Mercator Ocean, now rewritten in modern Java.",
-      "alt_en": "GridViewer: sea surface temperature on a 3D globe"
+      "alt_en": "GridViewer: sea surface temperature on a 3D globe",
+      "kicker_pt": "Oceanografia",
+      "text_pt": "Um visualizador de grades oceanográficas e climáticas maiores que a memória: mapas, cortes verticais, globo 3D. Escrito em 2006 na Mercator Océan, agora reescrito em Java moderno.",
+      "alt_pt": "GridViewer: a temperatura da superfície do oceano em um globo 3D"
     },
     {
       "id": "chatel-windsurf",
@@ -61,17 +68,22 @@
         {
           "src": "chatel-windsurf-2.webp",
           "alt": "Les activités recommandées selon le profil, avec leur score et le meilleur créneau",
-          "alt_en": "The recommended activities for each profile, with their score and the best slot"
+          "alt_en": "The recommended activities for each profile, with their score and the best slot",
+          "alt_pt": "As atividades recomendadas para cada perfil, com sua pontuação e o melhor horário"
         },
         {
           "src": "chatel-windsurf-3.webp",
           "alt": "L'application sur téléphone",
-          "alt_en": "The app on a phone"
+          "alt_en": "The app on a phone",
+          "alt_pt": "O aplicativo no celular"
         }
       ],
       "kicker_en": "Châtelaillon-Plage",
       "text_en": "Wind, weather and tide combined to tell whether there will be enough to sail, and when. A web app, a watch version and a weather plugin for Signal K.",
-      "alt_en": "Châtel Météo Planner: live wind, tide, sun, forecasts, wind map and the harbour webcam"
+      "alt_en": "Châtel Météo Planner: live wind, tide, sun, forecasts, wind map and the harbour webcam",
+      "kicker_pt": "Châtelaillon-Plage",
+      "text_pt": "Vento, tempo e maré cruzados para saber se vai dar para velejar, e a que horas. Um aplicativo web, uma versão para relógio e um plugin meteorológico para Signal K.",
+      "alt_pt": "Châtel Météo Planner: vento em tempo real, maré, sol, previsões, mapa do vento e a webcam do porto"
     },
     {
       "id": "mostikator",
@@ -88,7 +100,10 @@
       ],
       "kicker_en": "Electronics · vision",
       "text_en": "A turret that spots mosquitoes with a camera, predicts their path and sprays them. About thirty frames a second on an ESP32-P4, and a PS5 controller for manual control.",
-      "alt_en": "The Mostikator turret: camera, aiming laser and nozzle on the same pan-tilt mount"
+      "alt_en": "The Mostikator turret: camera, aiming laser and nozzle on the same pan-tilt mount",
+      "kicker_pt": "Eletrônica · visão",
+      "text_pt": "Uma torre que detecta os mosquitos com uma câmera, antecipa sua trajetória e os borrifa. Cerca de trinta imagens por segundo em um ESP32-P4, e um controle de PS5 para pilotar à mão.",
+      "alt_pt": "A torre Mostikator: câmera, laser de mira e bico no mesmo suporte giratório"
     },
     {
       "id": "poi-lab",
@@ -105,7 +120,10 @@
       ],
       "kicker_en": "Signal K · ESP32",
       "text_en": "Monitoring for the pond: water temperature, pH, conductivity, level, light and weather, measured by an ESP32 box with a screen and sent to Signal K.",
-      "alt_en": "The POI Monitor box: an ESP32 and its screen in a waterproof case"
+      "alt_en": "The POI Monitor box: an ESP32 and its screen in a waterproof case",
+      "kicker_pt": "Signal K · ESP32",
+      "text_pt": "O monitoramento do tanque: temperatura da água, pH, condutividade, nível, luz e tempo, medidos por uma caixa ESP32 com tela e enviados ao Signal K.",
+      "alt_pt": "A caixa POI Monitor: um ESP32 e sua tela em uma caixa estanque"
     },
     {
       "id": "aquaponie",
@@ -117,7 +135,10 @@
       "links": [],
       "kicker_en": "Home-made",
       "text_en": "A glass-fronted fish pond with a grow bed above it: the fish feed the plants, the plants filter the water. Fitted with sensors throughout.",
-      "alt_en": "The aquaponics pond: goldfish behind glass, a wooden grow bed above, a wooden deck"
+      "alt_en": "The aquaponics pond: goldfish behind glass, a wooden grow bed above, a wooden deck",
+      "kicker_pt": "Feito em casa",
+      "text_pt": "Um tanque de vidro com peixes e uma bancada de cultivo em cima: os peixes adubam as plantas, as plantas filtram a água. Tudo equipado com sensores.",
+      "alt_pt": "O tanque de aquaponia: peixinhos atrás do vidro, uma bancada de cultivo de madeira em cima, um deck de madeira"
     },
     {
       "id": "requin-tintin",
@@ -131,12 +152,16 @@
         {
           "src": "requin-tintin-2.webp",
           "alt": "Le requin sur le quai, avant la mise à l'eau, l'hélice sous le ventre",
-          "alt_en": "The shark on the quay before launching, propeller under its belly"
+          "alt_en": "The shark on the quay before launching, propeller under its belly",
+          "alt_pt": "O tubarão no cais antes de ir para a água, a hélice sob a barriga"
         }
       ],
       "kicker_en": "Home-made",
       "text_en": "A replica of the shark submarine from Red Rackham's Treasure. It doesn't dive, but it sails: you sit in the cockpit behind the windscreen, with a propeller under its belly.",
-      "alt_en": "The Tintin shark built by Matthieu, on the beach"
+      "alt_en": "The Tintin shark built by Matthieu, on the beach",
+      "kicker_pt": "Feito em casa",
+      "text_pt": "Uma réplica do tubarão-submarino de O Tesouro de Rackham, o Terrível. Ele não mergulha, mas navega: a gente senta no cockpit, atrás do para-brisa, com uma hélice sob a barriga.",
+      "alt_pt": "O tubarão do Tintim construído por Matthieu, na praia"
     },
     {
       "id": "jet-ski",
@@ -148,7 +173,10 @@
       "links": [],
       "kicker_en": "Home-made",
       "text_en": "A jet ski built entirely by hand, from the hull to the handlebars. Here by the lake, before its launch.",
-      "alt_en": "The black home-made jet ski on the grass by a lake"
+      "alt_en": "The black home-made jet ski on the grass by a lake",
+      "kicker_pt": "Feito em casa",
+      "text_pt": "Um jet ski construído inteiramente à mão, do casco ao guidão. Aqui à beira do lago, antes de ir para a água.",
+      "alt_pt": "O jet ski preto feito em casa, na grama à beira de um lago"
     }
   ]
 }

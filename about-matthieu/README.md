@@ -44,8 +44,9 @@ Code: Apache-2.0 (as Ocearo UI). Texts, photos and the avatar: © Matthieu Labor
 
 ## Languages and app
 
-The page and the game are in French and English: the browser's preferred languages pick one (French if French comes
-first, English otherwise); `?lang=fr|en` or the FR / EN button overrides it and is remembered (`src/i18n.js`).
+The page is in French, English and Brazilian Portuguese, the game in French and English (in English for Portuguese
+readers): the browser's preferred languages pick one (the first the site speaks, English otherwise); `?lang=fr|en|pt` or
+the language menu overrides it and is remembered (`src/i18n.js`: `tr(fr, en, pt)`, `*_en` / `*_pt` keys in the data).
 
 It installs as an app (PWA) on Android and iPhone ("Add to Home Screen"): `public/manifest.webmanifest` opens the game
 full screen, `public/sw.js` keeps the page, the code and the models for offline play (bump its `VERSION` to drop an
