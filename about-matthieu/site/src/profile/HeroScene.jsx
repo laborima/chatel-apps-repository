@@ -12,14 +12,16 @@ const Drift = ({ state, still }) => {
     useFrame((st, delta) => {
         const dt = Math.min(delta, 0.05); const s = state.current;
         step(s, {}, dt);
-        const wide = st.size.width > 760;
-        const a = still ? 0.9 : 0.9 + st.clock.elapsedTime * 0.045, r = wide ? 10.5 : 15;
+        const wide = st.size.width > 760, aspect = st.size.width / Math.max(1, st.size.height);
+        // phone (portrait): far enough for the whole rig (4.4 m mast) to fit the narrow width, centred
+        const a = still ? 0.9 : 0.9 + st.clock.elapsedTime * 0.045, r = wide ? 10.5 : Math.min(34, 13 / Math.max(0.3, aspect));
         camera.position.set(Math.sin(a) * r, 2.1 + s.z * 0.5, Math.cos(a) * r - 1.5);
-        // frame the rider in the right third (the copy sits on the left): aim a little to his left
+        // wide screens: the rider in the right third (the copy sits on the left), so aim a little to his left
         const right = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a));
-        look.current.set(0, 1.5 + s.z * 0.6, -1.0).addScaledVector(right, wide ? -4.6 : 1.2);
-        if (!wide) look.current.y -= 2.2;                               // phone: rider high in the frame, above the copy
+        look.current.set(0, 1.5 + s.z * 0.6, wide ? -1.0 : -0.2).addScaledVector(right, wide ? -4.6 : 0);
+        if (!wide) look.current.y -= r * 0.2;                           // phone: rider in the top third, above the copy
         camera.lookAt(look.current);
+        if (location.search.includes('test')) window.__hero = { camera: st.camera, scene: st.scene, size: st.size };   // headless framing checks
     });
     return null;
 };

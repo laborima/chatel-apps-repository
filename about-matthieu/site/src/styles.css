@@ -170,3 +170,39 @@ kbd { font: 600 11px/1 var(--mono); display: inline-block; min-width: 20px; text
 @media (max-width: 760px) { .demo-banner { top: calc(max(12px, env(safe-area-inset-top)) + 150px); } }
 .hint.warn { background: rgba(120, 18, 24, .82); }
 .hint.warn kbd { background: #ff3b45; border-color: #ff3b45; color: #fff; }
+/* phones: compact HUD (speed and wind on one row, the session bar right under it, Figures as a sheet) */
+.hud.compact { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+.hud.compact .hud-top { flex-wrap: nowrap; gap: 6px; align-items: flex-start; }
+.hud.compact .hud-left { flex-direction: row; gap: 6px; }
+.hud-btn.icon { width: 40px; height: 40px; padding: 0; font-size: 18px; display: grid; place-items: center; }
+.hud.compact .hud-stats { flex-wrap: nowrap; gap: 10px; padding: 6px 10px; border-radius: 12px; }
+.hud.compact .stat { min-width: 0; }
+.hud.compact .stat .v { font-size: 17px; }
+.hud.compact .stat.big .v { font-size: 24px; }
+.hud.compact .stat .u { font-size: 9.5px; }
+.hud.compact .hud-right { gap: 6px; }
+.hud.compact .wind { grid-auto-flow: column; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 12px; }
+.hud.compact .badge { font-size: 9.5px; padding: 3px 6px; }
+.hud.compact .legend { min-width: 0; max-width: calc(100vw - 16px); padding: 6px 10px; }
+.hud.compact .legend[open] { position: fixed; left: 8px; right: 8px; top: calc(max(8px, env(safe-area-inset-top)) + 56px); max-width: none; max-height: 62vh; z-index: 5; background: rgba(10, 30, 45, .92); }
+.hud.compact .sbar, .hud.compact ~ .sbar { top: calc(max(8px, env(safe-area-inset-top)) + 56px); padding: 5px 12px; gap: 10px; }
+.hud.compact .sbar .clock { font-size: 20px; } .hud.compact .sbar .sscore { font-size: 17px; }
+.hud.compact .demo-banner { top: calc(max(8px, env(safe-area-inset-top)) + 56px); padding: 6px 10px; }
+.hud.compact .demo-banner b { font-size: 16px; }
+.hud.compact .tricks { top: 22%; }
+.hud.compact .trick { font-size: 21px; } .hud.compact .trick b { font-size: 16px; }
+.hud.compact .hud-bottom { gap: 6px; }
+.hud.compact .hint { font-size: 12px; padding: 5px 10px; border-radius: 12px; }
+.hud.compact .controls { gap: 8px; }
+.hud.compact .stick { gap: 6px; }
+.hud.compact .pad { width: 60px; height: 60px; font-size: 24px; }
+.hud.compact .actions { grid-template-columns: repeat(3, minmax(64px, 1fr)); gap: 5px; }
+.hud.compact .hud-btn.act { min-height: 46px; padding: 6px 6px; font-size: 13px; }
+.hud.compact .act-sub { font-size: 9px; max-width: 12ch; }
+/* landscape phone: one row of four buttons, steering on the left */
+@media (max-height: 500px) {
+  .hud.compact .actions { grid-template-columns: repeat(4, minmax(66px, auto)); }
+  .hud.compact .hud-btn.act.jump { grid-column: auto; }
+  .hud.compact .tricks { top: 18%; }
+}
+.hud-bottom > .badge.ramp { justify-self: center; }

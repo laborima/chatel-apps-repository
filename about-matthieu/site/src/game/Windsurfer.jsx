@@ -21,6 +21,22 @@ const MAN_CLIPS = { tack: 'Tack', jibe: 'Jibe', duck: 'Duck', heli: 'Heli', airj
 // Held poses blended over "Ride"; Pump is a stroke cycle, scrubbed by the physics' pumping phase
 const POSES = ['Tuck', 'OneFoot', 'OneHand', 'OneFootHand', 'Carve', 'Crouch', 'Pump'];
 
+/** Cuts in the manoeuvre clips: two keys where the rig turns over at once (the wing swapping tack overhead: the same
+ *  shape seen mirrored). Interpolating there would swing the wing through 90 degrees for a frame: the game jumps over them. */
+const findCuts = (clip) => {
+    const tr = clip.tracks.find((t) => /^Rig\.quaternion$/.test(t.name)); if (!tr) return [];
+    const cuts = []; const v = tr.values, q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion();
+    for (let i = 0; i + 1 < tr.times.length; i++) {
+        q0.fromArray(v, i * 4); q1.fromArray(v, i * 4 + 4);
+        if (q0.angleTo(q1) > 1.0) cuts.push([tr.times[i], tr.times[i + 1]]);
+    }
+    return cuts;
+};
+const skipCuts = (t, cuts) => {
+    for (const [a, b] of cuts) if (t > a && t < b) return t - a < b - t ? a : b;
+    return t;
+};
+
 /**
  * The rider, board and rig (one glTF). Clips: Ride (loop), Tack, Jibe, Duck, the freestyle Heli, AirJibe, Vulcan,
  * Spock, Flaka (jumps and spins baked on the root), and the poses Tuck, OneFoot, OneHand, OneFootHand, Carve.
@@ -29,9 +45,10 @@ const POSES = ['Tuck', 'OneFoot', 'OneHand', 'OneFootHand', 'Carve', 'Crouch', '
  * state: ref from physics.js.
  */
 const Windsurfer = ({ state, url = MODEL_URL }) => {
-    const group = useRef(); const weights = useRef(Object.fromEntries(POSES.map((n) => [n, 0]))); const lastMan = useRef(null);
+    const group = useRef(); const weights = useRef(Object.fromEntries(POSES.map((n) => [n, 0]))); const lastMan = useRef(null); const posed = useRef(false);
     const { scene, animations } = useGLTF(url);
-    const { actions } = useAnimations(animations, group);
+    const { actions, mixer } = useAnimations(animations, group);
+    const cuts = useMemo(() => Object.fromEntries(animations.map((c) => [c.name, findCuts(c)])), [animations]);
     // hands locked on the gear after the clips are blended (see armIK.js)
     const armIK = useMemo(() => makeArmIK(scene), [scene]);
     // harness lines: from the two anchors on the wishbone to the hook on the rider's harness, or hanging when unhooked
@@ -79,7 +96,7 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
         const w = weights.current; const k = Math.min(1, dt * 6);
         if (clipName && actions[clipName]) {
             const a = actions[clipName]; const u = Math.min(0.999, m.t / m.dur);
-            a.time = u * a.getClip().duration;
+            a.time = skipCuts(u * a.getClip().duration, cuts[clipName] || []);
             const fade = Math.min(1, u / 0.08);                       // short blend in from the current Ride frame
             weigh(a, fade);
             POSES.forEach((n) => { w[n] = 0; });
@@ -119,7 +136,14 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
         }
         g.position.y = s.z - 0.04 + (s.fh || 0);             // foil: the board flies above the water
         actions.Ride.timeScale = s.mode === 'air' ? 0.25 : 0.55 + Math.min(1.2, s.speed / 9);
-        if (actions.Ride.isRunning() && actions.Ride.time > 0) armIK(1);     // after the clips have posed the rider at least once
+        // the mixer has already run this frame (useAnimations updates it first): apply the weights and times set above
+        // now, or the pose lags one frame behind the mirroring (a one-frame flash on the wrong side after each tack)
+        mixer.update(0);
+        if (window.__ride) window.__ride.anim = { w: { ...w }, ride: actions.Ride.time, man: clipName || null };    // headless checks (?test)
+        // hands and feet on the gear in every state (it used to stop whenever "Ride" weighed nothing: in the air and during
+        // manoeuvres, and to snap back on at the landing); from the second frame, once the clips have posed the rider
+        if (posed.current) armIK(1);
+        posed.current = true;
         if (harness) {
             // hooked in when planing on a reach; unhooked in the air, in manoeuvres, after a fall or slow
             const hooked = s.mode === 'sail' && !s.man && s.planing;

@@ -149,7 +149,7 @@ export const initialState = (opts = {}) => ({
     mode: 'sail', z: 0, vz: 0, pitch: 0, roll: 0, airPitch: 0, airRoll: 0, loop: 0, airTime: 0, maxZ: 0,
     crashT: 0, man: null, score: 0, events: [], twa: -Math.PI / 2, lastSide: -1, tables: 0, oneFoot: false, oneHand: false,
     oneFootT: 0, oneHandT: 0, bothT: 0, loopTarget: 0, loopDir: 0, pushed: false, surfT: 0, surfed: false, turned: false, ramp: false,
-    pumpT: -1, pumpLift: 0, loopAsk: 0, letGo: 0,
+    pumpT: -1, pumpNext: false, pumpLift: 0, loopAsk: 0, letGo: 0,
 });
 
 const award = (s, key, pts, extra = '') => {
@@ -260,15 +260,21 @@ export const step = (s, input, dt) => {
             if (pick) { startManoeuvre(s, pick); jumpReq = false; }
         }
         const cr = craftOf(s);
-        // pumping: below planing (or before the foil flies) the jump button pumps: a tap = one stroke, held = in rhythm
-        if (!s.planing && !s.man && (input.jump || input.jumpHeld) && (s.pumpT < 0 || s.pumpT > PUMP_DUR * 0.85)) {
-            s.pumpT = 0; s.pumpLift = Math.min(1.4, s.pumpLift + PUMP_LIFT);
-        }
+        // pumping: below planing (or before the foil flies) the jump button pumps: a tap = one stroke (a tap during a stroke
+        // queues the next one), held = strokes back to back. A stroke always runs to its end: the next starts where it ends.
+        const wantPump = !s.planing && !s.man && s.mode === 'sail' && (input.jump || input.jumpHeld);
+        if (wantPump && s.pumpT < 0) { s.pumpT = 0; s.pumpLift = Math.min(1.4, s.pumpLift + PUMP_LIFT); }
+        else if (input.jump && s.pumpT >= 0) s.pumpNext = true;
         if (!s.planing) jumpReq = false;
         if (s.pumpT >= 0) {
             if (s.pumpT < PUMP_DRIVE * PUMP_DUR) s.speed += (cr.pump ?? 0.5) / (PUMP_DRIVE * PUMP_DUR) * dt;   // the pull drives
             s.pumpT += dt;
-            if (s.pumpT >= PUMP_DUR || s.man) s.pumpT = -1;
+            if (s.man) { s.pumpT = -1; s.pumpNext = false; }
+            else if (s.pumpT >= PUMP_DUR) {
+                const again = !s.planing && (s.pumpNext || input.jumpHeld);
+                s.pumpNext = false;
+                if (again) { s.pumpT -= PUMP_DUR; s.pumpLift = Math.min(1.4, s.pumpLift + PUMP_LIFT); } else s.pumpT = -1;
+            }
         }
         s.pumpLift = Math.max(0, s.pumpLift - PUMP_LIFT_DECAY * dt);
         let twa;
@@ -290,7 +296,9 @@ export const step = (s, input, dt) => {
             s.twa = twa;
         }
         const k = polar(twa * 180 / Math.PI);
-        const targetSpeed = k * s.tws * (s.planing ? 1 : cr.slow) * cr.polar;
+        // overpowered above ~20 kn: the rider sheets out, the speed no longer follows the wind (6.2 m2 sail, 5 m2 wing)
+        const KNEE = 20 * KNOT, power = s.tws < KNEE ? s.tws : KNEE + (s.tws - KNEE) * 0.45;
+        const targetSpeed = k * power * (s.planing ? 1 : cr.slow) * cr.polar;
         // planing, or the foil takes off (the wing needs a few pumps unless the wind is strong)
         const pumped = s.pumpLift >= 1;
         if (!s.planing && s.speed > cr.takeoff && k > 0.8 && (!cr.pumpToFly || pumped || s.tws > cr.selfLaunch)) {

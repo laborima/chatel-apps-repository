@@ -62,7 +62,8 @@ const Rig = ({ state, input, view, onTick, game }) => {
     const { camera } = useThree(); const pad = usePad(); const lastMode = useRef('sail'); const heard = useRef(new Set());
     const side = useRef(-1); const look = useRef(new THREE.Vector3()); const acc = useRef(0); const target = useRef(new THREE.Vector3());
     useFrame((_, delta) => {
-        const dt = Math.min(delta, 0.05); const s = state.current;
+        // real time down to 10 fps: the physics runs in steps of at most 1/30 s (one-shot inputs go with the first step)
+        const dt = Math.min(delta, 0.1); const s = state.current;
         const g = game.current; const playing = g.phase === 'play';
         const now = performance.now(), p = pad(input, s, g.press) || {};
         g.taps.tick(input.current, now);
@@ -70,7 +71,11 @@ const Rig = ({ state, input, view, onTick, game }) => {
         if (input.current.start) g.onStartKey();
         // in the menu and on the result screen the board just sails on (no input)
         const demo = playing && g.demo;
-        step(s, demo ? g.demo.next(s, dt) : playing ? inp : {}, dt);
+        for (let left = dt, first = true; left > 1e-6; first = false) {
+            const h = Math.min(left, 1 / 30); left -= h;
+            const once = first ? inp : Object.fromEntries(Object.entries(inp).filter(([k]) => !EDGE.includes(k)));
+            step(s, demo ? g.demo.next(s, h) : playing ? once : {}, h);
+        }
         if (demo && !view.current.active) view.current.yaw += (0.45 * Math.sin(s.time * 0.12) - view.current.yaw) * Math.min(1, dt * 0.5);
         EDGE.forEach((k) => { input.current[k] = false; });
         // sound: wind and water every frame, effects on take-off, landing, fall, tricks, marks, challenges
@@ -114,6 +119,20 @@ const Rig = ({ state, input, view, onTick, game }) => {
             });
         }
     });
+    return null;
+};
+
+// ?test: the frame loop stops and window.__ride drives the game frame by frame at an exact 60 fps (headless checks)
+const TEST = typeof location !== 'undefined' && new URLSearchParams(location.search).has('test');
+const TestHook = ({ state, input, game }) => {
+    const { advance, scene } = useThree(); const t = useRef(0);
+    useEffect(() => {
+        window.__ride = {
+            frames: (n = 1) => { for (let i = 0; i < n; i++) { t.current += 1 / 60; advance(t.current); } },
+            state: () => state.current, input: () => input.current, game: () => game.current, scene: () => scene,
+        };
+        return () => { delete window.__ride; };
+    }, [advance, scene, state, input, game]);
     return null;
 };
 
@@ -172,8 +191,21 @@ const hintFor = (s, tap) => {
     if (s.mode !== 'sail' || s.man) return null;
     if (!s.planing) return [['Pomper', craftOf(s).pumpToFly ? 'pompe pour décoller : tape en rythme ou garde appuyé' : 'pompe pour partir au planing']];
     if (s.ramp) return [[BTN.jump, 'décoller haut sur la vague !']];
+    // the first minute: one tip at a time, so the multi-tap figures are found without opening the legend
+    if (s.time < 45) {
+        const tips = TIPS.filter((t) => !t.k || canDo(s, t.k));
+        const t = tips[Math.floor(s.time / 6) % tips.length]; return [[t.b, t.t]];
+    }
     return null;
 };
+const TIPS = [
+    { b: '⟲ ⟳', t: 'diriger · au vent arrière ou bout au vent, ça empanne ou ça vire tout seul' },
+    { b: 'Saut ×2', t: 'forward loop (chaque tape en l\'air ajoute un tour)' },
+    { b: 'Virer ×2', t: 'hélitack', k: 'heli' },
+    { b: 'Empanner ×2', t: 'duck jibe · ×3 : air jibe', k: 'duck' },
+    { b: '360 ×2', t: 'vulcan · ×3 : spock', k: 'vulcan' },
+    { b: 'Lâcher', t: 'en l\'air : un pied, ×2 pied + main' },
+];
 
 /** Top-centre bar: clock, score and combo (freestyle), clock and next mark (slalom). */
 const SessionBar = ({ s, sess }) => {
@@ -211,9 +243,28 @@ const DemoBanner = ({ demo, onStop }) => (
     </div>
 );
 
-const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press, tap, wind, sea, craft, ready, onSettings, onCraft }) => {
+/** Phone-sized screens (portrait or landscape): a compact HUD. */
+const COMPACT = '(max-width: 700px), (max-height: 500px)';
+const useCompact = () => {
+    const mq = () => typeof window !== 'undefined' && !!window.matchMedia?.(COMPACT).matches;
+    const [c, setC] = useState(mq);
+    useEffect(() => {
+        const m = window.matchMedia?.(COMPACT); if (!m) return undefined;
+        const on = () => setC(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on);
+    }, []);
+    return c;
+};
+
+const WindDial = ({ s, size }) => (
+    <svg viewBox="-30 -30 60 60" width={size} height={size} aria-hidden="true">
+        <circle r="27" className="wind-ring" />
+        <g transform={`rotate(${(s.twd - s.heading) * 180 / Math.PI})`}><path d="M0 -24 L6 -10 L0 -14 L-6 -10 Z" className="wind-arrow" /><line x1="0" y1="-14" x2="0" y2="10" className="wind-shaft" /></g>
+        <rect x="-3" y="-12" width="6" height="24" rx="3" className="wind-board" />
+    </svg>
+);
+
+const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press, tap, wind, sea, craft, ready, onSettings, onCraft, compact }) => {
     const knots = (s.speed / KNOT).toFixed(1);
-    const windRel = s.twd - s.heading;
     const up = (k) => { if (EDGE.includes(k)) { if (HOLDS[k]) release(input, HOLDS[k]); } else release(input, k); };
     const hold = (k) => ({
         onPointerDown: (e) => { e.preventDefault(); if (EDGE.includes(k)) press(k); else input.current[k] = true; if (HOLDS[k]) input.current[HOLDS[k]] = true; },
@@ -232,7 +283,27 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
     const recent = sess ? sess.popups : s.events.filter((e) => s.time - e.t < 3);
     const status = s.mode === 'air' ? 'En l\'air' : s.mode === 'crash' ? 'Water-start…' : s.man ? MANOEUVRES[s.man.kind].label : s.planing ? (s.craft === 'wing' ? 'En vol' : 'Planing') : 'Archimède';
     return (
-        <div className="hud">
+        <div className={`hud ${compact ? 'compact' : ''}`}>
+            {compact ? (
+                <div className="hud-top">
+                    <div className="hud-left">
+                        {onExit ? <button className="hud-btn icon" onClick={onExit} aria-label="Retour à la fiche">←</button> : null}
+                        <button className="hud-btn icon" onClick={onMenu} aria-label="Menu">☰</button>
+                    </div>
+                    <div className="hud-stats">
+                        <div className="stat big"><span className="v">{knots}</span><span className="u">nœuds</span></div>
+                        {s.mode === 'air' ? <div className="stat"><span className="v">{(Math.abs(s.airPitch) / (2 * Math.PI)).toFixed(1)}</span><span className="u">tours</span></div>
+                            : sess?.mode !== 'freestyle' ? <div className="stat score"><span className="v">{s.score}</span><span className="u">points</span></div> : null}
+                    </div>
+                    <div className="hud-right">
+                        <div className="wind" title="Direction du vent par rapport à la planche">
+                            <WindDial s={s} size={40} />
+                            <span className={`badge ${s.planing || s.mode === 'air' ? 'on' : ''}`}>{status}</span>
+                        </div>
+                        <Legend s={s} />
+                    </div>
+                </div>
+            ) : (
             <div className="hud-top">
                 <div className="hud-left">
                     {onExit ? <button className="hud-btn" onClick={onExit} aria-label="Retour à la fiche">← Retour</button> : null}
@@ -250,11 +321,7 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
                 </div>
                 <div className="hud-right">
                     <div className="wind" title="Direction du vent par rapport à la planche">
-                        <svg viewBox="-30 -30 60 60" width="60" height="60" aria-hidden="true">
-                            <circle r="27" className="wind-ring" />
-                            <g transform={`rotate(${windRel * 180 / Math.PI})`}><path d="M0 -24 L6 -10 L0 -14 L-6 -10 Z" className="wind-arrow" /><line x1="0" y1="-14" x2="0" y2="10" className="wind-shaft" /></g>
-                            <rect x="-3" y="-12" width="6" height="24" rx="3" className="wind-board" />
-                        </svg>
+                        <WindDial s={s} size={60} />
                         <span className={`badge ${s.planing || s.mode === 'air' ? 'on' : ''}`}>{status}</span>
                         {s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">Rampe !</span> : null}
                     </div>
@@ -262,6 +329,7 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
                     <Legend s={s} />
                 </div>
             </div>
+            )}
             {demo ? <DemoBanner demo={demo} onStop={onStopDemo} /> : <SessionBar s={s} sess={sess} />}
             <div className="tricks" aria-live="polite">
                 {recent.map((e) => (
@@ -273,7 +341,8 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
             <div className="hud-bottom">
                 {!air && s.mode === 'sail' && !s.planing && craftOf(s).pumpToFly ? <div className="pump-gauge" aria-label="Pumping"><i style={{ width: `${Math.min(100, (s.pumpLift || 0) * 100)}%` }} /></div> : null}
                 {(() => { const h = hintFor(s, tap); return h ? <div className={`hint ${h[0][0] === '!' ? 'warn' : ''}`} aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
-                <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ⟲ ⟳ diriger · tape 1, 2 ou 3 fois un bouton · <b>Figures</b> en haut à droite</p>
+                {compact && s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">Rampe !</span> : null}
+                {compact ? null : <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ⟲ ⟳ diriger · tape 1, 2 ou 3 fois un bouton · <b>Figures</b> en haut à droite</p>}
                 <div className="controls">
                     <div className="stick" role="group" aria-label="Diriger">
                         <button className="pad" {...hold('left')} aria-label="Gauche">⟲</button>
@@ -337,7 +406,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
     const state = useRef(initialState({ windKn: 18, sea: 'clapot' })); const input = useRef({});
     const [snap, setSnap] = useState({ s: state.current, sess: null });
     const view = useRef({ yaw: 0, pitch: 0, dist: 1, active: false });
-    const gestures = useCamGestures(view);
+    const gestures = useCamGestures(view); const compact = useCompact();
     // everything the frame loop needs, without re-rendering the canvas
     const game = useRef(null);
     if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf', sharksOn: true, sharksActive: false, sharks: null, taps: createTaps() };
@@ -411,7 +480,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
     const ready = { windsurf: !!urls.windsurf, wing: !!urls.wing };
     return (
         <div className={`game phase-${phase}`} {...gestures}>
-            <Canvas camera={{ position: [-4.5, 2.6, 7.5], fov: 45, near: 0.1, far: 6000 }} dpr={dpr} gl={{ antialias: dpr < 1.3, powerPreference: 'high-performance' }}>
+            <Canvas frameloop={TEST ? 'never' : 'always'} camera={{ position: [-4.5, 2.6, 7.5], fov: 45, near: 0.1, far: 6000 }} dpr={dpr} gl={{ antialias: dpr < 1.3, powerPreference: 'high-performance' }}>
                 <PerformanceMonitor flipflops={4} onDecline={() => setDpr((d) => Math.max(0.6, +(d - 0.2).toFixed(2)))}
                                     onIncline={() => setDpr((d) => Math.min(maxDpr, +(d + 0.2).toFixed(2)))} onFallback={() => setDpr(0.75)} />
                 <hemisphereLight args={['#dbe6ed', '#134868', 0.9]} />
@@ -424,9 +493,10 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
                 <Spray state={state} />
                 <Sharks state={state} pack={{ get current() { return g.sharks; } }} enabled={{ get current() { return g.phase === 'play' && g.sharksActive; } }} />
                 <Rig state={state} input={input} view={view} onTick={setSnap} game={game} />
+                {TEST ? <TestHook state={state} input={input} game={game} /> : null}
             </Canvas>
             {phase === 'play' ? (
-                <Hud s={snap.s} sess={snap.sess} demo={snap.demo} onStopDemo={toMenu} input={input} press={g.press} tap={snap.tap} onExit={onExit} wind={wind} sea={sea} onSettings={onSettings}
+                <Hud compact={compact} s={snap.s} sess={snap.sess} demo={snap.demo} onStopDemo={toMenu} input={input} press={g.press} tap={snap.tap} onExit={onExit} wind={wind} sea={sea} onSettings={onSettings}
                      craft={craft} ready={ready} onCraft={onCraft} onMenu={toMenu} onReset={() => start()} />
             ) : null}
             {phase === 'menu' ? (

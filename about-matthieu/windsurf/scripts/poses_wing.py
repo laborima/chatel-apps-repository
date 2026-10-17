@@ -26,9 +26,11 @@ def W(p, **kw):
 # Wing over the head: in the middle of a tack or a jibe the wing is held flat above the rider (canopy up, like an
 # umbrella, leading edge to the wind), never through the body. At the flat point the canopy has no camber (flip 0.5),
 # so tilting it -90 or +90 gives the same shape: the key swaps there from one tack to the other in a single frame.
+# The hands hold the middle of the strut, close together: swapping sides there moves them a few centimetres, not from
+# one handle to the other.
 SYM_LEGS = dict(LF=(0.11, -0.17, D(-0.17) + 0.06), RF=(-0.11, -0.17, D(-0.17) + 0.06), pLL=(-0.3, 0.9, -0.2), pRL=(0.3, 0.9, -0.2))
 OVER = P(heel=0, rlean=-90, rake=0, sheet=0, flip=0.5, rigpos=(0.0, 0.62, 2.10), hips=(0.0, -0.17, 0.90), blean=0, yaw=180,
-         neck=0, head=-12, pLA=(-0.6, -0.15, -0.5), pRA=(0.6, -0.15, -0.5), **SYM_LEGS)
+         neck=0, head=-12, pLA=(-0.6, -0.15, -0.5), pRA=(0.6, -0.15, -0.5), LH=("hdl", 0.58, -1), RH=("hdl", 0.72, -1), **SYM_LEGS)
 
 # --- tack: carve up into the wind, lift the wing over the head, swap feet facing the bow, wing down on the new side
 TK1 = P(heel=0, rlean=-62, rake=-4, sheet=6, flip=0.2, rigpos=(0.20, 0.52, 1.98), hips=(-0.10, -0.18, 0.86), blean=-6, yaw=128,
@@ -38,7 +40,7 @@ TACK = [(1, RIDE0), (16, TK1), (34, OVER), (35, mirror(OVER, 0, 1)), (54, mirror
 # --- jibe: carve downwind on the leeward rail, wing up over the head while the board turns under it, new side
 JB1 = P(heel=12, rlean=-60, rake=-6, sheet=4, flip=0.18, rigpos=(0.22, 0.48, 1.95), hips=(-0.08, -0.20, 0.80), blean=-8, yaw=118,
         RF=(0.05, -0.40, D(-0.40) + 0.06), neck=30, head=25, **poles(118))
-OVERJ = W(OVER, heel=8)
+OVERJ = W(OVER, heel=0)          # flat at the swap: a heel there would flip sign in one frame
 JIBE = [(1, RIDE0), (14, JB1), (29, OVERJ), (30, mirror(OVERJ, 0, 1)), (45, mirror(JB1, 0, 1)), (60, mirror(RIDE0, 0, 1))]
 
 # --- held poses: tuck (jumps, loops: wing pulled in over the head), one-footer, one-hander, both, carve

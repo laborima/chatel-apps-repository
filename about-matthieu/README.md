@@ -42,6 +42,13 @@ inside the model is derived from them.
 
 Code: Apache-2.0 (as Ocearo UI). Texts, photos and the avatar: © Matthieu Laborie, all rights reserved.
 
+## Checks
+
+`?test#windsurf` stops the frame loop and exposes `window.__ride` (`frames(n)` advances the game exactly n frames at 60 fps,
+plus `state()`, `input()`, `game()`, `scene()`, and the animation weights in `anim`), so a headless browser can replay a
+manoeuvre frame by frame and measure jumps of the hands, feet or rig between two frames. On phones (≤ 700 px wide or
+≤ 500 px high) the HUD is compact: speed and wind on one row, the session bar under it, Figures as a sheet.
+
 ## Play
 
 Live: https://laborima.github.io/ (the game is at `#windsurf`), built from this folder by the workflow of
