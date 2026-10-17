@@ -9,7 +9,7 @@ const HeroScene = lazy(() => import('./HeroScene'));
 
 const IMG = `${import.meta.env.BASE_URL}img/photos/`;
 const PROJ = `${import.meta.env.BASE_URL}img/projects/`;
-const USER = { name: 'Matthieu Laborie', login: 'laborima', url: 'https://github.com/laborima' };
+const USER = { name: 'Matthieu Laborie', login: 'laborima', url: 'https://github.com/laborima', mail: 'ocearo@leslaborie.org' };
 const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two full rows of three
     { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée', alt_en: 'Matthieu windsurfing, planing, sail sheeted in', alt_pt: 'Matthieu no windsurf, planando, vela caçada' },
     { src: 'plongee.webp', alt: 'Matthieu en combinaison de plongée, de retour sur le bateau, masque autour du cou', alt_en: 'Matthieu in a diving suit, back on the boat, mask round his neck', alt_pt: 'Matthieu de roupa de mergulho, de volta ao barco, máscara no pescoço' },
@@ -38,6 +38,7 @@ const Icon = {
     github: <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z" /></svg>,
     play: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z" /></svg>,
     linkedin: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3v-11Zm6.5 0h3.8v1.5h.06c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.77 2.65 4.77 6.1v5.46h-4v-4.84c0-1.16-.02-2.64-1.61-2.64-1.61 0-1.86 1.26-1.86 2.56v4.92h-4v-11Z" /></svg>,
+    mail: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" d="M3.5 6.5h17v11h-17zM4 7l8 6 8-6" /></svg>,
     arrow: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" d="M7 17 17 7M9 7h8v8" /></svg>,
 };
 
@@ -109,6 +110,7 @@ export default function Profile({ onPlay }) {
                         <button className="btn btn-primary" onClick={onPlay}>{Icon.play}{tr('Jouer à Ride', 'Play Ride', 'Jogar Ride')}</button>
                         <a className="btn btn-ghost" href={user.url} target="_blank" rel="noreferrer">{Icon.github}GitHub · {user.login}</a>
                         {showcase.linkedin ? <a className="btn btn-ghost" href={showcase.linkedin} target="_blank" rel="noreferrer">{Icon.linkedin}{tr('Parcours pro', 'Career', 'Carreira')}</a> : null}
+                        <a className="btn btn-ghost" href={`mailto:${user.mail}`}>{Icon.mail}{tr('Contact', 'Contact', 'Contato')}</a>
                     </div>
                 </div>
                 <p className="hero-caption">{tr('Rendu en temps réel : mon avatar sur la mer d\'Ocearo', 'Real-time render: my avatar on the Ocearo sea', 'Renderização em tempo real: meu avatar no mar do Ocearo')}</p>
@@ -214,7 +216,7 @@ export default function Profile({ onPlay }) {
 
             <footer className="about-foot">
                 <div className="wrap">
-                    <span>© {new Date().getFullYear()} {user.name}{showcase.linkedin ? <> · <a href={showcase.linkedin} target="_blank" rel="noreferrer">{tr('parcours pro sur LinkedIn', 'career on LinkedIn', 'carreira no LinkedIn')}</a></> : null}</span>
+                    <span>© {new Date().getFullYear()} {user.name} · <a href={`mailto:${user.mail}`}>{user.mail}</a>{showcase.linkedin ? <> · <a href={showcase.linkedin} target="_blank" rel="noreferrer">{tr('parcours pro sur LinkedIn', 'career on LinkedIn', 'carreira no LinkedIn')}</a></> : null}</span>
                     <span>{tr('Mer, ciel et vagues : ', 'Sea, sky and waves: ', 'Mar, céu e ondas: ')}<a href="https://github.com/laborima/ocearo-ui" target="_blank" rel="noreferrer">Ocearo UI</a> · {tr('Polices Geist', 'Geist fonts', 'Fontes Geist')}</span>
                 </div>
             </footer>
