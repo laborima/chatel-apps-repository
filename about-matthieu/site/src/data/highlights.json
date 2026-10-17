@@ -1,11 +1,11 @@
 {
-  "tagline": "Un tableau de bord 3D pour la voile, une tourelle anti-moustiques, un requin de Tintin… Des projets entre la mer, l'électronique et le code, faits pour le plaisir et souvent partagés en open source.",
+  "tagline": "Je développe Ocearo, un afficheur de navigation 3D open source pour Signal K, et d'autres projets d'électronique et de logiciel liés à la mer. La plupart sont publiés en open source.",
   "facts": [
     "Auteur d'Ocearo",
     "Voile et planche à voile",
     "Électronique et Signal K"
   ],
-  "tagline_en": "A 3D sailing dashboard, an anti-mosquito turret, a Tintin shark… Projects between the sea, electronics and code, made for fun and often shared as open source.",
+  "tagline_en": "I build Ocearo, an open-source 3D navigation display for Signal K, along with other electronics and software projects around the sea. Most of them are open source.",
   "facts_en": [
     "Author of Ocearo",
     "Sailing and windsurfing",

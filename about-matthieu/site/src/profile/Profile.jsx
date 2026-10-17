@@ -43,8 +43,8 @@ const Icon = {
 
 /** Page title and description follow the language (the static ones in index.html are French). */
 const META = {
-    fr: ['Matthieu Laborie — auteur d\'Ocearo, voile et planche à voile', 'Matthieu Laborie — auteur d\'Ocearo. Mes projets entre la mer, l\'électronique et le code, et un tour en planche à voile.'],
-    en: ['Matthieu Laborie — author of Ocearo, sailing and windsurfing', 'Matthieu Laborie — author of Ocearo. My projects between the sea, electronics and code, and a windsurfing ride.'],
+    fr: ['Matthieu Laborie — auteur d\'Ocearo, voile et planche à voile', 'Matthieu Laborie, auteur d\'Ocearo. Projets open source autour de la mer : logiciel de navigation, électronique, et un jeu de planche à voile.'],
+    en: ['Matthieu Laborie — author of Ocearo, sailing and windsurfing', 'Matthieu Laborie, author of Ocearo. Open-source projects around the sea: navigation software, electronics, and a windsurfing game.'],
 };
 
 export default function Profile({ onPlay }) {
@@ -106,7 +106,7 @@ export default function Profile({ onPlay }) {
                         {showcase.linkedin ? <a className="btn btn-ghost" href={showcase.linkedin} target="_blank" rel="noreferrer">{Icon.linkedin}{tr('Parcours pro', 'Career')}</a> : null}
                     </div>
                 </div>
-                <p className="hero-caption">{tr('En direct : mon avatar sur la mer d\'Ocearo, au crépuscule', 'Live: my avatar on the Ocearo sea, at dusk')}</p>
+                <p className="hero-caption">{tr('Rendu en temps réel : mon avatar sur la mer d\'Ocearo', 'Real-time render: my avatar on the Ocearo sea')}</p>
             </header>
 
 
@@ -119,8 +119,8 @@ export default function Profile({ onPlay }) {
                     <div className="water-copy">
                         <div className="section-head">
                             <p className="eyebrow">{tr('Sur l\'eau', 'On the water')}</p>
-                            <h2>{tr('La mer d\'abord', 'The sea first')}</h2>
-                            <p className="lead">{tr('À la barre, sur une planche à voile ou sous l\'eau : c\'est en mer que naissent la plupart de ces projets.', 'At the helm, on a windsurf board or underwater: most of these projects start at sea.')}</p>
+                            <h2>{tr('Voile, planche à voile, plongée', 'Sailing, windsurfing, diving')}</h2>
+                            <p className="lead">{tr('La plupart de ces projets sont partis d\'un besoin sur l\'eau : savoir s\'il y aura du vent, voir le trafic la nuit, surveiller le mouillage.', 'Most of these projects started from a need on the water: knowing whether there will be wind, seeing the traffic at night, keeping an eye on the anchor.')}</p>
                         </div>
                         <div className="gallery">
                             {PHOTOS.map((p, i) => (
@@ -139,8 +139,8 @@ export default function Profile({ onPlay }) {
                 <div className="wrap">
                     <div className="section-head">
                         <p className="eyebrow">{tr('Projets', 'Projects')}</p>
-                        <h2>{tr('L\'atelier', 'The workshop')}</h2>
-                        <p className="lead">{tr('Du logiciel de navigation au requin de bande dessinée : tout est fait main, le plus souvent en open source.', 'From navigation software to a comic-book shark: all home-made, most of it open source.')}</p>
+                        <h2>{tr('Logiciel, électronique, construction', 'Software, electronics, building')}</h2>
+                        <p className="lead">{tr('Logiciel de navigation, capteurs et objets construits de A à Z. Le code est sur GitHub quand il y en a.', 'Navigation software, sensors and things built from scratch. The code is on GitHub when there is some.')}</p>
                     </div>
                     <div className="projects">
                         {showcase.projects.map((p, i) => (
@@ -177,16 +177,16 @@ export default function Profile({ onPlay }) {
                     <div className="feature-copy">
                         <p className="eyebrow">{tr('Le jeu', 'The game')}</p>
                         <h2>{tr('Ride, sur la mer d\'Ocearo', 'Ride, on the Ocearo sea')}</h2>
-                        <p className="lead">{tr('Planche à voile et wing foil, avec mon avatar. Les vagues et le ciel viennent d\'Ocearo UI.', 'Windsurfing and wing foiling, with my avatar. The waves and the sky come from Ocearo UI.')}</p>
+                        <p className="lead">{tr('Un jeu de planche à voile et de wing foil dans le navigateur, avec mon avatar 3D, sur la mer et le ciel d\'Ocearo UI. Il s\'installe aussi comme une application sur téléphone.', 'A windsurfing and wing foiling game in the browser, with my 3D avatar, on the sea and sky of Ocearo UI. It also installs as an app on a phone.')}</p>
                         <ul className="ticks">
                             {lang === 'fr' ? <>
                                 <li><span><b>Freestyle, slalom, balade</b> : combos, chrono, 21 défis et records.</span></li>
-                                <li><span><b>Les vraies figures</b>, à une, deux ou trois tapes : forward, back et push loops, table-top, Vulcan, Spock, Flaka, duck jibe, hélitack.</span></li>
+                                <li><span><b>Les figures du freestyle</b>, à une, deux ou trois tapes : forward, back et push loops, table-top, Vulcan, Spock, Flaka, duck jibe, hélitack.</span></li>
                                 <li><span><b>Le pumping</b> pour décoller en wing, les vagues pour tremplin, le vol en foil, les gerbes et le son.</span></li>
                                 <li><span><b>Clavier, tactile ou manette PlayStation</b>, et une démo qui enchaîne tout.</span></li>
                             </> : <>
                                 <li><span><b>Freestyle, slalom, cruise</b>: combos, a clock, 21 challenges and records.</span></li>
-                                <li><span><b>The real moves</b>, with one, two or three taps: forward, back and push loops, table-top, Vulcan, Spock, Flaka, duck jibe, helitack.</span></li>
+                                <li><span><b>Freestyle moves</b>, with one, two or three taps: forward, back and push loops, table-top, Vulcan, Spock, Flaka, duck jibe, helitack.</span></li>
                                 <li><span><b>Pumping</b> to take off on the wing, waves as ramps, foil flight, spray and sound.</span></li>
                                 <li><span><b>Keyboard, touch or PlayStation controller</b>, and a demo that runs through everything.</span></li>
                             </>}
