@@ -31,3 +31,9 @@ Other generated assets:
   shoulders in a wetsuit collar, the pilot in the Tintin sharks' cockpit:
   `AVATAR_GLB=avatar.glb blender -b --python scripts/head_build.py -- head.glb`
 - `scripts/app_icons.py` (Pillow) draws the app icons in `site/public/icons/`.
+
+Ocearo UI (own boats "Windsurf" and "Wing foil", `public/boats/<windsurf|wingfoil>/assets/rider.glb`, under 1 MB each):
+the Ride clip only, no facial expressions, 512 px textures, Draco meshes:
+
+    NOFACE=1 CLIPS=Ride TEXMAX=512 DRACO=1 AVATAR_GLB=avatar.glb blender -b --python scripts/windsurf_build.py -- windsurf.glb
+    MODE=wing NOFACE=1 CLIPS=Ride TEXMAX=512 DRACO=1 AVATAR_GLB=avatar.glb blender -b --python scripts/windsurf_build.py -- wingfoil.glb

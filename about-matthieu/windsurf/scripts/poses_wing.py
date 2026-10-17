@@ -67,3 +67,5 @@ CLIPS = [("Ride", FR, ride_frame), ("Tack", 72, keyed(TACK)), ("Jibe", 60, keyed
          ("OneHand", 2, keyed([(1, ONEH), (2, ONEH)])), ("OneFootHand", 2, keyed([(1, ONEFH), (2, ONEFH)])),
          ("Carve", 2, keyed([(1, CARVE), (2, CARVE)])), ("Crouch", 2, keyed([(1, CROUCH), (2, CROUCH)])),
          ("Pump", 24, keyed(PUMP, cyclic=True))]
+ONLY = os.environ.get("CLIPS")
+if ONLY: CLIPS = [c for c in CLIPS if c[0] in ONLY.split(",")]

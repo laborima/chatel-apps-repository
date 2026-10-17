@@ -59,6 +59,11 @@ if AVATAR_GLB:
     if arm.animation_data: arm.animation_data_clear()
     for pb_ in arm.pose.bones: pb_.matrix_basis.identity()
     exec(open(f"{WS}/rider_shape.py").read())         # 1.78 m, a windsurfer's build
+    if os.environ.get("NOFACE") == "1":               # lighter: no facial expressions, no teeth or tongue (Ocearo UI)
+        for o_ in list(bpy.data.objects):
+            if o_.type != "MESH" or o_.parent != arm: continue
+            if any(k in o_.name for k in ("Teeth", "Tongue")): bpy.data.objects.remove(o_); continue
+            if o_.data.shape_keys: o_.shape_key_clear()
     bm_ = bpy.data.objects["Body_Mesh"]
     for mt_ in bm_.data.materials:   # Avaturn hides the body under the clothes with an alpha mask: make it opaque
         pr_ = next(n for n in mt_.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
@@ -430,8 +435,14 @@ for e in (*T.values(), *HR.values(), *FROT.values()): bpy.data.objects.remove(e)
 for tr in tracks: tr.mute = False
 
 sc.frame_set(1)
+# Lighter builds (Ocearo UI on a Raspberry Pi): TEXMAX=512 caps the textures, DRACO=1 compresses the meshes
+TEXMAX = int(os.environ.get("TEXMAX", "0"))
+if TEXMAX:
+    for img in bpy.data.images:
+        if img.size[0] > TEXMAX: img.scale(TEXMAX, max(1, TEXMAX * img.size[1] // img.size[0]))
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_animations=True, export_animation_mode="NLA_TRACKS",
+                          export_draco_mesh_compression_enable=os.environ.get("DRACO") == "1", export_draco_mesh_compression_level=7,
                           export_skins=True, export_morph=True, export_morph_normal=False, export_image_format="WEBP", export_yup=True,
                           export_frame_range=False, export_force_sampling=True,
                           # keep every channel, even constant ones: the held poses (Tuck, OneHand...) must still move the rig, grips and feet
