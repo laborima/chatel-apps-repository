@@ -147,6 +147,11 @@ def rig_pose_matrix(a, b, w, g):
     return Matrix.Translation(pos) @ Matrix.Rotation(math.radians(g("rlean")), 4, "Y") @ \
         Matrix.Rotation(math.radians(g("rake")), 4, "X") @ Matrix.Rotation(math.radians(g("sheet")), 4, "Z")
 
+RIG_GIVE = 0.85                                  # the wing comes to the hands (the body only leans a little towards it)
+def give_rig(d):
+    """Move the wing by d (board frame)."""
+    rig.matrix_basis = Matrix.Translation(d) @ rig.matrix_basis
+
 def grip_local(h):
     """("hdl", t, side): handle on the strut, t metres from the leading edge, on the side the rider holds."""
     return handle_pt(h[1], h[2]), Vector((0, -1, 0)), "bar"

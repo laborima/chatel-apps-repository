@@ -58,6 +58,7 @@ if AVATAR_GLB:
     arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
     if arm.animation_data: arm.animation_data_clear()
     for pb_ in arm.pose.bones: pb_.matrix_basis.identity()
+    exec(open(f"{WS}/rider_shape.py").read())         # 1.78 m, a windsurfer's build
     bm_ = bpy.data.objects["Body_Mesh"]
     for mt_ in bm_.data.materials:   # Avaturn hides the body under the clothes with an alpha mask: make it opaque
         pr_ = next(n for n in mt_.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
@@ -317,19 +318,25 @@ def apply_pose(a, b, w, extra=None):
     RW, BW = rig.matrix_world, root.matrix_world
     for fk_, tk in (("LF", "LeftFoot"), ("RF", "RightFoot")):
         pa, pb_ = Vector(a[fk_]), Vector(b[fk_])
-        lift = 0.14 * math.sin(math.pi * w) if (pa - pb_).length > 0.08 and pa.z < 0.4 and pb_.z < 0.4 else 0.0   # step: lift the foot
-        T[tk].location = BW @ (pa.lerp(pb_, w) + Vector((0, 0, lift)))
+        # step: the foot leaves the deck heel first, travels low and lands flat (lift peaks early, settles late)
+        lift = 0.13 * math.sin(math.pi * w) ** 1.5 * (1.15 - 0.3 * w) if (pa - pb_).length > 0.08 and pa.z < 0.4 and pb_.z < 0.4 else 0.0
+        p = pa.lerp(pb_, w)
+        if p.z < 0.4: p.z = max(p.z, D(p.y) + 0.06)                 # the spline never pushes a foot into the deck
+        T[tk].location = BW @ (p + Vector((0, 0, lift)))
     hp = Vector(lerpv(a["hips"], b["hips"], w)) + Vector(e.get("hips", (0, 0, 0)))
     hips = BW @ hp
     # hand targets first (they are on the gear, not on the rider)
-    shoulder = hips + Vector((0, 0, 0.45))
-    for hk, sd in (("LH", "Left"), ("RH", "Right")):
-        pa_, qa = grip(a[hk], RW, sd, shoulder); pb2, qb = grip(b[hk], RW, sd, shoulder)
-        T[sd + "Hand"].location = pa_.lerp(pb2, w)
-        HR[sd].rotation_mode = "QUATERNION"; HR[sd].rotation_quaternion = qa.slerp(qb, w)
-    # place the rider; if a grip is out of reach, bring the body towards it (the legs bend to follow)
+    def hand_targets():
+        RW = rig.matrix_world; shoulder = hips + Vector((0, 0, 0.45))
+        for hk, sd in (("LH", "Left"), ("RH", "Right")):
+            pa_, qa = grip(a[hk], RW, sd, shoulder); pb2, qb = grip(b[hk], RW, sd, shoulder)
+            T[sd + "Hand"].location = pa_.lerp(pb2, w)
+            HR[sd].rotation_mode = "QUATERNION"; HR[sd].rotation_quaternion = qa.slerp(qb, w)
+    hand_targets()
+    # place the rider; if a grip is out of reach, the gear comes to the hands (RIG_GIVE: the wing is held freely,
+    # a windsurf rig is pulled to windward round the mast foot) and the body moves the rest of the way
     held = [sd for hk, sd in (("LH", "Left"), ("RH", "Right")) if a[hk][0] != "free" and b[hk][0] != "free"]
-    for _ in range(4):
+    for _ in range(6):
         place_rider(g("yaw") + g("spin"), g("blean"), hips)
         bpy.context.view_layer.update()
         worst, pull = 0.0, Vector()
@@ -339,7 +346,9 @@ def apply_pose(a, b, w, extra=None):
             short = d.length - REACH[sd] * 0.93          # keep a slight bend in the elbows
             if short > worst: worst, pull = short, d.normalized()
         if worst <= 0.002: break
-        hips = hips + pull * worst
+        hips = hips + pull * worst * (1 - RIG_GIVE)
+        give_rig(BW.inverted().to_3x3() @ (-pull * worst * RIG_GIVE))
+        bpy.context.view_layer.update(); hand_targets()
     for sd in ("Left", "Right"):
         bpy.context.view_layer.update()
         GRIP[sd].matrix_world = Matrix.LocRotScale(T[sd + "Hand"].location, HR[sd].rotation_quaternion, None)
@@ -354,13 +363,40 @@ def apply_pose(a, b, w, extra=None):
     for bn, k in (("Neck", "neck"), ("Head", "head")):
         p_ = pb[bn]; p_.rotation_mode = "XYZ"; p_.rotation_euler = Euler((0, math.radians(g(k)), 0))
 
-def keyed(keys):
-    """keys: [(frame, pose)] -> frame function interpolating with ease in/out between keys"""
+NUMERIC = lambda v: isinstance(v, (int, float)) or (isinstance(v, tuple) and all(isinstance(x, (int, float)) for x in v))
+def spline(p0, p1, p2, p3, u, t0, t1, t2, t3):
+    """Catmull-Rom through key values (numbers or tuples) at non-uniform key times: the motion flows through each key
+    instead of stopping on it (velocity continuous from one segment to the next)."""
+    def one(x0, x1, x2, x3):
+        m1 = (x2 - x0) / (t2 - t0) * (t2 - t1); m2 = (x3 - x1) / (t3 - t1) * (t2 - t1)
+        u2, u3 = u * u, u * u * u
+        return (2 * u3 - 3 * u2 + 1) * x1 + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * x2 + (u3 - u2) * m2
+    if isinstance(p1, tuple): return tuple(one(*xs) for xs in zip(p0, p1, p2, p3))
+    return one(p0, p1, p2, p3)
+
+def keyed(keys, cyclic=False):
+    """keys: [(frame, pose)] -> frame function. Numeric channels follow a Catmull-Rom spline through the keys (ease in
+    at the first key and out at the last one, unless cyclic); the grips and the steps go key to key."""
+    if cyclic:
+        period = keys[-1][0] - keys[0][0]
+        ext = [(keys[-2][0] - period, keys[-2][1])] + keys + [(keys[1][0] + period, keys[1][1])]
+    else:
+        ext = [(2 * keys[0][0] - keys[1][0], keys[0][1])] + keys + [(2 * keys[-1][0] - keys[-2][0], keys[-1][1])]
     def fn(f, n):
-        for (f0, a), (f1, b) in zip(keys, keys[1:]):
-            if f0 <= f <= f1:
-                w = smooth((f - f0) / (f1 - f0)); flut = 0.25 * math.sin(f * 0.9)
-                return apply_pose(a, b, w, dict(flutter=flut))
+        for i in range(1, len(ext) - 2):
+            (t0, p0), (t1, a), (t2, b), (t3, p3) = ext[i - 1:i + 3]
+            if t1 <= f <= t2:
+                u = (f - t1) / (t2 - t1)
+                # a cut (two keys one frame apart, e.g. the wing swapping tack overhead) is not a curve to follow
+                if t1 - t0 <= 1: p0, t0 = a, t1 - (t2 - t1)
+                if t3 - t2 <= 1: p3, t3 = b, t2 + (t2 - t1)
+                first, last = i == 1 and not cyclic, i == len(ext) - 3 and not cyclic
+                # start and end at rest: ease the spline's parameter on the end segments
+                us = smooth(u) if first and last else (u * u * (2 - u) if first else (u * (1 + u - u * u) if last else u))
+                q = {k: (spline(p0[k], a[k], b[k], p3[k], us, t0, t1, t2, t3) if NUMERIC(a[k]) and k in b and NUMERIC(b[k]) else a[k]) for k in a}
+                # feet step from key to key (a planted foot must not slide), the hands change grip the same way
+                A = dict(q, LH=a["LH"], RH=a["RH"], LF=a["LF"], RF=a["RF"]); B = dict(q, LH=b["LH"], RH=b["RH"], LF=b["LF"], RF=b["RF"])
+                return apply_pose(A, B, smooth(u), dict(flutter=0.25 * math.sin(f * 0.9)))
     return fn
 
 exec(open(f"{WS}/poses_{MODE}.py").read())        # P(), RIDE0, ride_frame(), key poses, CLIPS, OPEN_HANDS

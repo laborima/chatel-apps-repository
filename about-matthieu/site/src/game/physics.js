@@ -46,11 +46,16 @@ export const waveAt = (w, x, y, t) => {
 
 // ---------------------------------------------------------------- crafts
 // polar: speed factor, takeoff / drop: planing (or foil flight) thresholds in m/s, slow: speed factor before,
-// foil: flight height of the board (m), moves: manoeuvres the model has clips for
+// foil: flight height of the board (m), moves: manoeuvres the model has clips for,
+// pump: speed gained per pumping stroke (m/s), pumpToFly: the foil only takes off after a few strokes (below selfLaunch m/s of wind)
 export const CRAFTS = {
-    windsurf: { label: 'Planche à voile', polar: 1.0, takeoff: 4.0, drop: 3.3, slow: 0.55, foil: 0, jump: 1.0, moves: null },
-    wing: { label: 'Wing foil', polar: 0.82, takeoff: 3.6, drop: 2.8, slow: 0.78, foil: 0.62, jump: 1.2, moves: ['tack', 'jibe', 'carve'] },      // the wing lifts the jumps
+    windsurf: { label: 'Planche à voile', polar: 1.0, takeoff: 4.0, drop: 3.3, slow: 0.55, foil: 0, jump: 1.0, moves: null, pump: 0.7 },
+    wing: { label: 'Wing foil', polar: 0.82, takeoff: 3.6, drop: 2.8, slow: 0.5, foil: 0.62, jump: 1.2, moves: ['tack', 'jibe', 'carve'],      // the wing lifts the jumps
+            pump: 0.5, pumpToFly: true, selfLaunch: 12 },
 };
+// pumping: one stroke (pull then recover), the part of it that drives, and the lift a stroke gives the foil (3 in a row to fly)
+export const PUMP_DUR = 0.62;
+const PUMP_DRIVE = 0.45, PUMP_LIFT = 0.4, PUMP_LIFT_DECAY = 0.3;
 export const craftOf = (s) => CRAFTS[s.craft] || CRAFTS.windsurf;
 export const canDo = (s, kind) => { const m = craftOf(s).moves; return !m || m.includes(kind); };
 
@@ -70,7 +75,7 @@ export const TRICKS = {
     jump: 'Saut', forward: 'Forward loop', back: 'Back loop', tabletop: 'Table-top',
     tack: 'Virement', jibe: 'Empannage', planingJibe: 'Empannage planant', duck: 'Duck jibe', carve: 'Carving 360',
     oneFooter: 'One-footer', doubleForward: 'Double forward', doubleBack: 'Double back loop', push: 'Push loop',
-    surf: 'Surf', bottomTurn: 'Bottom turn', oneHander: 'One-hander', noFootHand: 'Lâcher pied + main',
+    surf: 'Surf', bottomTurn: 'Bottom turn', oneHander: 'One-hander', noFootHand: 'Lâcher pied + main', pumpOff: 'Décollage au pumping',
     heli: 'Hélitack', airjibe: 'Air jibe', vulcan: 'Vulcan', spock: 'Spock', flaka: 'Flaka', needPlaning: 'Il faut planer !',
     crash: 'Chute !',
 };
@@ -95,20 +100,14 @@ const POINTS = { heli: 400, airjibe: 600, vulcan: 800, flaka: 1000, spock: 1200 
 const D2R = Math.PI / 180;
 const ease = (u) => u * u * (3 - 2 * u);
 
-/** Key combinations on the water: [modifier, action, manoeuvre]. Shown in the HUD legend. */
-export const COMBOS = [
-    [null, 'tack', 'tack'], ['down', 'tack', 'heli'],
-    [null, 'jibe', 'jibe'], ['down', 'jibe', 'duck'], ['up', 'jibe', 'airjibe'],
-    [null, 'carve', 'carve'], ['up', 'carve', 'spock'],
-    ['up', 'jump', 'vulcan'], ['down', 'jump', 'flaka'],
-];
-const comboFor = (input, s) => {
-    for (const [mod, act, kind] of [...COMBOS].sort((a, b) => (b[0] ? 1 : 0) - (a[0] ? 1 : 0))) {
-        if (input[act] && (!mod || input[mod] || input[`${mod}Mod`]) && canDo(s, kind)) return kind;
-    }
-    if (input.duck && canDo(s, 'duck')) return 'duck';              // direct keys / buttons still work
-    return ['heli', 'airjibe', 'vulcan', 'spock', 'flaka'].find((k) => input[k] && canDo(s, k)) ?? null;
+/** Taps on the water: the same button tapped 1, 2 or 3 times in a row (the game counts the taps, see taps.js). */
+export const TAPS = {
+    tack: ['tack', 'heli', 'flaka'],
+    jibe: ['jibe', 'duck', 'airjibe'],
+    carve: ['carve', 'vulcan', 'spock'],
 };
+const KINDS = ['tack', 'jibe', 'carve', 'duck', 'heli', 'airjibe', 'vulcan', 'spock', 'flaka'];
+const manoeuvreFor = (input, s) => KINDS.find((k) => input[k] && canDo(s, k)) ?? null;
 
 const startManoeuvre = (s, kind) => {
     if (!canDo(s, kind)) return;
@@ -150,6 +149,7 @@ export const initialState = (opts = {}) => ({
     mode: 'sail', z: 0, vz: 0, pitch: 0, roll: 0, airPitch: 0, airRoll: 0, loop: 0, airTime: 0, maxZ: 0,
     crashT: 0, man: null, score: 0, events: [], twa: -Math.PI / 2, lastSide: -1, tables: 0, oneFoot: false, oneHand: false,
     oneFootT: 0, oneHandT: 0, bothT: 0, loopTarget: 0, loopDir: 0, pushed: false, surfT: 0, surfed: false, turned: false, ramp: false,
+    pumpT: -1, pumpLift: 0, loopAsk: 0, letGo: 0,
 });
 
 const award = (s, key, pts, extra = '') => {
@@ -159,8 +159,11 @@ const award = (s, key, pts, extra = '') => {
 };
 
 /**
- * One simulation step. input: { left, right, up, down, oneFoot, jump, tack, jibe, duck, carve } (booleans, the last four and jump are edge-triggered
- * by the caller resetting them). Mutates s.
+ * One simulation step. input: { left, right, up, down, oneFoot, oneHand, jumpHeld, jibeHeld } (held) and
+ * { jump, tack, jibe, carve, duck, heli, airjibe, vulcan, spock, flaka } (edges: the caller resets them after the step).
+ * On the water, jump pumps until planing (or flying) and jumps once planing. In the air the same buttons do the figures:
+ * jump = one more forward loop per tap, tack = back loop, jibe held = table-top, carve = let go (1 tap a foot, 2 a foot and a hand).
+ * Mutates s.
  */
 export const step = (s, input, dt) => {
     s.time += dt;
@@ -176,7 +179,7 @@ export const step = (s, input, dt) => {
     if (s.mode === 'crash') {
         s.crashT -= dt; s.speed *= 1 - dt * 2; s.z = wave.z - 0.05;
         s.fh += (0 - s.fh) * Math.min(1, dt * 4);                  // off the foil, in the water
-        s.popT = 0; s.landT = 0; s.load = 0;
+        s.popT = 0; s.landT = 0; s.load = 0; s.pumpT = -1; s.pumpLift = 0; s.loopAsk = 0;
         if (s.crashT <= 0) { s.mode = 'sail'; s.speed = 1.2; s.airPitch = 0; s.airRoll = 0; s.zsPrev = undefined; s.vsPrev = undefined; }
         return;
     }
@@ -193,25 +196,32 @@ export const step = (s, input, dt) => {
         const landing = tl0 < 0.2;
         // loops: one press = one full turn that completes on its own; keep the key held to chain turns,
         // added only while there is the height to finish them
-        const want = (input.up ? -1 : 0) + (input.down ? 1 : 0);
+        // taps queue loops: jump = forward, tack = back (a tap during the pop counts too, see below)
+        if (input.jump) s.loopAsk -= 1;
+        if (input.tack) s.loopAsk += 1;
+        if (input.carve) s.letGo = Math.min(2, s.letGo + 1);
+        const ask = Math.sign(s.loopAsk);
+        const want = (input.up ? -1 : 0) + (input.down ? 1 : 0) || ask;
         if (want && (!s.loopDir || s.loopDir === want)) {
             const left = Math.abs(s.loopTarget - s.airPitch);
             if ((s.loopTarget === 0 || left < TAU * 0.5) && left + TAU <= LOOP_MAX * Math.max(0, tl - 0.12)) {
                 s.loopDir = want; s.loopTarget += want * TAU;
+                if (ask === want) s.loopAsk -= ask;
             }
         }
+        if (ask && s.loopDir && ask !== s.loopDir) s.loopAsk = 0;          // the other way round: not in the same jump
         if (s.loopDir) {
             const left = s.loopTarget - s.airPitch;
             const rate = Math.min(LOOP_MAX, Math.max(LOOP_RATE, Math.abs(left) / Math.max(0.15, tl - 0.12)));
             s.airPitch += Math.sign(left) * Math.min(Math.abs(left), rate * dt);
         }
         // table-top / push: roll held with the arrows, brought back for the landing
-        const rollTarget = landing ? 0 : (input.left ? -1 : 0) + (input.right ? 1 : 0);
+        const rollTarget = landing ? 0 : ((input.left ? -1 : 0) + (input.right ? 1 : 0) || (input.jibeHeld ? -(Math.sign(s.twa) || s.lastSide) : 0));
         s.airRoll += (rollTarget * 1.15 - s.airRoll) * Math.min(1, dt * (landing ? 9 : 4));
         if (Math.abs(s.airRoll) > 0.85) s.tables = 1;
         if (s.loopDir === 1 && Math.abs(s.airRoll) > 0.5) s.pushed = true;
         // let go: back foot out of the strap, back hand off the boom (caught again for the landing)
-        s.oneFoot = !!input.oneFoot && !landing; s.oneHand = !!input.oneHand && !landing;
+        s.oneFoot = (!!input.oneFoot || s.letGo >= 1) && !landing; s.oneHand = (!!input.oneHand || s.letGo >= 2) && !landing;
         if (s.oneFoot) s.oneFootT += dt; if (s.oneHand) s.oneHandT += dt; if (s.oneFoot && s.oneHand) s.bothT += dt;
         s.speed *= 1 - dt * 0.15;
         if (s.z <= wave.z && s.vz < 0) {                         // touch down
@@ -239,17 +249,28 @@ export const step = (s, input, dt) => {
                     if (s.oneHandT > 0.25) award(s, 'oneHander', 120);
                 }
             }
-            s.airPitch = 0; s.loopTarget = 0; s.loopDir = 0; s.oneFoot = false; s.oneHand = false;
+            s.airPitch = 0; s.loopTarget = 0; s.loopDir = 0; s.oneFoot = false; s.oneHand = false; s.loopAsk = 0; s.letGo = 0;
             s.z = wave.z; s.vz = 0; s.zsPrev = wave.z; s.vsPrev = 0; s.landT = LAND_TIME;   // legs absorb the landing
         }
     } else {
         // on the water: a manoeuvre in progress drives the heading, otherwise the arrows steer
-        // manoeuvres and freestyle: ↑ / ↓ held on the water are modifiers for the action keys (see COMBOS)
         let jumpReq = input.jump;
-        if (!s.man) {
-            const pick = comboFor(input, s);
-            if (pick) { startManoeuvre(s, pick); if (pick !== 'jump') jumpReq = false; }
+        if (!s.man && !(s.popT > 0)) {
+            const pick = manoeuvreFor(input, s);
+            if (pick) { startManoeuvre(s, pick); jumpReq = false; }
         }
+        const cr = craftOf(s);
+        // pumping: below planing (or before the foil flies) the jump button pumps: a tap = one stroke, held = in rhythm
+        if (!s.planing && !s.man && (input.jump || input.jumpHeld) && (s.pumpT < 0 || s.pumpT > PUMP_DUR * 0.85)) {
+            s.pumpT = 0; s.pumpLift = Math.min(1.4, s.pumpLift + PUMP_LIFT);
+        }
+        if (!s.planing) jumpReq = false;
+        if (s.pumpT >= 0) {
+            if (s.pumpT < PUMP_DRIVE * PUMP_DUR) s.speed += (cr.pump ?? 0.5) / (PUMP_DRIVE * PUMP_DUR) * dt;   // the pull drives
+            s.pumpT += dt;
+            if (s.pumpT >= PUMP_DUR || s.man) s.pumpT = -1;
+        }
+        s.pumpLift = Math.max(0, s.pumpLift - PUMP_LIFT_DECAY * dt);
         let twa;
         if (s.man) {
             const m = s.man; m.t += dt; const u = Math.min(1, m.t / m.dur);
@@ -269,9 +290,14 @@ export const step = (s, input, dt) => {
             s.twa = twa;
         }
         const k = polar(twa * 180 / Math.PI);
-        const cr = craftOf(s);
         const targetSpeed = k * s.tws * (s.planing ? 1 : cr.slow) * cr.polar;
-        if (!s.planing && s.speed > cr.takeoff && k > 0.8) s.planing = true;      // planing, or the foil takes off
+        // planing, or the foil takes off (the wing needs a few pumps unless the wind is strong)
+        const pumped = s.pumpLift >= 1;
+        if (!s.planing && s.speed > cr.takeoff && k > 0.8 && (!cr.pumpToFly || pumped || s.tws > cr.selfLaunch)) {
+            s.planing = true;
+            if (cr.pumpToFly && pumped && s.tws <= cr.selfLaunch) award(s, 'pumpOff', 60);
+            s.pumpLift = 0;
+        }
         if (s.planing && s.speed < cr.drop) s.planing = false;
         const accel = targetSpeed > s.speed ? (s.planing ? 1.4 : 0.8) : 1.8;
         if (!s.man) s.speed += (targetSpeed - s.speed) * Math.min(1, dt * accel * 0.5);
@@ -300,7 +326,8 @@ export const step = (s, input, dt) => {
         // jump: a small pop on flat water, a launch off a wave face (the steeper and faster, the higher);
         // fast over a sharp crest the board also takes off on its own
         // jump in three beats: load (crouch, tail pressed, nose up), pop, then the board is pulled up under the rider
-        if (jumpReq && s.speed > 1.5 && !s.man && !(s.popT > 0)) s.popT = POP_TIME;
+        if (input.jump && s.popT > 0) s.loopAsk -= 1;                    // double tap: the second one is a forward loop
+        if (jumpReq && s.speed > 1.5 && !s.man && !(s.popT > 0)) { s.popT = POP_TIME; s.loopAsk = 0; s.letGo = 0; }
         let popped = false;
         if (s.popT > 0) {
             s.popT -= dt; s.pitch += (0.14 - s.pitch) * Math.min(1, dt * 14);

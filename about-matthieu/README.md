@@ -20,7 +20,7 @@ npm run dev          # http://localhost:5173
 npm run build        # static files in site/dist (relative paths: works from any sub-folder)
 ```
 
-The game opens at `#windsurf`. Keys: ← / → (or Q / D) to bear away and head up; on a phone, the two round buttons.
+The game opens at `#windsurf`. Keys: ← / → (or Q / D) to bear away and head up; on a phone, the two round buttons (see Play below for the figures).
 
 ## The windsurfer model
 
@@ -48,6 +48,9 @@ Live: https://laborima.github.io/ (the game is at `#windsurf`), built from this 
 [laborima/laborima.github.io](https://github.com/laborima/laborima.github.io), which picks up changes pushed to `master`
 within the hour. The old address, /chatel-apps-repository/about-matthieu/, redirects there.
 
-Controls: keyboard (arrows, Space, V, E, C, F, G), touch buttons, or a PlayStation / standard gamepad
-(left stick or d-pad, ✕ jump, □ tack, ○ jibe, △ 360, L1 / R1 let go of a foot / a hand). Hold ↑ or ↓ on the water
-for the freestyle combos; the in-game "Figures" panel lists them all.
+Controls: four action buttons (touch, keyboard Space / V / E / C, or ✕ □ ○ △ on a PlayStation / standard gamepad) plus
+steering (⟲ ⟳, arrows, left stick). On the water, tapping a button once, twice or three times picks the figure:
+Virer = tack / helitack / flaka, Empanner = jibe / duck jibe / air jibe, 360 = carve / vulcan / spock. Below planing the
+jump button pumps (tap in rhythm or hold it): the wing foil needs three good strokes to take off. In the air the buttons
+change name: Forward (one more loop per tap: a double tap on Saut is a forward loop), Back, Table (held) and Lâcher
+(one tap a foot, two a foot and a hand). The in-game "Figures" panel lists them all.

@@ -7,7 +7,9 @@ def P(**kw):
                 LH=("hdl", 0.35, -1), RH=("hdl", 0.95, -1),
                 pLL=(0.9, 0.35, -0.2), pRL=(0.9, -0.2, -0.2), pLA=(-0.15, 0.6, -0.5), pRA=(-0.15, -0.6, -0.5),
                 neck=25.0, head=28.0, LFa=40.0, RFa=5.0)
-    base.update(kw); return base
+    base.update(kw)
+    x, y, z = base["hips"]; base["hips"] = (x, y, z - 0.06)     # knees bent: the rider (1.78 m) rides lower than the keys say
+    return base
 RIDE0 = P()
 
 def ride_frame(f, n):
@@ -50,8 +52,16 @@ CARVE = P(heel=14, rlean=-30, sheet=10, rigpos=(0.32, 0.45, 1.55), hips=(-0.10, 
           RF=(0.04, -0.44, D(-0.44) + 0.06), neck=30, head=35, **poles(100))
 
 CROUCH = P(pitch=6, rlean=-30, sheet=10, rigpos=(0.36, 0.48, 1.45), hips=(-0.18, -0.20, 0.68), blean=-12, neck=20, head=20)
+# pumping to take off: the wing is lifted high and forward, then pulled down and back towards the hip while the legs
+# compress (the board pushed into the water), then the legs extend and the wing goes up again
+PUMP_UP = P(heel=-2, pitch=-1, rlean=-28, rake=10, sheet=4, rigpos=(0.28, 0.62, 1.98), hips=(-0.20, -0.20, 0.95), blean=-8,
+            neck=22, head=24)
+PUMP_DOWN = P(heel=-5, pitch=3, rlean=-50, rake=-8, sheet=24, rigpos=(0.46, 0.28, 1.38), hips=(-0.26, -0.20, 0.68), blean=-26,
+              neck=30, head=30)
+PUMP = [(1, PUMP_UP), (11, PUMP_DOWN), (25, PUMP_UP)]
 OPEN_HANDS = {"OneHand": ("Right",), "OneFootHand": ("Right",)}
 CLIPS = [("Ride", FR, ride_frame), ("Tack", 72, keyed(TACK)), ("Jibe", 60, keyed(JIBE)),
          ("Tuck", 2, keyed([(1, TUCK), (2, TUCK)])), ("OneFoot", 2, keyed([(1, ONEF), (2, ONEF)])),
          ("OneHand", 2, keyed([(1, ONEH), (2, ONEH)])), ("OneFootHand", 2, keyed([(1, ONEFH), (2, ONEFH)])),
-         ("Carve", 2, keyed([(1, CARVE), (2, CARVE)])), ("Crouch", 2, keyed([(1, CROUCH), (2, CROUCH)]))]
+         ("Carve", 2, keyed([(1, CARVE), (2, CARVE)])), ("Crouch", 2, keyed([(1, CROUCH), (2, CROUCH)])),
+         ("Pump", 24, keyed(PUMP, cyclic=True))]

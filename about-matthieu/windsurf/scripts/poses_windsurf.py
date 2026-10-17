@@ -86,13 +86,17 @@ FLAKA = [(1, RIDE0), (8, POP), (20, FA), (30, FL), (46, FS), (64, W(RIDE0, spin=
 
 ONEFH2 = W(ONEF, RH=("free", (-1.35, -0.85, 2.25)), pRA=(-0.2, -0.6, 0.5), blean=-22)
 CROUCH = P(pitch=7, rlean=-20, rake=10, sheet=10, hips=(-0.62, -0.70, 0.66), blean=-22, neck=20, head=20)   # pop: legs loaded, tail pressed
+# pumping (to get planing): sail pulled in while the body drops and hangs back, then pushed out as the legs extend
+PUMP_IN = P(heel=-9, pitch=1.5, rlean=-18, rake=12, sheet=24, hips=(-0.82, -0.72, 0.74), blean=-40, neck=22, head=26)
+PUMP_OUT = P(heel=-3, pitch=-0.5, rlean=-6, rake=16, sheet=2, hips=(-0.56, -0.70, 0.90), blean=-20, neck=26, head=30)
+PUMP = [(1, PUMP_OUT), (11, PUMP_IN), (25, PUMP_OUT)]      # quick pull, slower recovery
 OPEN_HANDS = {"OneHand": ("Right",), "OneFootHand": ("Right",)}
 CLIPS = [("Ride", FR, ride_frame), ("Tack", 72, keyed(TACK)), ("Jibe", 60, keyed(JIBE)), ("Duck", 62, keyed(DUCK)),
          ("Tuck", 2, keyed([(1, TUCK), (2, TUCK)])), ("OneFoot", 2, keyed([(1, ONEF), (2, ONEF)])),
          ("Carve", 2, keyed([(1, CARVE), (2, CARVE)])), ("Crouch", 2, keyed([(1, CROUCH), (2, CROUCH)])),
          ("OneHand", 2, keyed([(1, ONEH), (2, ONEH)])), ("OneFootHand", 2, keyed([(1, ONEFH2), (2, ONEFH2)])),
          ("Heli", 80, keyed(HELI)), ("AirJibe", 54, keyed(AIRJIBE)), ("Vulcan", 60, keyed(VULCAN)),
-         ("Spock", 84, keyed(SPOCK)), ("Flaka", 64, keyed(FLAKA))]
+         ("Spock", 84, keyed(SPOCK)), ("Flaka", 64, keyed(FLAKA)), ("Pump", 24, keyed(PUMP, cyclic=True))]
 ONLY = os.environ.get("CLIPS")
 if ONLY: CLIPS = [c for c in CLIPS if c[0] in ONLY.split(",")]
 

@@ -194,6 +194,12 @@ def rig_matrix(lean, rake, sheet):
 def rig_pose_matrix(a, b, w, g):
     return rig_matrix(math.radians(g("rlean")), math.radians(g("rake")), math.radians(g("sheet")))
 
+RIG_GIVE = 0.5                                   # half the reach comes from the rig, pulled to windward
+def give_rig(d):
+    """Tilt the rig round the mast foot so the boom moves about d (board frame) across the board."""
+    th = d.x / BOOMH
+    rig.matrix_basis = Matrix.Translation(MAST_FOOT) @ Matrix.Rotation(th, 4, "Y") @ Matrix.Translation(-MAST_FOOT) @ rig.matrix_basis
+
 def grip_local(h):
     """Hand hold in rig space: (point, bar/pole direction, kind)."""
     if h[0] == "boom":

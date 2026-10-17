@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 import { makeArmIK } from './armIK';
+import { PUMP_DUR } from './physics';
 
 /** Set a clip's weight; a clip at zero is disabled, so the mixer does not interpolate its ~300 tracks for nothing. */
 const weigh = (a, v) => {
@@ -17,7 +18,8 @@ export const MODEL_URL = `${import.meta.env.BASE_URL}models/windsurfer.glb`;
 // Manoeuvre clips, scrubbed by the simulation (port tack -> starboard tack, the last frame is the mirrored "Ride")
 const MAN_CLIPS = { tack: 'Tack', jibe: 'Jibe', duck: 'Duck', heli: 'Heli', airjibe: 'AirJibe', vulcan: 'Vulcan', spock: 'Spock', flaka: 'Flaka' };
 // Held poses blended over "Ride"
-const POSES = ['Tuck', 'OneFoot', 'OneHand', 'OneFootHand', 'Carve', 'Crouch'];
+// Held poses blended over "Ride"; Pump is a stroke cycle, scrubbed by the physics' pumping phase
+const POSES = ['Tuck', 'OneFoot', 'OneHand', 'OneFootHand', 'Carve', 'Crouch', 'Pump'];
 
 /**
  * The rider, board and rig (one glTF). Clips: Ride (loop), Tack, Jibe, Duck, the freestyle Heli, AirJibe, Vulcan,
@@ -27,7 +29,7 @@ const POSES = ['Tuck', 'OneFoot', 'OneHand', 'OneFootHand', 'Carve', 'Crouch'];
  * state: ref from physics.js.
  */
 const Windsurfer = ({ state, url = MODEL_URL }) => {
-    const group = useRef(); const weights = useRef({ Tuck: 0, OneFoot: 0, OneHand: 0, OneFootHand: 0, Carve: 0, Crouch: 0 }); const lastMan = useRef(null);
+    const group = useRef(); const weights = useRef(Object.fromEntries(POSES.map((n) => [n, 0]))); const lastMan = useRef(null);
     const { scene, animations } = useGLTF(url);
     const { actions } = useAnimations(animations, group);
     // hands locked on the gear after the clips are blended (see armIK.js)
@@ -92,9 +94,13 @@ const Windsurfer = ({ state, url = MODEL_URL }) => {
                 OneFootHand: air && s.oneFoot && s.oneHand ? 1 : 0,
                 Crouch: air ? 0 : (s.load || 0),                            // loading the pop, absorbing a landing
                 Carve: (m?.kind === 'carve' ? 1 : 0) || (!air && bearAway ? Math.min(1, Math.abs(s.turn)) * 0.8 : 0),
+                Pump: !air && s.pumpT >= 0 ? 1 : 0,
             };
+            // a pumping stroke plays at the physics' pace (the clip is one stroke: pull, then recover)
+            if (actions.Pump && s.pumpT >= 0) actions.Pump.time = Math.min(0.999, s.pumpT / PUMP_DUR) * actions.Pump.getClip().duration;
             let sum = 0;
-            POSES.forEach((n) => { w[n] += (target[n] - w[n]) * (n === 'Crouch' ? Math.min(1, dt * 20) : k); sum += w[n]; });
+            const rate = { Crouch: Math.min(1, dt * 20), Pump: Math.min(1, dt * 9) };
+            POSES.forEach((n) => { w[n] += (target[n] - w[n]) * (rate[n] ?? k); sum += w[n]; });
             const norm = Math.max(1, sum);
             POSES.forEach((n) => weigh(actions[n], w[n] / norm));
             weigh(actions.Ride, Math.max(0, 1 - sum / norm));

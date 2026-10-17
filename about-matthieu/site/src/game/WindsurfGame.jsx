@@ -12,40 +12,39 @@ import { createDemo } from './demo';
 import Sharks from './Sharks';
 import { createSharks, updateSharks } from './sharks';
 import { MainMenu, EndScreen } from './Menus';
+import { createTaps } from './taps';
 
 export const MODEL_URLS = { windsurf: MODEL_URL, wing: `${import.meta.env.BASE_URL}models/wingfoil.glb` };
-import { initialState, step, KNOT, SEA_STATES, MANOEUVRES, COMBOS, CRAFTS, canDo, seaParams } from './physics';
+import { initialState, step, KNOT, SEA_STATES, MANOEUVRES, TAPS, CRAFTS, canDo, craftOf, seaParams } from './physics';
 
 const deg = (r) => Math.round(((r * 180 / Math.PI) % 360 + 360) % 360);
 const FREESTYLE = [['heli', 'Hélitack', 'H'], ['airjibe', 'Air jibe', 'J'], ['vulcan', 'Vulcan', 'U'], ['spock', 'Spock', 'K'], ['flaka', 'Flaka', 'L']];
-// ↑ / ↓ stay valid as combo modifiers a moment after release (pressing both keys together is never exact)
-const LATCH_MS = 300;
-const release = (input, k) => {
-    input.current[k] = false;
-    if (k === 'up' || k === 'down') { input.current[`${k}Latch`] = performance.now() + LATCH_MS; }
-};
+const release = (input, k) => { input.current[k] = false; };
 const EDGE = ['start', 'jump', 'tack', 'jibe', 'duck', 'carve', ...FREESTYLE.map((f) => f[0])];   // one-shot inputs, cleared after each step
+// buttons that also count while held: the jump button pumps in rhythm, the jibe button holds a table-top in the air
+const HOLDS = { jump: 'jumpHeld', jibe: 'jibeHeld' };
+const TAPPED = ['tack', 'jibe', 'carve'];      // counted by taps.js on the water (1, 2 or 3 taps)
 
 // PlayStation (or any "standard" mapping) controller: button index -> input
 const PAD_BUTTONS = { 0: 'jump', 1: 'jibe', 2: 'tack', 3: 'carve', 4: 'oneFoot', 5: 'oneHand', 9: 'start', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
-const PAD_HELD = ['up', 'down', 'left', 'right', 'oneFoot', 'oneHand'];
-/** Reads the first connected gamepad: held keys, edges for the one-shot actions, rumble on landings and falls. */
+const PAD_HELD = ['up', 'down', 'left', 'right', 'oneFoot', 'oneHand', 'jumpHeld', 'jibeHeld'];
+/** Reads the first connected gamepad: held keys, edges for the one-shot actions (through press), rumble on landings and falls. */
 const usePad = () => {
     const prev = useRef({}); const held = useRef({}); const seen = useRef(0);
-    const poll = (input, s) => {
+    const poll = (input, s, press) => {
         const gp = [...(navigator.getGamepads?.() || [])].find((g) => g && g.connected);
         if (!gp) { held.current = {}; return null; }
         const now = performance.now(); const h = {};
         Object.entries(PAD_BUTTONS).forEach(([i, k]) => {
             const down = !!gp.buttons[i]?.pressed;
             if (PAD_HELD.includes(k)) h[k] = down;
-            else if (down && !prev.current[i]) input.current[k] = true;          // edge: one press = one action
+            else if (down && !prev.current[i]) press(k);                          // edge: one press = one action (or one tap)
+            if (HOLDS[k]) h[HOLDS[k]] = down;
             prev.current[i] = down;
         });
         const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
         h.left = h.left || ax < -0.35; h.right = h.right || ax > 0.35;
         h.up = h.up || ay < -0.55; h.down = h.down || ay > 0.55;
-        ['up', 'down'].forEach((k) => { if (held.current[k] && !h[k]) input.current[`${k}Latch`] = now + LATCH_MS; });
         held.current = h;
         // rumble: light on a landed trick, strong on a fall
         if (s.events.length && s.events[s.events.length - 1].id !== seen.current) {
@@ -64,14 +63,14 @@ const Rig = ({ state, input, view, onTick, game }) => {
     const side = useRef(-1); const look = useRef(new THREE.Vector3()); const acc = useRef(0); const target = useRef(new THREE.Vector3());
     useFrame((_, delta) => {
         const dt = Math.min(delta, 0.05); const s = state.current;
-        const now = performance.now(), p = pad(input, s) || {};
-        const inp = { ...input.current }; PAD_HELD.forEach((k) => { inp[k] = inp[k] || !!p[k]; });
         const g = game.current; const playing = g.phase === 'play';
+        const now = performance.now(), p = pad(input, s, g.press) || {};
+        g.taps.tick(input.current, now);
+        const inp = { ...input.current }; PAD_HELD.forEach((k) => { inp[k] = inp[k] || !!p[k]; });
         if (input.current.start) g.onStartKey();
         // in the menu and on the result screen the board just sails on (no input)
         const demo = playing && g.demo;
-        const user = { ...inp, upMod: inp.up || (inp.upLatch ?? 0) > now, downMod: inp.down || (inp.downLatch ?? 0) > now };
-        step(s, demo ? g.demo.next(s, dt) : playing ? user : {}, dt);
+        step(s, demo ? g.demo.next(s, dt) : playing ? inp : {}, dt);
         if (demo && !view.current.active) view.current.yaw += (0.45 * Math.sin(s.time * 0.12) - view.current.yaw) * Math.min(1, dt * 0.5);
         EDGE.forEach((k) => { input.current[k] = false; });
         // sound: wind and water every frame, effects on take-off, landing, fall, tricks, marks, challenges
@@ -110,7 +109,7 @@ const Rig = ({ state, input, view, onTick, game }) => {
             acc.current = 0; const sess = game.current.session;
             const dm = game.current.demo;
             onTick({
-                s: { ...s, events: [...s.events] }, sess: sess ? { ...sess, popups: [...sess.popups], splits: [...sess.splits] } : null,
+                s: { ...s, events: [...s.events] }, tap: g.taps.status(), sess: sess ? { ...sess, popups: [...sess.popups], splits: [...sess.splits] } : null,
                 demo: dm ? { i: Math.min(dm.i, dm.steps.length - 1), n: dm.steps.length, step: dm.current(), done: dm.done } : null,
             });
         }
@@ -138,39 +137,41 @@ const Settings = ({ wind, sea, craft, onChange, onCraft, ready }) => (
     </details>
 );
 
-// Keys, as on the keyboard and on the touch buttons
-const CAP = { up: '↑', down: '↓', jump: 'Espace', tack: 'V', jibe: 'E', carve: 'C' };
-const PAD = { jump: 'Saut', tack: 'Virer', jibe: 'Empanner', carve: '360' };
+// Names of the figures, and what each button does in the air
 const NAMES = { tack: 'Virement', jibe: 'Empannage', carve: 'Carving 360', duck: 'Duck jibe', heli: 'Hélitack', airjibe: 'Air jibe', vulcan: 'Vulcan', spock: 'Spock', flaka: 'Flaka' };
-const AIR = [['↑', 'Forward loop — garder appuyé : double, triple'], ['↓', 'Back loop'], ['↓ + ← / →', 'Push loop'], ['← / →', 'Table-top'],
-    ['F', 'Lâcher un pied'], ['G', 'Lâcher une main'], ['F + G', 'Lâcher pied + main']];
-const Keys = ({ k }) => k.map((x, i) => <React.Fragment key={x}>{i ? ' + ' : ''}<kbd>{x}</kbd></React.Fragment>);
-const comboKeys = ([mod, act]) => (mod ? [CAP[mod], CAP[act]] : [CAP[act]]);
+const BTN = { jump: 'Saut', tack: 'Virer', jibe: 'Empanner', carve: '360' };
+const KEY = { jump: 'Espace', tack: 'V', jibe: 'E', carve: 'C' };
+const AIR_BTN = { jump: 'Forward', tack: 'Back', jibe: 'Table', carve: 'Lâcher' };
+const AIR = [['jump', 'Forward loop', 'chaque tape = un tour de plus'], ['tack', 'Back loop', 'avec Empanner tenu : push loop'],
+    ['jibe', 'Table-top', 'garder appuyé'], ['carve', 'Lâcher', '1 tape : un pied · 2 tapes : pied + main']];
+const Keys = ({ k }) => k.map((x, i) => <React.Fragment key={x}>{i ? ' ' : ''}<kbd>{x}</kbd></React.Fragment>);
+const times = (n) => (n > 1 ? ` ×${n}` : '');
 
-/** Legend of every figure and the keys that make it. */
+/** Legend of every figure and the buttons that make it. */
 const Legend = ({ s }) => (
     <details className="legend">
         <summary>Figures</summary>
         <h4>Sur l'eau</h4>
         <ul>
-            <li><Keys k={['Espace']} /> Saut</li>
-            {COMBOS.filter((c) => canDo(s, c[2])).map((c) => <li key={c[2]}><Keys k={comboKeys(c)} /> {NAMES[c[2]]}{MANOEUVRES[c[2]]?.planing ? <i> · au planing</i> : null}</li>)}
+            <li><Keys k={[BTN.jump]} /> sans planer : pomper (tape en rythme ou garde appuyé){craftOf(s).pumpToFly ? ' — 3 coups pour décoller' : ''}</li>
+            <li><Keys k={[BTN.jump]} /> au planing : saut · <Keys k={[`${BTN.jump} ×2`]} /> forward loop</li>
+            {Object.entries(TAPS).flatMap(([b, kinds]) => kinds.map((kind, i) => (canDo(s, kind) ? (
+                <li key={kind}><Keys k={[`${BTN[b]}${times(i + 1)}`]} /> {NAMES[kind]}{MANOEUVRES[kind]?.planing ? <i> · au planing</i> : null}</li>) : null)))}
         </ul>
-        <h4>En l'air</h4>
-        <ul>{AIR.map(([k, t]) => <li key={k}><Keys k={[k]} /> {t}</li>)}</ul>
-        <p>Tactile : garder ↑ ou ↓ d'un doigt, toucher {PAD.jump}, {PAD.tack}, {PAD.jibe} ou {PAD.carve} de l'autre.</p>
-        <p>Manette PlayStation : stick gauche ou croix pour diriger et ↑ ↓, ✕ saut, □ virer, ○ empanner, △ 360, L1 pied, R1 main.</p>
+        <h4>En l'air (les boutons changent de nom)</h4>
+        <ul>{AIR.map(([b, t, d]) => <li key={b}><Keys k={[BTN[b]]} /> {t} <i>· {d}</i></li>)}</ul>
+        <p>Clavier : {Object.entries(KEY).map(([b, k]) => `${k} = ${BTN[b]}`).join(' · ')} · ← → diriger (en l'air : table-top) · ↑ ↓ tenus en l'air : loops à la chaîne · F / G lâcher pied / main.</p>
+        <p>Manette PlayStation : ✕ {BTN.jump}, □ {BTN.tack}, ○ {BTN.jibe}, △ {BTN.carve} (mêmes tapes multiples), stick gauche pour diriger, L1 pied, R1 main.</p>
     </details>
 );
 
-/** What the next key does, right now. */
-const hintFor = (s, inp) => {
-    if (s.mode === 'air') return [['↑', 'forward'], ['↓', 'back'], ['← →', 'table-top'], ['F', 'pied'], ['G', 'main']];
+/** What to do now: pumping, a ramp, a shark, the figure being counted. */
+const hintFor = (s, tap) => {
+    if (tap) return [[`${BTN[tap.k]}${times(tap.n)}`, `${NAMES[tap.kind]}${TAPS[tap.k].length > tap.n && canDo(s, TAPS[tap.k][tap.n]) ? ` · encore une tape : ${NAMES[TAPS[tap.k][tap.n]]}` : ''}`]];
     if (s.mode === 'sail' && s.sharkAhead != null) return [['!', `Requin de Tintin droit devant, ${Math.round(s.sharkAhead)} m : évite-le ou saute par-dessus`]];
     if (s.mode !== 'sail' || s.man) return null;
-    const mod = inp.up ? 'up' : inp.down ? 'down' : null;
-    if (mod) return COMBOS.filter((c) => c[0] === mod && canDo(s, c[2])).map((c) => [`${CAP[mod]} + ${CAP[c[1]]}`, NAMES[c[2]]]);
-    if (s.ramp) return [['Espace', 'décoller haut sur la vague !']];
+    if (!s.planing) return [['Pomper', craftOf(s).pumpToFly ? 'pompe pour décoller : tape en rythme ou garde appuyé' : 'pompe pour partir au planing']];
+    if (s.ramp) return [[BTN.jump, 'décoller haut sur la vague !']];
     return null;
 };
 
@@ -210,15 +211,24 @@ const DemoBanner = ({ demo, onStop }) => (
     </div>
 );
 
-const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, wind, sea, craft, ready, onSettings, onCraft }) => {
+const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press, tap, wind, sea, craft, ready, onSettings, onCraft }) => {
     const knots = (s.speed / KNOT).toFixed(1);
     const windRel = s.twd - s.heading;
+    const up = (k) => { if (EDGE.includes(k)) { if (HOLDS[k]) release(input, HOLDS[k]); } else release(input, k); };
     const hold = (k) => ({
-        onPointerDown: (e) => { e.preventDefault(); input.current[k] = true; },
-        onPointerUp: () => { if (!EDGE.includes(k)) release(input, k); },
-        onPointerLeave: () => { if (!EDGE.includes(k) && input.current[k]) release(input, k); },
-        onPointerCancel: () => { if (!EDGE.includes(k)) release(input, k); },
+        onPointerDown: (e) => { e.preventDefault(); if (EDGE.includes(k)) press(k); else input.current[k] = true; if (HOLDS[k]) input.current[HOLDS[k]] = true; },
+        onPointerUp: () => up(k),
+        onPointerLeave: () => up(k),
+        onPointerCancel: () => up(k),
     });
+    // the four action buttons: what they do now (on the water, pumping, in the air), and their multi-tap figures
+    const air = s.mode === 'air';
+    const label = (b) => (air ? AIR_BTN[b] : b === 'jump' && !s.planing ? 'Pomper' : BTN[b]);
+    const sub = (b) => {
+        if (air) return b === 'carve' ? (s.oneHand ? 'pied + main' : s.oneFoot ? 'un pied' : '') : '';
+        if (b === 'jump') return s.planing ? '×2 forward' : craftOf(s).pumpToFly ? 'en rythme' : '';
+        return (TAPS[b] || []).slice(1).map((kind, i) => (canDo(s, kind) ? `×${i + 2} ${NAMES[kind]}` : null)).filter(Boolean).join(' · ');
+    };
     const recent = sess ? sess.popups : s.events.filter((e) => s.time - e.t < 3);
     const status = s.mode === 'air' ? 'En l\'air' : s.mode === 'crash' ? 'Water-start…' : s.man ? MANOEUVRES[s.man.kind].label : s.planing ? (s.craft === 'wing' ? 'En vol' : 'Planing') : 'Archimède';
     return (
@@ -261,24 +271,21 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, wind, 
                 ))}
             </div>
             <div className="hud-bottom">
-                {(() => { const h = hintFor(s, input.current); return h ? <div className={`hint ${h[0][0] === '!' ? 'warn' : ''}`} aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
-                <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ← → diriger · <b>Figures</b> en haut à droite</p>
+                {!air && s.mode === 'sail' && !s.planing && craftOf(s).pumpToFly ? <div className="pump-gauge" aria-label="Pumping"><i style={{ width: `${Math.min(100, (s.pumpLift || 0) * 100)}%` }} /></div> : null}
+                {(() => { const h = hintFor(s, tap); return h ? <div className={`hint ${h[0][0] === '!' ? 'warn' : ''}`} aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
+                <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ⟲ ⟳ diriger · tape 1, 2 ou 3 fois un bouton · <b>Figures</b> en haut à droite</p>
                 <div className="controls">
-                    <div className="stick" role="group" aria-label="Diriger et tourner">
+                    <div className="stick" role="group" aria-label="Diriger">
                         <button className="pad" {...hold('left')} aria-label="Gauche">⟲</button>
-                        <div className="pad-col">
-                            <button className="pad sm" {...hold('up')} aria-label="Haut : forward loop, modificateur">↑</button>
-                            <button className="pad sm" {...hold('down')} aria-label="Bas : back loop, modificateur">↓</button>
-                        </div>
                         <button className="pad" {...hold('right')} aria-label="Droite">⟳</button>
                     </div>
-                    <div className="actions" role="group" aria-label="Actions">
-                        <button className="hud-btn act jump" {...hold('jump')}>Saut</button>
-                        <button className="hud-btn act" {...hold('tack')}>Virer</button>
-                        <button className="hud-btn act" {...hold('jibe')}>Empanner</button>
-                        <button className="hud-btn act" {...hold('carve')}>360</button>
-                        <button className={`hud-btn act let ${s.oneFoot ? 'on' : ''}`} {...hold('oneFoot')}>Pied</button>
-                        <button className={`hud-btn act let ${s.oneHand ? 'on' : ''}`} {...hold('oneHand')}>Main</button>
+                    <div className={`actions ${air ? 'in-air' : ''}`} role="group" aria-label="Actions">
+                        {['jump', 'tack', 'jibe', 'carve'].map((b) => (
+                            <button key={b} className={`hud-btn act ${b === 'jump' ? 'jump' : ''} ${tap?.k === b ? 'counting' : ''} ${air && b === 'carve' && (s.oneFoot || s.oneHand) ? 'on' : ''}`} {...hold(b)}>
+                                <span className="act-name">{tap?.k === b ? `${NAMES[tap.kind]}` : label(b)}</span>
+                                {sub(b) ? <small className="act-sub">{sub(b)}</small> : null}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -333,15 +340,20 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
     const gestures = useCamGestures(view);
     // everything the frame loop needs, without re-rendering the canvas
     const game = useRef(null);
-    if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf', sharksOn: true, sharksActive: false, sharks: null };
+    if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf', sharksOn: true, sharksActive: false, sharks: null, taps: createTaps() };
     const g = game.current;
+    /** One press of an action (key, touch button or pad): taps on Virer / Empanner / 360 are counted, the rest goes through. */
+    g.press = (k) => {
+        if (TAPPED.includes(k)) g.taps.press(k, state.current, input.current, performance.now());
+        else input.current[k] = true;
+    };
 
     const start = (m = mode, c = craft) => {
         g.audio.start(); g.demo = null;
         g.sharks = createSharks(); g.sharksActive = g.sharksOn && (m === 'freestyle' || m === 'ride');
         state.current = initialState({ windKn: wind, sea, craft: c });
         g.session = newSession(m); g.craft = c; g.phase = 'play'; setPhase('play');
-        input.current = {}; view.current.yaw = 0; view.current.pitch = 0;
+        input.current = {}; g.taps.reset(); view.current.yaw = 0; view.current.pitch = 0;
     };
     const toMenu = () => { g.phase = 'menu'; g.session = null; g.demo = null; g.sharksActive = false; setPhase('menu'); };
     const [sharksOn, setSharksOn] = useState(true);
@@ -374,10 +386,16 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
                 return;
             }
             const k = KEYS[e.code]; if (!k) { if (e.code === 'Escape') toMenu(); return; }
+            e.preventDefault();
             if (e.repeat && EDGE.includes(k)) return;
-            input.current[k] = true; e.preventDefault();
+            if (EDGE.includes(k)) g.press(k); else input.current[k] = true;
+            if (HOLDS[k]) input.current[HOLDS[k]] = true;
         };
-        const up = (e) => { const k = KEYS[e.code]; if (k && !EDGE.includes(k)) release(input, k); };
+        const up = (e) => {
+            const k = KEYS[e.code]; if (!k) return;
+            if (HOLDS[k]) release(input, HOLDS[k]);
+            if (!EDGE.includes(k)) release(input, k);
+        };
         window.addEventListener('keydown', down); window.addEventListener('keyup', up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     });
@@ -408,7 +426,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
                 <Rig state={state} input={input} view={view} onTick={setSnap} game={game} />
             </Canvas>
             {phase === 'play' ? (
-                <Hud s={snap.s} sess={snap.sess} demo={snap.demo} onStopDemo={toMenu} input={input} onExit={onExit} wind={wind} sea={sea} onSettings={onSettings}
+                <Hud s={snap.s} sess={snap.sess} demo={snap.demo} onStopDemo={toMenu} input={input} press={g.press} tap={snap.tap} onExit={onExit} wind={wind} sea={sea} onSettings={onSettings}
                      craft={craft} ready={ready} onCraft={onCraft} onMenu={toMenu} onReset={() => start()} />
             ) : null}
             {phase === 'menu' ? (
