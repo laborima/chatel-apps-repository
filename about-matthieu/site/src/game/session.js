@@ -1,11 +1,12 @@
 // Game layer on top of the physics: modes (freestyle score attack, slalom time trial, free ride), combos,
 // challenges and records. Pure functions and plain objects (no React, no three.js) so it can be tested in Node.
 import { KNOT } from './physics.js';
+import { tr } from '../i18n.js';
 
 export const MODES = {
-    freestyle: { label: 'Freestyle', blurb: '2 minutes pour le meilleur score. Enchaîne les figures : le combo multiplie les points, varier rapporte plus.', time: 120 },
-    slalom: { label: 'Slalom', blurb: 'Parcours de bouées contre la montre : de grands largues et un empannage à chaque bouée.' },
-    ride: { label: 'Balade', blurb: 'Navigation libre, sans chrono. Les défis restent actifs.' },
+    freestyle: { label: 'Freestyle', get blurb() { return tr('2 minutes pour le meilleur score. Enchaîne les figures : le combo multiplie les points, varier rapporte plus.', '2 minutes for the best score. Chain the moves: the combo multiplies the points, variety pays more.'); }, time: 120 },
+    slalom: { label: 'Slalom', get blurb() { return tr('Parcours de bouées contre la montre : de grands largues et un empannage à chaque bouée.', 'A buoy course against the clock: broad reaches and a jibe at every mark.'); } },
+    ride: { get label() { return tr('Balade', 'Cruise'); }, get blurb() { return tr('Navigation libre, sans chrono. Les défis restent actifs.', 'Free sailing, no clock. The challenges stay on.'); } },
 };
 
 // ---------------------------------------------------------------- slalom course
@@ -27,27 +28,27 @@ export const toward = (s, p) => {
 // ---------------------------------------------------------------- challenges
 // test(ctx): ctx = { s, ev (the event just scored, if any), sess (this session), mode, craft }
 export const CHALLENGES = [
-    { id: 'plane20', label: 'Planer à 20 nœuds', test: ({ s }) => s.speed / KNOT >= 20 },
-    { id: 'speed28', label: 'Pointe à 28 nœuds', test: ({ s }) => s.speed / KNOT >= 28 },
-    { id: 'jump2', label: 'Saut de 2 m', test: ({ ev }) => ev?.key === 'jump' && ev.h >= 2 },
-    { id: 'jump35', label: 'Saut de 3,5 m (prends une vague)', test: ({ ev }) => ev?.key === 'jump' && ev.h >= 3.5 },
+    { id: 'plane20', get label() { return tr('Planer à 20 nœuds', 'Plane at 20 knots'); }, test: ({ s }) => s.speed / KNOT >= 20 },
+    { id: 'speed28', get label() { return tr('Pointe à 28 nœuds', 'Hit 28 knots'); }, test: ({ s }) => s.speed / KNOT >= 28 },
+    { id: 'jump2', get label() { return tr('Saut de 2 m', 'A 2 m jump'); }, test: ({ ev }) => ev?.key === 'jump' && ev.h >= 2 },
+    { id: 'jump35', get label() { return tr('Saut de 3,5 m (prends une vague)', 'A 3.5 m jump (use a wave)'); }, test: ({ ev }) => ev?.key === 'jump' && ev.h >= 3.5 },
     { id: 'forward', label: 'Forward loop', test: ({ ev }) => /^Forward/.test(ev?.text ?? '') },
     { id: 'double', label: 'Double forward', test: ({ ev }) => /^Double forward/.test(ev?.text ?? '') },
     { id: 'push', label: 'Push loop', test: ({ ev }) => /push loop/i.test(ev?.text ?? '') },
-    { id: 'nofoot', label: 'Lâcher pied + main en l\'air', test: ({ ev }) => ev?.key === 'noFootHand' },
-    { id: 'planingJibe', label: 'Empannage planant', test: ({ ev }) => ev?.key === 'planingJibe' },
+    { id: 'nofoot', get label() { return tr('Lâcher pied + main en l\'air', 'No foot, no hand in the air'); }, test: ({ ev }) => ev?.key === 'noFootHand' },
+    { id: 'planingJibe', get label() { return tr('Empannage planant', 'Planing jibe'); }, test: ({ ev }) => ev?.key === 'planingJibe' },
     { id: 'duck', label: 'Duck jibe', test: ({ ev }) => ev?.key === 'duck' },
-    { id: 'heli', label: 'Hélitack', test: ({ ev }) => ev?.key === 'heli' },
+    { id: 'heli', get label() { return tr('Hélitack', 'Helitack'); }, test: ({ ev }) => ev?.key === 'heli' },
     { id: 'vulcan', label: 'Vulcan', test: ({ ev }) => ev?.key === 'vulcan' },
     { id: 'spock', label: 'Spock', test: ({ ev }) => ev?.key === 'spock' },
     { id: 'combo5', label: 'Combo ×5', test: ({ sess }) => sess.combo >= 5 },
-    { id: 'sharkJump', label: 'Sauter par-dessus un requin de Tintin', test: ({ ev }) => ev?.key === 'sharkJump' },
-    { id: 'free5k', label: 'Freestyle : 10 000 points', test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 10000 },
-    { id: 'free15k', label: 'Freestyle : 30 000 points', test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 30000 },
-    { id: 'slalom', label: 'Slalom : finir le parcours', test: ({ sess, mode }) => mode === 'slalom' && sess.finished },
-    { id: 'slalom90', label: 'Slalom : moins de 1 min 30', test: ({ sess, mode }) => mode === 'slalom' && sess.finished && sess.time < 90 },
-    { id: 'wingFly', label: 'Wing : 30 s de vol d\'affilée', test: ({ sess, craft }) => craft === 'wing' && sess.flyRun >= 30 },
-    { id: 'wingTack', label: 'Wing : virer sans toucher l\'eau', test: ({ ev, craft, s }) => craft === 'wing' && ev?.key === 'tack' && s.planing },
+    { id: 'sharkJump', get label() { return tr('Sauter par-dessus un requin de Tintin', 'Jump over a Tintin shark'); }, test: ({ ev }) => ev?.key === 'sharkJump' },
+    { id: 'free5k', get label() { return tr('Freestyle : 10 000 points', 'Freestyle: 10,000 points'); }, test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 10000 },
+    { id: 'free15k', get label() { return tr('Freestyle : 30 000 points', 'Freestyle: 30,000 points'); }, test: ({ sess, mode }) => mode === 'freestyle' && sess.score >= 30000 },
+    { id: 'slalom', get label() { return tr('Slalom : finir le parcours', 'Slalom: finish the course'); }, test: ({ sess, mode }) => mode === 'slalom' && sess.finished },
+    { id: 'slalom90', get label() { return tr('Slalom : moins de 1 min 30', 'Slalom: under 1 min 30'); }, test: ({ sess, mode }) => mode === 'slalom' && sess.finished && sess.time < 90 },
+    { id: 'wingFly', get label() { return tr('Wing : 30 s de vol d\'affilée', 'Wing: 30 s of flight in a row'); }, test: ({ sess, craft }) => craft === 'wing' && sess.flyRun >= 30 },
+    { id: 'wingTack', get label() { return tr('Wing : virer sans toucher l\'eau', 'Wing: tack without touching down'); }, test: ({ ev, craft, s }) => craft === 'wing' && ev?.key === 'tack' && s.planing },
 ];
 
 // ---------------------------------------------------------------- persistence (per browser; the game works without it)
@@ -100,7 +101,7 @@ export const updateSession = (sess, s, save, dt, craft) => {
         if (sess.mode === 'freestyle') {
             const pts = scoreEvent(sess, e, s.time);
             if (pts) { sess.score += pts; sess.tricks += 1; sess.popups.push({ id: e.id, text: e.text, pts, mult: sess.mult, t: s.time }); }
-            else if (e.key === 'crash') sess.popups.push({ id: e.id, text: `${e.text} Combo perdu`, pts: 0, bad: true, t: s.time });
+            else if (e.key === 'crash') sess.popups.push({ id: e.id, text: `${e.text} ${tr('Combo perdu', 'Combo lost')}`, pts: 0, bad: true, t: s.time });
         } else {
             sess.popups.push({ id: e.id, text: e.text, pts: e.pts, bad: e.bad, t: s.time });
             if (!e.bad && e.pts) { sess.score += e.pts; sess.tricks += 1; }
@@ -115,7 +116,7 @@ export const updateSession = (sess, s, save, dt, craft) => {
             if (m.kind === 'start') sess.started = true;
             else sess.splits.push(sess.time);
             sess.mark += 1; changed = true;
-            sess.popups.push({ id: `mark${sess.mark}`, text: m.kind === 'start' ? 'Top départ !' : m.kind === 'finish' ? 'Arrivée !' : `Bouée ${sess.mark - 1}`, pts: 0, t: s.time, mark: true });
+            sess.popups.push({ id: `mark${sess.mark}`, text: m.kind === 'start' ? tr('Top départ !', 'Go!') : m.kind === 'finish' ? tr('Arrivée !', 'Finish!') : `${tr('Bouée', 'Mark')} ${sess.mark - 1}`, pts: 0, t: s.time, mark: true });
             if (m.kind === 'finish') { sess.finished = true; sess.over = true; }
         }
     }
@@ -130,7 +131,7 @@ export const updateSession = (sess, s, save, dt, craft) => {
         const ok = events.some((ev) => c.test({ s, ev, sess, mode: sess.mode, craft })) || c.test({ s, ev: null, sess, mode: sess.mode, craft });
         if (ok) {
             save.done[c.id] = Date.now(); sess.newDone.push(c.id); changed = true;
-            sess.popups.push({ id: `ch-${c.id}`, text: `Défi réussi : ${c.label}`, pts: 0, t: s.time, challenge: true });
+            sess.popups.push({ id: `ch-${c.id}`, text: `${tr('Défi réussi : ', 'Challenge done: ')}${c.label}`, pts: 0, t: s.time, challenge: true });
         }
     }
     if (sess.over) {

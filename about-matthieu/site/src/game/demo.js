@@ -5,27 +5,27 @@ import { canDo, craftOf } from './physics.js';
 const D2R = Math.PI / 180;
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-// kind: 'man' (manoeuvre on the water), 'jump' (in the air: held keys), 'pump' (pump until the foil flies)
+// name, keys: [French, English]. kind: 'man' (manoeuvre on the water), 'jump' (in the air: held keys), 'pump' (pump until the foil flies)
 export const DEMO_STEPS = [
-    { id: 'pump', name: 'Pumping : décoller', keys: 'Pomper en rythme (ou garder appuyé)', kind: 'pump' },
-    { id: 'tack', name: 'Virement', keys: 'Virer', kind: 'man', input: { tack: true } },
-    { id: 'jibe', name: 'Empannage planant', keys: 'Empanner', kind: 'man', input: { jibe: true }, planing: true },
-    { id: 'jump', name: 'Saut', keys: 'Saut', kind: 'jump', air: {} },
-    { id: 'forward', name: 'Forward loop', keys: 'Saut ×2 (puis Forward)', kind: 'jump', air: { up: true }, hold: 0.25 },
-    { id: 'back', name: 'Back loop', keys: 'Saut, puis Back', kind: 'jump', air: { down: true }, hold: 0.25 },
-    { id: 'table', name: 'Table-top', keys: 'Saut, puis garder Table', kind: 'jump', air: { right: true }, until: 'apex' },
-    { id: 'foot', name: 'One-footer (lâcher un pied)', keys: 'Saut, puis Lâcher', kind: 'jump', air: { oneFoot: true }, until: 'land' },
-    { id: 'hand', name: 'One-hander (lâcher une main)', keys: 'Saut, puis G (clavier) ou R1', kind: 'jump', air: { oneHand: true }, until: 'land' },
-    { id: 'nofoot', name: 'Lâcher pied + main', keys: 'Saut, puis Lâcher ×2', kind: 'jump', air: { oneFoot: true, oneHand: true }, until: 'land' },
-    { id: 'push', name: 'Push loop', keys: 'Saut, puis Back en gardant Table', kind: 'jump', air: { down: true, right: true }, hold: 0.35 },
-    { id: 'double', name: 'Double forward (sur une vague)', keys: 'Saut sur « Rampe ! », puis Forward ×2', kind: 'jump', air: { up: true }, until: 'land', ramp: true },
-    { id: 'carve', name: 'Carving 360', keys: '360', kind: 'man', input: { carve: true }, planing: true },
-    { id: 'duck', name: 'Duck jibe', keys: 'Empanner ×2', kind: 'man', input: { duck: true }, planing: true },
-    { id: 'heli', name: 'Hélitack', keys: 'Virer ×2', kind: 'man', input: { heli: true } },
-    { id: 'airjibe', name: 'Air jibe', keys: 'Empanner ×3', kind: 'man', input: { airjibe: true }, planing: true },
-    { id: 'vulcan', name: 'Vulcan', keys: '360 ×2', kind: 'man', input: { vulcan: true }, planing: true },
-    { id: 'spock', name: 'Spock', keys: '360 ×3', kind: 'man', input: { spock: true }, planing: true },
-    { id: 'flaka', name: 'Flaka', keys: 'Virer ×3', kind: 'man', input: { flaka: true }, planing: true },
+    { id: 'pump', name: ['Pumping : décoller', 'Pumping: take off'], keys: ['Pomper en rythme (ou garder appuyé)', 'Pump in rhythm (or hold it)'], kind: 'pump' },
+    { id: 'tack', name: ['Virement', 'Tack'], keys: ['Virer', 'Tack'], kind: 'man', input: { tack: true } },
+    { id: 'jibe', name: ['Empannage planant', 'Planing jibe'], keys: ['Empanner', 'Jibe'], kind: 'man', input: { jibe: true }, planing: true },
+    { id: 'jump', name: ['Saut', 'Jump'], keys: ['Saut', 'Jump'], kind: 'jump', air: {} },
+    { id: 'forward', name: ['Forward loop', 'Forward loop'], keys: ['Saut ×2 (puis Forward)', 'Jump ×2 (then Forward)'], kind: 'jump', air: { up: true }, hold: 0.25 },
+    { id: 'back', name: ['Back loop', 'Back loop'], keys: ['Saut, puis Back', 'Jump, then Back'], kind: 'jump', air: { down: true }, hold: 0.25 },
+    { id: 'table', name: ['Table-top', 'Table-top'], keys: ['Saut, puis garder Table', 'Jump, then hold Table'], kind: 'jump', air: { right: true }, until: 'apex' },
+    { id: 'foot', name: ['One-footer (lâcher un pied)', 'One-footer (one foot out)'], keys: ['Saut, puis Lâcher', 'Jump, then Let go'], kind: 'jump', air: { oneFoot: true }, until: 'land' },
+    { id: 'hand', name: ['One-hander (lâcher une main)', 'One-hander (one hand off)'], keys: ['Saut, puis G (clavier) ou R1', 'Jump, then G (keyboard) or R1'], kind: 'jump', air: { oneHand: true }, until: 'land' },
+    { id: 'nofoot', name: ['Lâcher pied + main', 'No foot, no hand'], keys: ['Saut, puis Lâcher ×2', 'Jump, then Let go ×2'], kind: 'jump', air: { oneFoot: true, oneHand: true }, until: 'land' },
+    { id: 'push', name: ['Push loop', 'Push loop'], keys: ['Saut, puis Back en gardant Table', 'Jump, then Back while holding Table'], kind: 'jump', air: { down: true, right: true }, hold: 0.35 },
+    { id: 'double', name: ['Double forward (sur une vague)', 'Double forward (off a wave)'], keys: ['Saut sur « Rampe ! », puis Forward ×2', 'Jump on “Ramp!”, then Forward ×2'], kind: 'jump', air: { up: true }, until: 'land', ramp: true },
+    { id: 'carve', name: ['Carving 360', 'Carve 360'], keys: ['360', '360'], kind: 'man', input: { carve: true }, planing: true },
+    { id: 'duck', name: ['Duck jibe', 'Duck jibe'], keys: ['Empanner ×2', 'Jibe ×2'], kind: 'man', input: { duck: true }, planing: true },
+    { id: 'heli', name: ['Hélitack', 'Helitack'], keys: ['Virer ×2', 'Tack ×2'], kind: 'man', input: { heli: true } },
+    { id: 'airjibe', name: ['Air jibe', 'Air jibe'], keys: ['Empanner ×3', 'Jibe ×3'], kind: 'man', input: { airjibe: true }, planing: true },
+    { id: 'vulcan', name: ['Vulcan', 'Vulcan'], keys: ['360 ×2', '360 ×2'], kind: 'man', input: { vulcan: true }, planing: true },
+    { id: 'spock', name: ['Spock', 'Spock'], keys: ['360 ×3', '360 ×3'], kind: 'man', input: { spock: true }, planing: true },
+    { id: 'flaka', name: ['Flaka', 'Flaka'], keys: ['Virer ×3', 'Tack ×3'], kind: 'man', input: { flaka: true }, planing: true },
 ];
 
 /** The steps the craft can do (the wing has no duck jibe / helitack / freestyle spins). */

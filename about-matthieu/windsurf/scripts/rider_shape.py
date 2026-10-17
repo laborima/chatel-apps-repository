@@ -10,7 +10,8 @@ def reshape_rider(arm):
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.parent == arm]
     def keyed_coords(o):
         me = o.data
-        return [kb.data for kb in me.shape_keys.key_blocks] if me.shape_keys else [me.vertices]
+        # the base vertices and every shape key (Avaturn heads carry expressions): all must move together
+        return [me.vertices] + ([kb.data for kb in me.shape_keys.key_blocks] if me.shape_keys else [])
     # ---- height: the head's skin (hair excluded) at H; the soles stay at z = 0
     top = max(v.co.z for o in meshes if o.name in ("Head_Mesh", "Body_Mesh") for v in o.data.vertices)
     f = H / top

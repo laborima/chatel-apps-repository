@@ -2,6 +2,8 @@
 // Angles are compass radians (0 = north, clockwise). The wind direction is where it blows FROM.
 // Frame: x east, y north (metres), z up.
 
+import { tr } from '../i18n.js';
+
 export const KNOT = 0.514444;
 const TAU = Math.PI * 2;
 const G = 9.81;
@@ -10,10 +12,10 @@ export const wrap = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 // ---------------------------------------------------------------- sea
 // swellLen / swellAmp / swellSteep: the wave sets the board surfs and jumps off (steepness k*a ~ 0.26 in "vagues": real ramps)
 export const SEA_STATES = {
-    plate: { label: 'Plate', amp: 0.25, len: 0.7, swellLen: 60, swellAmp: 0.08, swellSteep: 0.2 },
-    clapot: { label: 'Clapot', amp: 1.0, len: 1.0, swellLen: 70, swellAmp: 0.25, swellSteep: 0.2 },
-    houle: { label: 'Houle', amp: 0.9, len: 1.2, swellLen: 52, swellAmp: 0.95, swellSteep: 0.6 },
-    vagues: { label: 'Grosses vagues', amp: 1.0, len: 1.3, swellLen: 34, swellAmp: 1.4, swellSteep: 1.2 },
+    plate: { get label() { return tr('Plate', 'Flat'); }, amp: 0.25, len: 0.7, swellLen: 60, swellAmp: 0.08, swellSteep: 0.2 },
+    clapot: { get label() { return tr('Clapot', 'Chop'); }, amp: 1.0, len: 1.0, swellLen: 70, swellAmp: 0.25, swellSteep: 0.2 },
+    houle: { get label() { return tr('Houle', 'Swell'); }, amp: 0.9, len: 1.2, swellLen: 52, swellAmp: 0.95, swellSteep: 0.6 },
+    vagues: { get label() { return tr('Grosses vagues', 'Big waves'); }, amp: 1.0, len: 1.3, swellLen: 34, swellAmp: 1.4, swellSteep: 1.2 },
 };
 
 /** Wave field parameters, shared by the sea shader and the board (keep them identical). */
@@ -49,7 +51,7 @@ export const waveAt = (w, x, y, t) => {
 // foil: flight height of the board (m), moves: manoeuvres the model has clips for,
 // pump: speed gained per pumping stroke (m/s), pumpToFly: the foil only takes off after a few strokes (below selfLaunch m/s of wind)
 export const CRAFTS = {
-    windsurf: { label: 'Planche à voile', polar: 1.0, takeoff: 4.0, drop: 3.3, slow: 0.55, foil: 0, jump: 1.0, moves: null, pump: 0.7 },
+    windsurf: { get label() { return tr('Planche à voile', 'Windsurf'); }, polar: 1.0, takeoff: 4.0, drop: 3.3, slow: 0.55, foil: 0, jump: 1.0, moves: null, pump: 0.7 },
     wing: { label: 'Wing foil', polar: 0.82, takeoff: 3.6, drop: 2.8, slow: 0.5, foil: 0.62, jump: 1.2, moves: ['tack', 'jibe', 'carve'],      // the wing lifts the jumps
             pump: 0.5, pumpToFly: true, selfLaunch: 12 },
 };
@@ -71,28 +73,31 @@ export const polar = (twaDeg) => {
     return 0;
 };
 
-export const TRICKS = {
-    jump: 'Saut', forward: 'Forward loop', back: 'Back loop', tabletop: 'Table-top',
-    tack: 'Virement', jibe: 'Empannage', planingJibe: 'Empannage planant', duck: 'Duck jibe', carve: 'Carving 360',
-    oneFooter: 'One-footer', doubleForward: 'Double forward', doubleBack: 'Double back loop', push: 'Push loop',
-    surf: 'Surf', bottomTurn: 'Bottom turn', oneHander: 'One-hander', noFootHand: 'Lâcher pied + main', pumpOff: 'Décollage au pumping',
-    heli: 'Hélitack', airjibe: 'Air jibe', vulcan: 'Vulcan', spock: 'Spock', flaka: 'Flaka', needPlaning: 'Il faut planer !',
-    crash: 'Chute !',
+// names of the figures, in the current language (getters: read when a trick is scored)
+const NAMES2 = {
+    jump: ['Saut', 'Jump'], forward: ['Forward loop', 'Forward loop'], back: ['Back loop', 'Back loop'], tabletop: ['Table-top', 'Table-top'],
+    tack: ['Virement', 'Tack'], jibe: ['Empannage', 'Jibe'], planingJibe: ['Empannage planant', 'Planing jibe'], duck: ['Duck jibe', 'Duck jibe'],
+    carve: ['Carving 360', 'Carve 360'], oneFooter: ['One-footer', 'One-footer'], doubleForward: ['Double forward', 'Double forward'],
+    doubleBack: ['Double back loop', 'Double back loop'], push: ['Push loop', 'Push loop'], surf: ['Surf', 'Surf'], bottomTurn: ['Bottom turn', 'Bottom turn'],
+    oneHander: ['One-hander', 'One-hander'], noFootHand: ['Lâcher pied + main', 'No foot, no hand'], pumpOff: ['Décollage au pumping', 'Pumped take-off'],
+    heli: ['Hélitack', 'Helitack'], airjibe: ['Air jibe', 'Air jibe'], vulcan: ['Vulcan', 'Vulcan'], spock: ['Spock', 'Spock'], flaka: ['Flaka', 'Flaka'],
+    needPlaning: ['Il faut planer !', 'Get planing first!'], crash: ['Chute !', 'Wipe-out!'],
 };
+export const TRICKS = Object.defineProperties({}, Object.fromEntries(Object.entries(NAMES2).map(([k, [fr, en]]) => [k, { get: () => tr(fr, en), enumerable: true }])));
 
 // Manoeuvres on the water, played as baked animations (the model's clips). dur in seconds.
 // The board turns so that it crosses the wind (tack) or dead downwind (jibes) half way, when the sail flips in the clip.
 export const MANOEUVRES = {
-    tack: { label: 'Virement…', dur: 3.0 },
-    jibe: { label: 'Empannage…', dur: 2.6 },
-    duck: { label: 'Duck jibe…', dur: 2.6 },
-    carve: { label: 'Carving 360…', dur: 3.4 },
+    tack: { get label() { return `${TRICKS.tack}…`; }, dur: 3.0 },
+    jibe: { get label() { return `${TRICKS.jibe}…`; }, dur: 2.6 },
+    duck: { get label() { return `${TRICKS.duck}…`; }, dur: 2.6 },
+    carve: { get label() { return `${TRICKS.carve}…`; }, dur: 3.4 },
     // freestyle (baked spins: the board turns under the rig)
-    heli: { label: 'Hélitack…', dur: 3.3 },
-    airjibe: { label: 'Air jibe…', dur: 2.25, planing: true },
-    vulcan: { label: 'Vulcan…', dur: 2.5, planing: true },
-    spock: { label: 'Spock…', dur: 3.5, planing: true },
-    flaka: { label: 'Flaka…', dur: 2.7, planing: true },
+    heli: { get label() { return `${TRICKS.heli}…`; }, dur: 3.3 },
+    airjibe: { get label() { return `${TRICKS.airjibe}…`; }, dur: 2.25, planing: true },
+    vulcan: { get label() { return `${TRICKS.vulcan}…`; }, dur: 2.5, planing: true },
+    spock: { get label() { return `${TRICKS.spock}…`; }, dur: 3.5, planing: true },
+    flaka: { get label() { return `${TRICKS.flaka}…`; }, dur: 2.7, planing: true },
 };
 const POP_TIME = 0.16, LAND_TIME = 0.32;                     // s: crouch before the pop, absorbing the landing
 const LOOP_RATE = TAU / 0.75, LOOP_MAX = TAU / 0.5;          // rad/s: a relaxed loop, the fastest rotation
@@ -240,7 +245,7 @@ export const step = (s, input, dt) => {
                         : s.pushed ? ['Push loop', 'Double push loop', 'Triple push loop', 'Quadruple push loop']
                             : ['Back loop', 'Double back loop', 'Triple back loop', 'Quadruple back loop'])[k];
                     const pts = (fwd ? [600, 1500, 3000, 6000] : s.pushed ? [700, 1700, 3400, 6800] : [450, 1200, 2500, 5000])[k];
-                    award(s, name, sloppy ? Math.round(pts / 2) : pts, sloppy ? ' (réception limite)' : '');
+                    award(s, name, sloppy ? Math.round(pts / 2) : pts, sloppy ? tr(' (réception limite)', ' (sketchy landing)') : '');
                 }
                 if (s.tables && !s.pushed) award(s, 'tabletop', 250);
                 if (s.bothT > 0.25) award(s, 'noFootHand', 400);

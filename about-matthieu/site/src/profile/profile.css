@@ -169,3 +169,8 @@
 .lb-close { right: 16px; top: max(16px, env(safe-area-inset-top)); }
 .about .project-more { display: flex; gap: 10px; }
 .about .shot.mini { width: 96px; aspect-ratio: 3 / 4; border-radius: 10px; }
+.about .lang-btn { display: inline-grid; place-items: center; height: 40px; min-width: 40px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-2);
+  background: transparent; color: var(--fg-2); font: 600 12px/1 var(--font); letter-spacing: .08em; cursor: pointer; }
+.about .lang-btn:hover { color: var(--fg); border-color: rgba(255, 255, 255, .3); }
+/* phones: the nav keeps GitHub, the language and Play (LinkedIn stays in the hero's buttons) */
+@media (max-width: 480px) { .about .nav-end .icon-btn.in { display: none; } .about .nav-end { gap: 6px; } }

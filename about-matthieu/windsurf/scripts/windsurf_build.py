@@ -100,11 +100,6 @@ M_FIN = mat("Fin", (0.08, 0.08, 0.09, 1), 0.3)
 M_MAST = mat("Mast", (0.05, 0.05, 0.06, 1), 0.35)
 M_BOOM = mat("Boom", (0.75, 0.76, 0.78, 1), 0.3, metal=0.8)
 M_GRIP = mat("BoomGrip", (0.03, 0.03, 0.03, 1), 0.8)
-M_FILM = mat("SailTurquoise", (0.0, 0.50, 0.62, 1), 0.35, alpha=0.88)
-M_XPLY = mat("SailWindow", (0.86, 0.88, 0.90, 1), 0.25, alpha=0.55)
-M_DARK = mat("SailPurple", (0.16, 0.05, 0.42, 1), 0.4, alpha=0.92)
-M_TAPE = mat("SailYellow", (0.72, 0.85, 0.02, 1), 0.4)
-M_LUFF = mat("SailLuffSleeve", (0.0, 0.42, 0.55, 1), 0.5)
 M_BATTEN = mat("SailBatten", (0.18, 0.07, 0.45, 1), 0.4)
 
 def mesh_obj(name, verts, faces, mats, face_mat=None, smooth=True):

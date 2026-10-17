@@ -22,3 +22,12 @@ is held freely, the windsurf rig is pulled to windward) and the body moves the r
 
 Pose knobs (environment): `HZ` hip height above the deck (0.88 m), `HX` hip offset to windward, `POLE_LEG`, `POLE_ARM`.
 The paths in the scripts point to the working directories used to build it; adjust them for another machine.
+
+Other generated assets:
+
+- `scripts/sail_print.py` (Python + Pillow) paints `textures/sail_print.png`, the sail body in the E_Pace 2025 look (C20 colours,
+  no logos), mapped on the sail's (u, v) coordinates by `gear_windsurf.py`. Run it before the build when the design changes.
+- `scripts/head_build.py` (Blender, same avatar and build) exports `site/public/models/head.glb`: Matthieu's head and
+  shoulders in a wetsuit collar, the pilot in the Tintin sharks' cockpit:
+  `AVATAR_GLB=avatar.glb blender -b --python scripts/head_build.py -- head.glb`
+- `scripts/app_icons.py` (Pillow) draws the app icons in `site/public/icons/`.

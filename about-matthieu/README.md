@@ -42,6 +42,15 @@ inside the model is derived from them.
 
 Code: Apache-2.0 (as Ocearo UI). Texts, photos and the avatar: © Matthieu Laborie, all rights reserved.
 
+## Languages and app
+
+The page and the game are in French and English: the browser's preferred languages pick one (French if French comes
+first, English otherwise); `?lang=fr|en` or the FR / EN button overrides it and is remembered (`src/i18n.js`).
+
+It installs as an app (PWA) on Android and iPhone ("Add to Home Screen"): `public/manifest.webmanifest` opens the game
+full screen, `public/sw.js` keeps the page, the code and the models for offline play (bump its `VERSION` to drop an
+older cache). Icons: `windsurf/scripts/app_icons.py`.
+
 ## Checks
 
 `?test#windsurf` stops the frame loop and exposes `window.__ride` (`frames(n)` advances the game exactly n frames at 60 fps,

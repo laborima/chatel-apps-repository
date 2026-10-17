@@ -108,7 +108,7 @@ mast = mesh_obj("Mast", mv, mf, [M_MAST]); mast.parent = rig
 # sail outline in rig-local (x: camber side, y: aft is negative, z: up)
 TACK = mast_pt(0.10); MTOP = mast_pt(LUFF - 0.02)
 CLEW = Vector((0, -BOOM + 0.04, BOOMH + 0.10))
-HEADC = Vector((0, MTOP.y - 0.50, LUFF - 0.16))           # square head: ~50 cm wide
+HEADC = Vector((0, MTOP.y - 0.62, LUFF - 0.14))           # wide, square head (the 2025 cut): ~62 cm
 def luff_c(t): return mast_pt(0.10 + t * (LUFF - 0.12))
 def head_c(t): return MTOP.lerp(HEADC, t) + Vector((0, 0, 0.03 * math.sin(math.pi * t)))
 def leech_c(t):           # clew -> head corner, nearly straight with a little roach
@@ -124,30 +124,38 @@ def sail_point(u, v):
     camber = 0.095 * chord * math.sin(math.pi * u) ** 0.75 * (1 - 0.55 * v)     # draft forward, flatter and open at the head
     twist = 0.10 * v ** 1.5 * u                                                  # leech opens to leeward up high
     return Vector((camber + twist, p.y, p.z))
-NU, NV = 22, 44
-sv, sf, sm = [], [], []
+NU, NV = 28, 52
+sv, sf, sm, suv = [], [], [], []
 for i in range(NV + 1):
-    for j in range(NU + 1): sv.append(sail_point(j / NU, i / NV))
+    for j in range(NU + 1): sv.append(sail_point(j / NU, i / NV)); suv.append((j / NU, i / NV))
 for i in range(NV):
     for j in range(NU):
         a = i * (NU + 1) + j; sf.append((a, a + 1, a + NU + 2, a + NU + 1))
-        v_, u_ = (i + 0.5) / NV, (j + 0.5) / NU
-        win = 0.14 < v_ < 0.44 and 0.22 < u_ < 0.80                  # x-ply window, framed in yellow
-        frame = (0.12 < v_ < 0.46 and 0.20 < u_ < 0.82) and not win
-        if u_ < 0.045: sm.append(4)                                   # luff sleeve
-        elif win: sm.append(1)
-        elif frame: sm.append(3)
-        elif v_ < 0.10 or u_ > 0.84 and v_ < 0.62 or (u_ > 0.90): sm.append(2)   # purple foot and leech
-        else: sm.append(0)
-sail = mesh_obj("Sail", sv, sf, [M_FILM, M_XPLY, M_DARK, M_TAPE, M_LUFF], sm); sail.parent = rig
-# battens (6)
+        v_ = (i + 0.5) / NV
+        sm.append(1 if (j + 0.5) / NU * (luff_c(v_) - leech_c(v_)).length < 0.09 else 0)   # 9 cm luff sleeve, or the print
+
+def sail_material():
+    """The printed sail body: sail_print.png (made by sail_print.py), mapped on the sail's (u, v) coordinates."""
+    img = bpy.data.images.load(f"{WS}/../textures/sail_print.png"); img.pack()
+    m = bpy.data.materials.new("SailBody"); m.use_nodes = True; nt = m.node_tree; pr = nt.nodes["Principled BSDF"]
+    tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = img
+    nt.links.new(tx.outputs["Color"], pr.inputs["Base Color"]); nt.links.new(tx.outputs["Alpha"], pr.inputs["Alpha"])
+    pr.inputs["Roughness"].default_value = 0.32
+    m.surface_render_method = "BLENDED"; m.use_backface_culling = False
+    return m
+M_SAILBODY = sail_material()
+M_SLEEVE = mat("SailLuffSleeve", (0.02, 0.48, 0.66, 1), 0.45)
+sail = mesh_obj("Sail", sv, sf, [M_SAILBODY, M_SLEEVE], sm); sail.parent = rig
+uvl = sail.data.uv_layers.new(name="UVMap")
+for lp in sail.data.loops: uvl.data[lp.index].uv = suv[lp.vertex_index]
+# battens (5, as on the 6.2): violet tubes, the top ones shorter
 bv, bf = [], []
-for vb in (0.12, 0.30, 0.47, 0.62, 0.77, 0.91):
-    base = len(bv)
-    for j in range(NU + 1):
-        p = sail_point(j / NU, vb)
-        bv += [tuple(p + Vector((0.004, 0, -0.008))), tuple(p + Vector((0.004, 0, 0.008)))]
-    for j in range(NU): bf.append((base + 2 * j, base + 2 * j + 2, base + 2 * j + 3, base + 2 * j + 1))
+for vb, u1 in ((0.14, 1.0), (0.33, 1.0), (0.52, 1.0), (0.70, 0.97), (0.87, 0.93)):
+    base = len(bv); n = int(NU * u1)
+    for j in range(n + 1):
+        p = sail_point(u1 * j / n, vb)
+        bv += [tuple(p + Vector((0.006, 0, -0.012))), tuple(p + Vector((0.006, 0, 0.012)))]
+    for j in range(n): bf.append((base + 2 * j, base + 2 * j + 2, base + 2 * j + 3, base + 2 * j + 1))
 batt = mesh_obj("Battens", bv, bf, [M_BATTEN]); batt.parent = rig
 # battens joined into the sail so the shape keys move them too
 bpy.ops.object.select_all(action="DESELECT"); batt.select_set(True); sail.select_set(True)

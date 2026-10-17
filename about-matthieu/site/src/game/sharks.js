@@ -1,6 +1,8 @@
 // Tintin sharks (the one from Red Rackham's Treasure, built for real): they cruise around the board and must be
 // avoided. Hitting one is a fall; jumping over one scores. Plain logic, frame: x east, y north (m), like physics.js.
 
+import { tr } from '../i18n.js';
+
 const TAU = Math.PI * 2;
 export const SHARK_LEN = 3.6;                     // m, nose to tail
 const HALF = SHARK_LEN / 2;
@@ -44,11 +46,11 @@ export const updateSharks = (pack, s, dt) => {
             if (d < 2.6 && !sh.jumped && s.airTime > 0.12) {
                 sh.jumped = true;
                 s.score += 500;
-                s.events.push({ id: s.time + Math.random(), key: 'sharkJump', text: 'Par-dessus le requin !', pts: 500, t: s.time, bad: false });
+                s.events.push({ id: s.time + Math.random(), key: 'sharkJump', text: tr('Par-dessus le requin !', 'Over the shark!'), pts: 500, t: s.time, bad: false });
             }
         } else if (s.mode === 'sail' && d < 1.25) {
             s.mode = 'crash'; s.crashT = 2.6; s.man = null; s.loopTarget = 0; s.airPitch = 0;
-            s.events.push({ id: s.time + Math.random(), key: 'crash', text: 'Croqué par le requin de Tintin !', pts: 0, t: s.time, bad: true });
+            s.events.push({ id: s.time + Math.random(), key: 'crash', text: tr('Croqué par le requin de Tintin !', 'Bitten by the Tintin shark!'), pts: 0, t: s.time, bad: true });
             sh.h += Math.PI * 0.6;                                          // it swims off
         }
         if (d > 6) sh.jumped = false;

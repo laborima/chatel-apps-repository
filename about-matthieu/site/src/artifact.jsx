@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WindsurfGame from './game/WindsurfGame';
 import './styles.css';
+import { tr } from './i18n';
 
 async function loadModel(path, onPct) {
     const r = await fetch(path); if (!r.ok) throw new Error(r.status);
@@ -24,8 +25,8 @@ function Boot() {
             } catch (e) { setErr(String(e.message || e)); }
         })();
     }, []);
-    if (err && !url) return <div className="loading">Le modèle n'a pas pu être chargé ({err}). Recharge la page.</div>;
-    if (!url) return <div className="loading">Gréement de la planche… {pct ? `${pct} %` : ''}</div>;
+    if (err && !url) return <div className="loading">{tr(`Le modèle n'a pas pu être chargé (${err}). Recharge la page.`, `The model could not be loaded (${err}). Reload the page.`)}</div>;
+    if (!url) return <div className="loading">{tr('Gréement de la planche…', 'Rigging the board…')} {pct ? `${pct} %` : ''}</div>;
     return <WindsurfGame modelUrls={{ windsurf: url, wing }} />;
 }
 createRoot(document.getElementById('root')).render(<Boot />);

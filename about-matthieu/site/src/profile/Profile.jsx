@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useState } from 'react';
 import showcase from '../data/showcase.json';
 import highlights from '../data/highlights.json';
 import './profile.css';
+import { useLang, tr, field } from '../i18n';
 
 // the live 3D sea (three.js + the rider model) loads after the page is on screen
 const HeroScene = lazy(() => import('./HeroScene'));
@@ -10,11 +11,11 @@ const IMG = `${import.meta.env.BASE_URL}img/photos/`;
 const PROJ = `${import.meta.env.BASE_URL}img/projects/`;
 const USER = { name: 'Matthieu Laborie', login: 'laborima', url: 'https://github.com/laborima' };
 const PHOTOS = [      // 4 portraits + 1 landscape spanning two columns: two full rows of three
-    { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée' },
-    { src: 'plongee.webp', alt: 'Matthieu en combinaison de plongée, de retour sur le bateau, masque autour du cou' },
-    { src: 'planche-3.webp', alt: 'Matthieu accroché au harnais, pieds dans les straps' },
-    { src: 'planche-saut.webp', alt: 'Matthieu en saut devant la plage, la planche à la verticale', wide: true },
-    { src: 'combi.webp', alt: 'Matthieu en combinaison et harnais, de retour sur la plage' },
+    { src: 'planche-1.webp', alt: 'Matthieu en planche à voile, au planing, voile bordée', alt_en: 'Matthieu windsurfing, planing, sail sheeted in' },
+    { src: 'plongee.webp', alt: 'Matthieu en combinaison de plongée, de retour sur le bateau, masque autour du cou', alt_en: 'Matthieu in a diving suit, back on the boat, mask round his neck' },
+    { src: 'planche-3.webp', alt: 'Matthieu accroché au harnais, pieds dans les straps', alt_en: 'Matthieu hooked in, feet in the straps' },
+    { src: 'planche-saut.webp', alt: 'Matthieu en saut devant la plage, la planche à la verticale', alt_en: 'Matthieu jumping off the beach, the board upright', wide: true },
+    { src: 'combi.webp', alt: 'Matthieu en combinaison et harnais, de retour sur la plage', alt_en: 'Matthieu in wetsuit and harness, back on the beach' },
 ];
 
 /** Full-screen photo viewer: arrows / swipe-free buttons, Escape or a click outside closes it. */
@@ -27,9 +28,9 @@ const Lightbox = ({ i, list, onClose, onGo }) => {
     return (
         <div className="lightbox" role="dialog" aria-modal="true" aria-label={p.alt} onClick={onClose}>
             <img src={p.url} alt={p.alt} onClick={(e) => e.stopPropagation()} />
-            {many ? <button className="lb-btn lb-prev" aria-label="Photo précédente" onClick={(e) => { e.stopPropagation(); onGo(-1); }}>‹</button> : null}
-            {many ? <button className="lb-btn lb-next" aria-label="Photo suivante" onClick={(e) => { e.stopPropagation(); onGo(1); }}>›</button> : null}
-            <button className="lb-btn lb-close" aria-label="Fermer" onClick={onClose}>×</button>
+            {many ? <button className="lb-btn lb-prev" aria-label={tr('Photo précédente', 'Previous photo')} onClick={(e) => { e.stopPropagation(); onGo(-1); }}>‹</button> : null}
+            {many ? <button className="lb-btn lb-next" aria-label={tr('Photo suivante', 'Next photo')} onClick={(e) => { e.stopPropagation(); onGo(1); }}>›</button> : null}
+            <button className="lb-btn lb-close" aria-label={tr('Fermer', 'Close')} onClick={onClose}>×</button>
         </div>
     );
 };
@@ -40,12 +41,23 @@ const Icon = {
     arrow: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" d="M7 17 17 7M9 7h8v8" /></svg>,
 };
 
+/** Page title and description follow the language (the static ones in index.html are French). */
+const META = {
+    fr: ['Matthieu Laborie — auteur d\'Ocearo, voile et planche à voile', 'Matthieu Laborie — auteur d\'Ocearo. Mes projets entre la mer, l\'électronique et le code, et un tour en planche à voile.'],
+    en: ['Matthieu Laborie — author of Ocearo, sailing and windsurfing', 'Matthieu Laborie — author of Ocearo. My projects between the sea, electronics and code, and a windsurfing ride.'],
+};
+
 export default function Profile({ onPlay }) {
     const user = USER;
+    const [lang, setLang] = useLang();
+    useEffect(() => {
+        const [title, desc] = META[lang]; document.title = title;
+        document.querySelector('meta[name="description"]')?.setAttribute('content', desc);
+    }, [lang]);
     const [scrolled, setScrolled] = useState(false);
     const [hero3d, setHero3d] = useState(false);
     const [photo, setPhoto] = useState(null);           // { list: [{ url, alt }], i }
-    const gallery = PHOTOS.map((p) => ({ url: IMG + p.src, alt: p.alt }));
+    const gallery = PHOTOS.map((p) => ({ url: IMG + p.src, alt: field(p, 'alt') }));
     useEffect(() => {
         const f = () => setScrolled(window.scrollY > 24); f();
         window.addEventListener('scroll', f, { passive: true });
@@ -56,21 +68,24 @@ export default function Profile({ onPlay }) {
     }, []);
     return (
         <div className="about">
-            <a className="skip" href="#projets">Aller au contenu</a>
+            <a className="skip" href="#projets">{tr('Aller au contenu', 'Skip to content')}</a>
             <nav className={`about-nav ${scrolled ? 'scrolled' : ''}`} aria-label="Navigation">
                 <div className="wrap">
                     <a className="brand" href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                         <span className="brand-mark" aria-hidden="true" />Matthieu Laborie
                     </a>
                     <ul className="nav-links">
-                        <li><a href="#mer">Sur l'eau</a></li>
-                        <li><a href="#projets">Projets</a></li>
+                        <li><a href="#mer">{tr('Sur l\'eau', 'On the water')}</a></li>
+                        <li><a href="#projets">{tr('Projets', 'Projects')}</a></li>
                         <li><a href="#ride">Ride</a></li>
                     </ul>
                     <div className="nav-end">
-                        {showcase.linkedin ? <a className="icon-btn" href={showcase.linkedin} target="_blank" rel="noreferrer" aria-label="Parcours pro sur LinkedIn">{Icon.linkedin}</a> : null}
+                        {showcase.linkedin ? <a className="icon-btn in" href={showcase.linkedin} target="_blank" rel="noreferrer" aria-label={tr('Parcours pro sur LinkedIn', 'Career on LinkedIn')}>{Icon.linkedin}</a> : null}
                         <a className="icon-btn" href={user.url} target="_blank" rel="noreferrer" aria-label="GitHub">{Icon.github}</a>
-                        <button className="btn btn-primary btn-s" onClick={onPlay}>{Icon.play}Jouer</button>
+                        <button className="lang-btn" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={tr('Read in English', 'Lire en français')} lang={lang === 'fr' ? 'en' : 'fr'}>
+                            {lang === 'fr' ? 'EN' : 'FR'}
+                        </button>
+                        <button className="btn btn-primary btn-s" onClick={onPlay}>{Icon.play}{tr('Jouer', 'Play')}</button>
                     </div>
                 </div>
             </nav>
@@ -79,38 +94,38 @@ export default function Profile({ onPlay }) {
                 {hero3d ? <Suspense fallback={null}><HeroScene /></Suspense> : null}
                 <div className="hero-shade" aria-hidden="true" />
                 <div className="wrap hero-copy">
-                    <p className="eyebrow">À propos de l'auteur</p>
+                    <p className="eyebrow">{tr('À propos de l\'auteur', 'About the author')}</p>
                     <h1><span className="grad">{user.name}</span></h1>
-                    <p className="lead">{highlights.tagline}</p>
+                    <p className="lead">{field(highlights, 'tagline')}</p>
                     <ul className="chips">
-                        {highlights.facts.map((f) => <li key={f} className="chip"><i />{f}</li>)}
+                        {field(highlights, 'facts').map((f) => <li key={f} className="chip"><i />{f}</li>)}
                     </ul>
                     <div className="cta">
-                        <button className="btn btn-primary" onClick={onPlay}>{Icon.play}Jouer à Ride</button>
+                        <button className="btn btn-primary" onClick={onPlay}>{Icon.play}{tr('Jouer à Ride', 'Play Ride')}</button>
                         <a className="btn btn-ghost" href={user.url} target="_blank" rel="noreferrer">{Icon.github}GitHub · {user.login}</a>
-                        {showcase.linkedin ? <a className="btn btn-ghost" href={showcase.linkedin} target="_blank" rel="noreferrer">{Icon.linkedin}Parcours pro</a> : null}
+                        {showcase.linkedin ? <a className="btn btn-ghost" href={showcase.linkedin} target="_blank" rel="noreferrer">{Icon.linkedin}{tr('Parcours pro', 'Career')}</a> : null}
                     </div>
                 </div>
-                <p className="hero-caption">En direct : mon avatar sur la mer d'Ocearo, au crépuscule</p>
+                <p className="hero-caption">{tr('En direct : mon avatar sur la mer d\'Ocearo, au crépuscule', 'Live: my avatar on the Ocearo sea, at dusk')}</p>
             </header>
 
 
             <section className="section water" id="mer">
                 <div className="wrap water-grid">
                     <figure className="portrait">
-                        <img src={IMG + 'barre.webp'} alt="Matthieu à la barre d'un voilier, en ciré, gilet et longe" loading="lazy" />
-                        <figcaption><span>À la barre</span></figcaption>
+                        <img src={IMG + 'barre.webp'} alt={tr('Matthieu à la barre d\'un voilier, en ciré, gilet et longe', 'Matthieu at the helm of a sailing boat, in oilskins, lifejacket and tether')} loading="lazy" />
+                        <figcaption><span>{tr('À la barre', 'At the helm')}</span></figcaption>
                     </figure>
                     <div className="water-copy">
                         <div className="section-head">
-                            <p className="eyebrow">Sur l'eau</p>
-                            <h2>La mer d'abord</h2>
-                            <p className="lead">À la barre, sur une planche à voile ou sous l'eau : c'est en mer que naissent la plupart de ces projets.</p>
+                            <p className="eyebrow">{tr('Sur l\'eau', 'On the water')}</p>
+                            <h2>{tr('La mer d\'abord', 'The sea first')}</h2>
+                            <p className="lead">{tr('À la barre, sur une planche à voile ou sous l\'eau : c\'est en mer que naissent la plupart de ces projets.', 'At the helm, on a windsurf board or underwater: most of these projects start at sea.')}</p>
                         </div>
                         <div className="gallery">
                             {PHOTOS.map((p, i) => (
-                                <button key={p.src} className={`shot ${p.wide ? 'wide' : ''}`} onClick={() => setPhoto({ list: gallery, i })} aria-label={`Agrandir : ${p.alt}`}>
-                                    <img src={IMG + p.src} alt={p.alt} loading="lazy" />
+                                <button key={p.src} className={`shot ${p.wide ? 'wide' : ''}`} onClick={() => setPhoto({ list: gallery, i })} aria-label={`${tr('Agrandir', 'Enlarge')} : ${field(p, 'alt')}`}>
+                                    <img src={IMG + p.src} alt={field(p, 'alt')} loading="lazy" />
                                 </button>
                             ))}
                         </div>
@@ -123,31 +138,31 @@ export default function Profile({ onPlay }) {
             <section className="section" id="projets">
                 <div className="wrap">
                     <div className="section-head">
-                        <p className="eyebrow">Projets</p>
-                        <h2>L'atelier</h2>
-                        <p className="lead">Du logiciel de navigation au requin de bande dessinée : tout est fait main, le plus souvent en open source.</p>
+                        <p className="eyebrow">{tr('Projets', 'Projects')}</p>
+                        <h2>{tr('L\'atelier', 'The workshop')}</h2>
+                        <p className="lead">{tr('Du logiciel de navigation au requin de bande dessinée : tout est fait main, le plus souvent en open source.', 'From navigation software to a comic-book shark: all home-made, most of it open source.')}</p>
                     </div>
                     <div className="projects">
                         {showcase.projects.map((p, i) => (
                             <article key={p.id} className={`project ${i % 2 ? 'flip' : ''}`}>
-                                <div className={`project-img ${p.contain ? 'contain' : ''}`}><img src={PROJ + p.image} alt={p.alt} loading="lazy" /></div>
+                                <div className={`project-img ${p.contain ? 'contain' : ''}`}><img src={PROJ + p.image} alt={field(p, 'alt')} loading="lazy" /></div>
                                 <div className="project-copy">
-                                    <p className="eyebrow">{p.kicker}</p>
+                                    <p className="eyebrow">{field(p, 'kicker')}</p>
                                     <h3>{p.name}</h3>
-                                    <p>{p.text}</p>
+                                    <p>{field(p, 'text')}</p>
                                     {p.more ? (
                                         <div className="project-more">
                                             {p.more.map((m, k) => (
-                                                <button key={m.src} className="shot mini" aria-label={`Agrandir : ${m.alt}`}
-                                                        onClick={() => setPhoto({ list: [{ url: PROJ + p.image, alt: p.alt }, ...p.more.map((x) => ({ url: PROJ + x.src, alt: x.alt }))], i: k + 1 })}>
-                                                    <img src={PROJ + m.src} alt={m.alt} loading="lazy" />
+                                                <button key={m.src} className="shot mini" aria-label={`${tr('Agrandir', 'Enlarge')} : ${field(m, 'alt')}`}
+                                                        onClick={() => setPhoto({ list: [{ url: PROJ + p.image, alt: field(p, 'alt') }, ...p.more.map((x) => ({ url: PROJ + x.src, alt: field(x, 'alt') }))], i: k + 1 })}>
+                                                    <img src={PROJ + m.src} alt={field(m, 'alt')} loading="lazy" />
                                                 </button>
                                             ))}
                                         </div>
                                     ) : null}
                                     {p.links.length ? (
                                         <div className="project-links">
-                                            {p.links.map((l) => <a key={l.url} className="btn btn-ghost btn-s" href={l.url} target="_blank" rel="noreferrer">{l.label}{Icon.arrow}</a>)}
+                                            {p.links.map((l) => <a key={l.url} className="btn btn-ghost btn-s" href={l.url} target="_blank" rel="noreferrer">{field(l, 'label')}{Icon.arrow}</a>)}
                                         </div>
                                     ) : null}
                                 </div>
@@ -160,19 +175,26 @@ export default function Profile({ onPlay }) {
             <section className="section ride" id="ride">
                 <div className="wrap feature">
                     <div className="feature-copy">
-                        <p className="eyebrow">Le jeu</p>
-                        <h2>Ride, sur la mer d'Ocearo</h2>
-                        <p className="lead">Planche à voile et wing foil, avec mon avatar. Les vagues et le ciel viennent d'Ocearo UI.</p>
+                        <p className="eyebrow">{tr('Le jeu', 'The game')}</p>
+                        <h2>{tr('Ride, sur la mer d\'Ocearo', 'Ride, on the Ocearo sea')}</h2>
+                        <p className="lead">{tr('Planche à voile et wing foil, avec mon avatar. Les vagues et le ciel viennent d\'Ocearo UI.', 'Windsurfing and wing foiling, with my avatar. The waves and the sky come from Ocearo UI.')}</p>
                         <ul className="ticks">
-                            <li><span><b>Freestyle, slalom, balade</b> : combos, chrono, 20 défis et records.</span></li>
-                            <li><span><b>Les vraies figures</b> : forward, back et push loops, table-top, Vulcan, Spock, Flaka, duck jibe, hélitack.</span></li>
-                            <li><span><b>Les vagues pour tremplin</b>, le planing, le vol en foil, les gerbes et le son.</span></li>
-                            <li><span><b>Clavier, tactile ou manette PlayStation</b>, et une démo qui enchaîne tout.</span></li>
+                            {lang === 'fr' ? <>
+                                <li><span><b>Freestyle, slalom, balade</b> : combos, chrono, 21 défis et records.</span></li>
+                                <li><span><b>Les vraies figures</b>, à une, deux ou trois tapes : forward, back et push loops, table-top, Vulcan, Spock, Flaka, duck jibe, hélitack.</span></li>
+                                <li><span><b>Le pumping</b> pour décoller en wing, les vagues pour tremplin, le vol en foil, les gerbes et le son.</span></li>
+                                <li><span><b>Clavier, tactile ou manette PlayStation</b>, et une démo qui enchaîne tout.</span></li>
+                            </> : <>
+                                <li><span><b>Freestyle, slalom, cruise</b>: combos, a clock, 21 challenges and records.</span></li>
+                                <li><span><b>The real moves</b>, with one, two or three taps: forward, back and push loops, table-top, Vulcan, Spock, Flaka, duck jibe, helitack.</span></li>
+                                <li><span><b>Pumping</b> to take off on the wing, waves as ramps, foil flight, spray and sound.</span></li>
+                                <li><span><b>Keyboard, touch or PlayStation controller</b>, and a demo that runs through everything.</span></li>
+                            </>}
                         </ul>
-                        <div className="cta left"><button className="btn btn-primary" onClick={onPlay}>{Icon.play}Jouer maintenant</button></div>
+                        <div className="cta left"><button className="btn btn-primary" onClick={onPlay}>{Icon.play}{tr('Jouer maintenant', 'Play now')}</button></div>
                     </div>
-                    <button className="media" onClick={onPlay} aria-label="Jouer à Ride">
-                        <img src={`${import.meta.env.BASE_URL}img/windsurfer.webp`} alt="Le jeu Ride : le planchiste sur la mer d'Ocearo" loading="lazy" />
+                    <button className="media" onClick={onPlay} aria-label={tr('Jouer à Ride', 'Play Ride')}>
+                        <img src={`${import.meta.env.BASE_URL}img/windsurfer.webp`} alt={tr('Le jeu Ride : le planchiste sur la mer d\'Ocearo', 'The Ride game: the windsurfer on the Ocearo sea')} loading="lazy" />
                         <span className="media-play">{Icon.play}</span>
                         <span className="tag">JP Australia Magic Ride 119 · Duotone E_Pace 6.2</span>
                     </button>
@@ -182,8 +204,8 @@ export default function Profile({ onPlay }) {
 
             <footer className="about-foot">
                 <div className="wrap">
-                    <span>© {new Date().getFullYear()} {user.name}{showcase.linkedin ? <> · <a href={showcase.linkedin} target="_blank" rel="noreferrer">parcours pro sur LinkedIn</a></> : null}</span>
-                    <span>Mer, ciel et vagues : <a href="https://github.com/laborima/ocearo-ui" target="_blank" rel="noreferrer">Ocearo UI</a> · Polices Geist</span>
+                    <span>© {new Date().getFullYear()} {user.name}{showcase.linkedin ? <> · <a href={showcase.linkedin} target="_blank" rel="noreferrer">{tr('parcours pro sur LinkedIn', 'career on LinkedIn')}</a></> : null}</span>
+                    <span>{tr('Mer, ciel et vagues : ', 'Sea, sky and waves: ')}<a href="https://github.com/laborima/ocearo-ui" target="_blank" rel="noreferrer">Ocearo UI</a> · {tr('Polices Geist', 'Geist fonts')}</span>
                 </div>
             </footer>
         </div>

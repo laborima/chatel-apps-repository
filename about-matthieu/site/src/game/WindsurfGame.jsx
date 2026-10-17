@@ -13,9 +13,11 @@ import Sharks from './Sharks';
 import { createSharks, updateSharks } from './sharks';
 import { MainMenu, EndScreen } from './Menus';
 import { createTaps } from './taps';
+import { tr, useLang, getLang } from '../i18n';
+export const num = (n) => n.toLocaleString(getLang() === 'en' ? 'en-GB' : 'fr-FR');
 
 export const MODEL_URLS = { windsurf: MODEL_URL, wing: `${import.meta.env.BASE_URL}models/wingfoil.glb` };
-import { initialState, step, KNOT, SEA_STATES, MANOEUVRES, TAPS, CRAFTS, canDo, craftOf, seaParams } from './physics';
+import { initialState, step, KNOT, SEA_STATES, MANOEUVRES, TAPS, CRAFTS, canDo, craftOf, seaParams, TRICKS } from './physics';
 
 const deg = (r) => Math.round(((r * 180 / Math.PI) % 360 + 360) % 360);
 const FREESTYLE = [['heli', 'Hélitack', 'H'], ['airjibe', 'Air jibe', 'J'], ['vulcan', 'Vulcan', 'U'], ['spock', 'Spock', 'K'], ['flaka', 'Flaka', 'L']];
@@ -138,7 +140,7 @@ const TestHook = ({ state, input, game }) => {
 
 const Settings = ({ wind, sea, craft, onChange, onCraft, ready }) => (
     <details className="settings">
-        <summary>Mer et vent</summary>
+        <summary>{tr('Mer et vent', 'Sea and wind')}</summary>
         <div className="seas" role="radiogroup" aria-label="Sport">
             {Object.entries(CRAFTS).map(([k, v]) => (
                 <button key={k} role="radio" aria-checked={craft === k} className={craft === k ? 'on' : ''} disabled={!ready[k]} onClick={() => onCraft(k)}>
@@ -146,7 +148,7 @@ const Settings = ({ wind, sea, craft, onChange, onCraft, ready }) => (
                 </button>
             ))}
         </div>
-        <label htmlFor="wind">Vent : <b>{wind} nœuds</b></label>
+        <label htmlFor="wind">{tr('Vent : ', 'Wind: ')}<b>{wind} {tr('nœuds', 'knots')}</b></label>
         <input id="wind" type="range" min="8" max="35" step="1" value={wind} onChange={(e) => onChange({ wind: Number(e.target.value), sea })} />
         <div className="seas" role="radiogroup" aria-label="État de la mer">
             {Object.entries(SEA_STATES).map(([k, v]) => (
@@ -157,54 +159,56 @@ const Settings = ({ wind, sea, craft, onChange, onCraft, ready }) => (
 );
 
 // Names of the figures, and what each button does in the air
-const NAMES = { tack: 'Virement', jibe: 'Empannage', carve: 'Carving 360', duck: 'Duck jibe', heli: 'Hélitack', airjibe: 'Air jibe', vulcan: 'Vulcan', spock: 'Spock', flaka: 'Flaka' };
-const BTN = { jump: 'Saut', tack: 'Virer', jibe: 'Empanner', carve: '360' };
+const NAMES = TRICKS;
+const BTN = { get jump() { return tr('Saut', 'Jump'); }, get tack() { return tr('Virer', 'Tack'); }, get jibe() { return tr('Empanner', 'Jibe'); }, carve: '360' };
 const KEY = { jump: 'Espace', tack: 'V', jibe: 'E', carve: 'C' };
-const AIR_BTN = { jump: 'Forward', tack: 'Back', jibe: 'Table', carve: 'Lâcher' };
-const AIR = [['jump', 'Forward loop', 'chaque tape = un tour de plus'], ['tack', 'Back loop', 'avec Empanner tenu : push loop'],
-    ['jibe', 'Table-top', 'garder appuyé'], ['carve', 'Lâcher', '1 tape : un pied · 2 tapes : pied + main']];
+const AIR_BTN = { jump: 'Forward', tack: 'Back', jibe: 'Table', get carve() { return tr('Lâcher', 'Let go'); } };
+const PUMP = () => tr('Pomper', 'Pump');
+const AIR = () => [['jump', 'Forward loop', tr('chaque tape = un tour de plus', 'each tap = one more turn')],
+    ['tack', 'Back loop', tr('avec Empanner tenu : push loop', 'holding Jibe: push loop')],
+    ['jibe', 'Table-top', tr('garder appuyé', 'hold it')], ['carve', tr('Lâcher', 'Let go'), tr('1 tape : un pied · 2 tapes : pied + main', '1 tap: a foot · 2 taps: foot and hand')]];
 const Keys = ({ k }) => k.map((x, i) => <React.Fragment key={x}>{i ? ' ' : ''}<kbd>{x}</kbd></React.Fragment>);
 const times = (n) => (n > 1 ? ` ×${n}` : '');
 
 /** Legend of every figure and the buttons that make it. */
 const Legend = ({ s }) => (
     <details className="legend">
-        <summary>Figures</summary>
-        <h4>Sur l'eau</h4>
+        <summary>{tr('Figures', 'Moves')}</summary>
+        <h4>{tr('Sur l\'eau', 'On the water')}</h4>
         <ul>
-            <li><Keys k={[BTN.jump]} /> sans planer : pomper (tape en rythme ou garde appuyé){craftOf(s).pumpToFly ? ' — 3 coups pour décoller' : ''}</li>
-            <li><Keys k={[BTN.jump]} /> au planing : saut · <Keys k={[`${BTN.jump} ×2`]} /> forward loop</li>
+            <li><Keys k={[BTN.jump]} /> {tr('sans planer : pomper (tape en rythme ou garde appuyé)', 'below planing: pump (tap in rhythm or hold)')}{craftOf(s).pumpToFly ? tr(' — 3 coups pour décoller', ' — 3 strokes to take off') : ''}</li>
+            <li><Keys k={[BTN.jump]} /> {tr('au planing : saut', 'planing: jump')} · <Keys k={[`${BTN.jump} ×2`]} /> forward loop</li>
             {Object.entries(TAPS).flatMap(([b, kinds]) => kinds.map((kind, i) => (canDo(s, kind) ? (
-                <li key={kind}><Keys k={[`${BTN[b]}${times(i + 1)}`]} /> {NAMES[kind]}{MANOEUVRES[kind]?.planing ? <i> · au planing</i> : null}</li>) : null)))}
+                <li key={kind}><Keys k={[`${BTN[b]}${times(i + 1)}`]} /> {NAMES[kind]}{MANOEUVRES[kind]?.planing ? <i> · {tr('au planing', 'planing')}</i> : null}</li>) : null)))}
         </ul>
-        <h4>En l'air (les boutons changent de nom)</h4>
-        <ul>{AIR.map(([b, t, d]) => <li key={b}><Keys k={[BTN[b]]} /> {t} <i>· {d}</i></li>)}</ul>
-        <p>Clavier : {Object.entries(KEY).map(([b, k]) => `${k} = ${BTN[b]}`).join(' · ')} · ← → diriger (en l'air : table-top) · ↑ ↓ tenus en l'air : loops à la chaîne · F / G lâcher pied / main.</p>
-        <p>Manette PlayStation : ✕ {BTN.jump}, □ {BTN.tack}, ○ {BTN.jibe}, △ {BTN.carve} (mêmes tapes multiples), stick gauche pour diriger, L1 pied, R1 main.</p>
+        <h4>{tr('En l\'air (les boutons changent de nom)', 'In the air (the buttons change names)')}</h4>
+        <ul>{AIR().map(([b, t, d]) => <li key={b}><Keys k={[BTN[b]]} /> {t} <i>· {d}</i></li>)}</ul>
+        <p>{tr('Clavier', 'Keyboard')} : {Object.entries(KEY).map(([b, k]) => `${k} = ${BTN[b]}`).join(' · ')} · {tr('← → diriger (en l\'air : table-top) · ↑ ↓ tenus en l\'air : loops à la chaîne · F / G lâcher pied / main.', '← → steer (in the air: table-top) · ↑ ↓ held in the air: loops in a row · F / G let go a foot / a hand.')}</p>
+        <p>{tr('Manette PlayStation', 'PlayStation controller')} : ✕ {BTN.jump}, □ {BTN.tack}, ○ {BTN.jibe}, △ {BTN.carve} {tr('(mêmes tapes multiples), stick gauche pour diriger, L1 pied, R1 main.', '(same multiple taps), left stick to steer, L1 foot, R1 hand.')}</p>
     </details>
 );
 
 /** What to do now: pumping, a ramp, a shark, the figure being counted. */
 const hintFor = (s, tap) => {
-    if (tap) return [[`${BTN[tap.k]}${times(tap.n)}`, `${NAMES[tap.kind]}${TAPS[tap.k].length > tap.n && canDo(s, TAPS[tap.k][tap.n]) ? ` · encore une tape : ${NAMES[TAPS[tap.k][tap.n]]}` : ''}`]];
-    if (s.mode === 'sail' && s.sharkAhead != null) return [['!', `Requin de Tintin droit devant, ${Math.round(s.sharkAhead)} m : évite-le ou saute par-dessus`]];
+    if (tap) return [[`${BTN[tap.k]}${times(tap.n)}`, `${NAMES[tap.kind]}${TAPS[tap.k].length > tap.n && canDo(s, TAPS[tap.k][tap.n]) ? ` · ${tr('encore une tape', 'one more tap')} : ${NAMES[TAPS[tap.k][tap.n]]}` : ''}`]];
+    if (s.mode === 'sail' && s.sharkAhead != null) return [['!', tr(`Requin de Tintin droit devant, ${Math.round(s.sharkAhead)} m : évite-le ou saute par-dessus`, `Tintin shark dead ahead, ${Math.round(s.sharkAhead)} m: dodge it or jump over it`)]];
     if (s.mode !== 'sail' || s.man) return null;
-    if (!s.planing) return [['Pomper', craftOf(s).pumpToFly ? 'pompe pour décoller : tape en rythme ou garde appuyé' : 'pompe pour partir au planing']];
-    if (s.ramp) return [[BTN.jump, 'décoller haut sur la vague !']];
+    if (!s.planing) return [[PUMP(), craftOf(s).pumpToFly ? tr('pompe pour décoller : tape en rythme ou garde appuyé', 'pump to take off: tap in rhythm or hold') : tr('pompe pour partir au planing', 'pump to get planing')]];
+    if (s.ramp) return [[BTN.jump, tr('décoller haut sur la vague !', 'take off high on the wave!')]];
     // the first minute: one tip at a time, so the multi-tap figures are found without opening the legend
     if (s.time < 45) {
-        const tips = TIPS.filter((t) => !t.k || canDo(s, t.k));
+        const tips = TIPS().filter((t) => !t.k || canDo(s, t.k));
         const t = tips[Math.floor(s.time / 6) % tips.length]; return [[t.b, t.t]];
     }
     return null;
 };
-const TIPS = [
-    { b: '⟲ ⟳', t: 'diriger · au vent arrière ou bout au vent, ça empanne ou ça vire tout seul' },
-    { b: 'Saut ×2', t: 'forward loop (chaque tape en l\'air ajoute un tour)' },
-    { b: 'Virer ×2', t: 'hélitack', k: 'heli' },
-    { b: 'Empanner ×2', t: 'duck jibe · ×3 : air jibe', k: 'duck' },
-    { b: '360 ×2', t: 'vulcan · ×3 : spock', k: 'vulcan' },
-    { b: 'Lâcher', t: 'en l\'air : un pied, ×2 pied + main' },
+const TIPS = () => [
+    { b: '⟲ ⟳', t: tr('diriger · au vent arrière ou bout au vent, ça empanne ou ça vire tout seul', 'steer · dead downwind or head to wind, it jibes or tacks by itself') },
+    { b: `${BTN.jump} ×2`, t: tr('forward loop (chaque tape en l\'air ajoute un tour)', 'forward loop (each tap in the air adds a turn)') },
+    { b: `${BTN.tack} ×2`, t: TRICKS.heli, k: 'heli' },
+    { b: `${BTN.jibe} ×2`, t: `${TRICKS.duck} · ×3 : ${TRICKS.airjibe}`, k: 'duck' },
+    { b: '360 ×2', t: `${TRICKS.vulcan} · ×3 : ${TRICKS.spock}`, k: 'vulcan' },
+    { b: AIR_BTN.carve, t: tr('en l\'air : un pied, ×2 pied + main', 'in the air: a foot, ×2 foot and hand') },
 ];
 
 /** Top-centre bar: clock, score and combo (freestyle), clock and next mark (slalom). */
@@ -215,14 +219,14 @@ const SessionBar = ({ s, sess }) => {
         return (
             <div className="sbar" aria-live="off">
                 <span className={`clock ${sess.left < 10 ? 'hurry' : ''}`}>{Math.ceil(sess.left)}<small>s</small></span>
-                <span className="sscore">{sess.score.toLocaleString('fr-FR')}<small> pts</small></span>
+                <span className="sscore">{num(sess.score)}<small> pts</small></span>
                 {sess.combo > 1 && comboLeft > 0 ? <span className="combo">Combo ×{sess.mult}<i style={{ width: `${comboLeft * 100}%` }} /></span> : null}
             </div>
         );
     }
     const m = COURSE[Math.min(sess.mark, COURSE.length - 1)]; const tw = toward(s, m);
     const rel = (tw.bearing - s.heading) * 180 / Math.PI;
-    const label = m.kind === 'start' ? 'Départ' : m.kind === 'finish' ? 'Arrivée' : `Bouée ${sess.mark} / ${COURSE.length - 2}`;
+    const label = m.kind === 'start' ? tr('Départ', 'Start') : m.kind === 'finish' ? tr('Arrivée', 'Finish') : `${tr('Bouée', 'Mark')} ${sess.mark} / ${COURSE.length - 2}`;
     return (
         <div className="sbar" aria-live="off">
             <span className="clock">{sess.started ? fmtTime(sess.time) : '0:00.0'}</span>
@@ -237,9 +241,9 @@ const SessionBar = ({ s, sess }) => {
 /** Demo: which figure, how to do it, and a way out. */
 const DemoBanner = ({ demo, onStop }) => (
     <div className="demo-banner" role="status">
-        <span className="demo-tag">Démo · {demo.done ? 'terminée' : `${demo.i + 1} / ${demo.n}`}</span>
-        {demo.done ? <b>Tout y est passé !</b> : <><b>{demo.step.name}</b><span className="demo-keys">{demo.step.keys}</span></>}
-        <button className="hud-btn" onClick={onStop}>Arrêter</button>
+        <span className="demo-tag">{tr('Démo', 'Demo')} · {demo.done ? tr('terminée', 'done') : `${demo.i + 1} / ${demo.n}`}</span>
+        {demo.done ? <b>{tr('Tout y est passé !', 'That\'s all of them!')}</b> : <><b>{tr(...demo.step.name)}</b><span className="demo-keys">{tr(...demo.step.keys)}</span></>}
+        <button className="hud-btn" onClick={onStop}>{tr('Arrêter', 'Stop')}</button>
     </div>
 );
 
@@ -274,29 +278,30 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
     });
     // the four action buttons: what they do now (on the water, pumping, in the air), and their multi-tap figures
     const air = s.mode === 'air';
-    const label = (b) => (air ? AIR_BTN[b] : b === 'jump' && !s.planing ? 'Pomper' : BTN[b]);
+    const label = (b) => (air ? AIR_BTN[b] : b === 'jump' && !s.planing ? PUMP() : BTN[b]);
     const sub = (b) => {
-        if (air) return b === 'carve' ? (s.oneHand ? 'pied + main' : s.oneFoot ? 'un pied' : '') : '';
-        if (b === 'jump') return s.planing ? '×2 forward' : craftOf(s).pumpToFly ? 'en rythme' : '';
+        if (air) return b === 'carve' ? (s.oneHand ? tr('pied + main', 'foot + hand') : s.oneFoot ? tr('un pied', 'a foot') : '') : '';
+        if (b === 'jump') return s.planing ? '×2 forward' : craftOf(s).pumpToFly ? tr('en rythme', 'in rhythm') : '';
         return (TAPS[b] || []).slice(1).map((kind, i) => (canDo(s, kind) ? `×${i + 2} ${NAMES[kind]}` : null)).filter(Boolean).join(' · ');
     };
     const recent = sess ? sess.popups : s.events.filter((e) => s.time - e.t < 3);
-    const status = s.mode === 'air' ? 'En l\'air' : s.mode === 'crash' ? 'Water-start…' : s.man ? MANOEUVRES[s.man.kind].label : s.planing ? (s.craft === 'wing' ? 'En vol' : 'Planing') : 'Archimède';
+    const status = s.mode === 'air' ? tr('En l\'air', 'Airborne') : s.mode === 'crash' ? 'Water-start…' : s.man ? MANOEUVRES[s.man.kind].label : s.planing ? (s.craft === 'wing' ? tr('En vol', 'Flying') : 'Planing') : tr('Archimède', 'Displacement');
+    const KN = tr('nœuds', 'knots');
     return (
         <div className={`hud ${compact ? 'compact' : ''}`}>
             {compact ? (
                 <div className="hud-top">
                     <div className="hud-left">
-                        {onExit ? <button className="hud-btn icon" onClick={onExit} aria-label="Retour à la fiche">←</button> : null}
+                        {onExit ? <button className="hud-btn icon" onClick={onExit} aria-label={tr('Retour à la fiche', 'Back to the page')}>←</button> : null}
                         <button className="hud-btn icon" onClick={onMenu} aria-label="Menu">☰</button>
                     </div>
                     <div className="hud-stats">
-                        <div className="stat big"><span className="v">{knots}</span><span className="u">nœuds</span></div>
-                        {s.mode === 'air' ? <div className="stat"><span className="v">{(Math.abs(s.airPitch) / (2 * Math.PI)).toFixed(1)}</span><span className="u">tours</span></div>
+                        <div className="stat big"><span className="v">{knots}</span><span className="u">{KN}</span></div>
+                        {s.mode === 'air' ? <div className="stat"><span className="v">{(Math.abs(s.airPitch) / (2 * Math.PI)).toFixed(1)}</span><span className="u">{tr('tours', 'turns')}</span></div>
                             : sess?.mode !== 'freestyle' ? <div className="stat score"><span className="v">{s.score}</span><span className="u">points</span></div> : null}
                     </div>
                     <div className="hud-right">
-                        <div className="wind" title="Direction du vent par rapport à la planche">
+                        <div className="wind" title={tr('Direction du vent par rapport à la planche', 'Wind direction relative to the board')}>
                             <WindDial s={s} size={40} />
                             <span className={`badge ${s.planing || s.mode === 'air' ? 'on' : ''}`}>{status}</span>
                         </div>
@@ -306,24 +311,24 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
             ) : (
             <div className="hud-top">
                 <div className="hud-left">
-                    {onExit ? <button className="hud-btn" onClick={onExit} aria-label="Retour à la fiche">← Retour</button> : null}
+                    {onExit ? <button className="hud-btn" onClick={onExit} aria-label={tr('Retour à la fiche', 'Back to the page')}>← {tr('Retour', 'Back')}</button> : null}
                     <button className="hud-btn ghosty" onClick={onMenu}>Menu</button>
-                    <button className="hud-btn ghosty" onClick={onReset}>Recommencer</button>
+                    <button className="hud-btn ghosty" onClick={onReset}>{tr('Recommencer', 'Restart')}</button>
                 </div>
                 <div className="hud-stats">
-                    <div className="stat big"><span className="v">{knots}</span><span className="u">nœuds</span></div>
-                    <div className="stat"><span className="v">{deg(s.heading)}°</span><span className="u">cap</span></div>
-                    <div className="stat"><span className="v">{Math.abs(Math.round((s.twa ?? 0) * 180 / Math.PI))}°</span><span className="u">angle au vent</span></div>
-                    <div className="stat"><span className="v">{(s.tws / KNOT).toFixed(0)}</span><span className="u">vent</span></div>
-                    <div className="stat"><span className="v">{(s.topSpeed / KNOT).toFixed(1)}</span><span className="u">vitesse max</span></div>
-                    {s.mode === 'air' ? <div className="stat"><span className="v">{(Math.abs(s.airPitch) / (2 * Math.PI)).toFixed(1)}</span><span className="u">tours</span></div> : null}
+                    <div className="stat big"><span className="v">{knots}</span><span className="u">{KN}</span></div>
+                    <div className="stat"><span className="v">{deg(s.heading)}°</span><span className="u">{tr('cap', 'heading')}</span></div>
+                    <div className="stat"><span className="v">{Math.abs(Math.round((s.twa ?? 0) * 180 / Math.PI))}°</span><span className="u">{tr('angle au vent', 'wind angle')}</span></div>
+                    <div className="stat"><span className="v">{(s.tws / KNOT).toFixed(0)}</span><span className="u">{tr('vent', 'wind')}</span></div>
+                    <div className="stat"><span className="v">{(s.topSpeed / KNOT).toFixed(1)}</span><span className="u">{tr('vitesse max', 'top speed')}</span></div>
+                    {s.mode === 'air' ? <div className="stat"><span className="v">{(Math.abs(s.airPitch) / (2 * Math.PI)).toFixed(1)}</span><span className="u">{tr('tours', 'turns')}</span></div> : null}
                     <div className="stat score"><span className="v">{s.score}</span><span className="u">points</span></div>
                 </div>
                 <div className="hud-right">
-                    <div className="wind" title="Direction du vent par rapport à la planche">
+                    <div className="wind" title={tr('Direction du vent par rapport à la planche', 'Wind direction relative to the board')}>
                         <WindDial s={s} size={60} />
                         <span className={`badge ${s.planing || s.mode === 'air' ? 'on' : ''}`}>{status}</span>
-                        {s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">Rampe !</span> : null}
+                        {s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">{tr('Rampe !', 'Ramp!')}</span> : null}
                     </div>
                     <Settings wind={wind} sea={sea} craft={craft} ready={ready} onChange={onSettings} onCraft={onCraft} />
                     <Legend s={s} />
@@ -334,19 +339,20 @@ const Hud = ({ s, sess, demo, onStopDemo, onExit, onReset, onMenu, input, press,
             <div className="tricks" aria-live="polite">
                 {recent.map((e) => (
                     <div key={e.id} className={`trick ${e.bad ? 'bad' : ''} ${e.challenge ? 'challenge' : ''} ${e.mark ? 'mark' : ''}`}>
-                        {e.text}{e.pts ? <b> +{e.pts.toLocaleString('fr-FR')}</b> : null}{e.mult > 1 ? <em> ×{e.mult}</em> : null}
+                        {e.text}{e.pts ? <b> +{num(e.pts)}</b> : null}{e.mult > 1 ? <em> ×{e.mult}</em> : null}
                     </div>
                 ))}
             </div>
             <div className="hud-bottom">
                 {!air && s.mode === 'sail' && !s.planing && craftOf(s).pumpToFly ? <div className="pump-gauge" aria-label="Pumping"><i style={{ width: `${Math.min(100, (s.pumpLift || 0) * 100)}%` }} /></div> : null}
                 {(() => { const h = hintFor(s, tap); return h ? <div className={`hint ${h[0][0] === '!' ? 'warn' : ''}`} aria-live="polite">{h.map(([k, t]) => <span key={k}><kbd>{k}</kbd> {t}</span>)}</div> : null; })()}
-                {compact && s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">Rampe !</span> : null}
-                {compact ? null : <p className="help"><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ⟲ ⟳ diriger · tape 1, 2 ou 3 fois un bouton · <b>Figures</b> en haut à droite</p>}
+                {compact && s.ramp && s.mode === 'sail' && !s.man ? <span className="badge ramp">{tr('Rampe !', 'Ramp!')}</span> : null}
+                {compact ? null : <p className="help">{tr(<><b>1 doigt</b> tourner la vue · <b>2 doigts</b> zoomer · ⟲ ⟳ diriger · tape 1, 2 ou 3 fois un bouton · <b>Figures</b> en haut à droite</>,
+                    <><b>1 finger</b> turns the view · <b>2 fingers</b> zoom · ⟲ ⟳ steer · tap a button 1, 2 or 3 times · <b>Moves</b> top right</>)}</p>}
                 <div className="controls">
-                    <div className="stick" role="group" aria-label="Diriger">
-                        <button className="pad" {...hold('left')} aria-label="Gauche">⟲</button>
-                        <button className="pad" {...hold('right')} aria-label="Droite">⟳</button>
+                    <div className="stick" role="group" aria-label={tr('Diriger', 'Steer')}>
+                        <button className="pad" {...hold('left')} aria-label={tr('Gauche', 'Left')}>⟲</button>
+                        <button className="pad" {...hold('right')} aria-label={tr('Droite', 'Right')}>⟳</button>
                     </div>
                     <div className={`actions ${air ? 'in-air' : ''}`} role="group" aria-label="Actions">
                         {['jump', 'tack', 'jibe', 'carve'].map((b) => (
@@ -406,7 +412,7 @@ const WindsurfGame = ({ onExit, modelUrl, modelUrls }) => {
     const state = useRef(initialState({ windKn: 18, sea: 'clapot' })); const input = useRef({});
     const [snap, setSnap] = useState({ s: state.current, sess: null });
     const view = useRef({ yaw: 0, pitch: 0, dist: 1, active: false });
-    const gestures = useCamGestures(view); const compact = useCompact();
+    const gestures = useCamGestures(view); const compact = useCompact(); useLang();
     // everything the frame loop needs, without re-rendering the canvas
     const game = useRef(null);
     if (!game.current) game.current = { phase: 'menu', session: null, save: loadSave(), audio: createAudio(), craft: 'windsurf', sharksOn: true, sharksActive: false, sharks: null, taps: createTaps() };

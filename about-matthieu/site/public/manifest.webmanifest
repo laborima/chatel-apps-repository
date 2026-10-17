@@ -1,0 +1,23 @@
+{
+  "name": "Ride — Matthieu Laborie",
+  "short_name": "Ride",
+  "description": "Windsurf and wing foil on the Ocearo sea, by Matthieu Laborie. Planche à voile et wing foil sur la mer d'Ocearo.",
+  "id": "./",
+  "start_url": "./?source=pwa#windsurf",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "categories": ["games", "sports"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Ride", "url": "./?source=pwa#windsurf", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Matthieu Laborie", "short_name": "Profil", "url": "./?source=pwa" }
+  ]
+}

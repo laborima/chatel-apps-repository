@@ -11,7 +11,8 @@
       "links": [
         {
           "label": "Le site",
-          "url": "https://laborima.github.io/ocearo-ui/"
+          "url": "https://laborima.github.io/ocearo-ui/",
+          "label_en": "Website"
         },
         {
           "label": "ocearo-ui",
@@ -21,7 +22,10 @@
           "label": "ocearo-core",
           "url": "https://github.com/laborima/ocearo-core"
         }
-      ]
+      ],
+      "kicker_en": "Navigation · Signal K",
+      "text_en": "The boat, AIS traffic, laylines, depths, weather and tide, together in one live 3D view. Ocearo Core gives it a voice: collision watch, anchor alarm, sailing coach. Open source, on a Raspberry Pi, a tablet or a phone.",
+      "alt_en": "The Ocearo dashboard in night mode"
     },
     {
       "id": "gridviewer",
@@ -35,7 +39,10 @@
           "label": "GitHub",
           "url": "https://github.com/laborima/gridviewer"
         }
-      ]
+      ],
+      "kicker_en": "Oceanography",
+      "text_en": "Ocean and climate grids bigger than memory, opened in a blink: maps, vertical sections, a 3D globe. Software from 2006, born at Mercator Ocean, back afloat.",
+      "alt_en": "GridViewer: sea surface temperature on a 3D globe"
     },
     {
       "id": "chatel-windsurf",
@@ -53,13 +60,18 @@
       "more": [
         {
           "src": "chatel-windsurf-2.webp",
-          "alt": "Les activités recommandées selon le profil, avec leur score et le meilleur créneau"
+          "alt": "Les activités recommandées selon le profil, avec leur score et le meilleur créneau",
+          "alt_en": "The recommended activities for each profile, with their score and the best slot"
         },
         {
           "src": "chatel-windsurf-3.webp",
-          "alt": "L'application sur téléphone"
+          "alt": "L'application sur téléphone",
+          "alt_en": "The app on a phone"
         }
-      ]
+      ],
+      "kicker_en": "Châtelaillon-Plage",
+      "text_en": "The morning question: will there be wind? Wind, weather and tide combined to find the right slot, right down to the watch, with a weather plugin for Signal K.",
+      "alt_en": "Châtel Météo Planner: live wind, tide, sun, forecasts, wind map and the harbour webcam"
     },
     {
       "id": "mostikator",
@@ -73,7 +85,10 @@
           "label": "GitHub",
           "url": "https://github.com/laborima/chatel-apps-repository/tree/master/mostikator"
         }
-      ]
+      ],
+      "kicker_en": "Mosquitoes beware",
+      "text_en": "A turbolaser-style turret spots mosquitoes with a camera, predicts their flight… and sprays them. About thirty frames a second on an ESP32-P4, and a PS5 controller to take over.",
+      "alt_en": "The Mostikator turret: camera, aiming laser and nozzle on the same pan-tilt mount"
     },
     {
       "id": "poi-lab",
@@ -87,7 +102,10 @@
           "label": "GitHub",
           "url": "https://github.com/laborima/chatel-apps-repository/tree/master/signalk-esp-pond-sensor"
         }
-      ]
+      ],
+      "kicker_en": "Signal K · ESP32",
+      "text_en": "The pond's dashboard: water temperature, pH, conductivity, level, light and weather, read by a small ESP32 box with a screen and sent to Signal K.",
+      "alt_en": "The POI Monitor box: an ESP32 and its screen in a waterproof case"
     },
     {
       "id": "aquaponie",
@@ -96,7 +114,10 @@
       "text": "Les poissons nourrissent les plantes, les plantes filtrent l'eau. Un bassin vitré, un bac de culture au-dessus, une gouttière pour le retour, et des capteurs partout.",
       "image": "aquaponie.webp",
       "alt": "Le bassin d'aquaponie : poissons rouges derrière une vitre, bac de culture en bois au-dessus, terrasse en bois",
-      "links": []
+      "links": [],
+      "kicker_en": "Home-made",
+      "text_en": "The fish feed the plants, the plants clean the water. A glass-fronted pond, a grow bed above it, a gutter for the return, and sensors everywhere.",
+      "alt_en": "The aquaponics pond: goldfish behind glass, a wooden grow bed above, a wooden deck"
     },
     {
       "id": "requin-tintin",
@@ -109,9 +130,13 @@
       "more": [
         {
           "src": "requin-tintin-2.webp",
-          "alt": "Le requin sur le quai, avant la mise à l'eau, l'hélice sous le ventre"
+          "alt": "Le requin sur le quai, avant la mise à l'eau, l'hélice sous le ventre",
+          "alt_en": "The shark on the quay before launching, propeller under its belly"
         }
-      ]
+      ],
+      "kicker_en": "Home-made",
+      "text_en": "The shark from Red Rackham's Treasure, out of the comic book. It doesn't dive, but you climb in behind its windscreen and it sails, propeller under its belly.",
+      "alt_en": "The Tintin shark built by Matthieu, on the beach"
     },
     {
       "id": "jet-ski",
@@ -120,7 +145,10 @@
       "text": "Un jet ski construit de A à Z, de la coque au guidon, ici au bord du lac avant sa mise à l'eau.",
       "image": "jet-ski.webp",
       "alt": "Le jet ski noir fait maison, posé dans l'herbe au bord d'un lac",
-      "links": []
+      "links": [],
+      "kicker_en": "Home-made",
+      "text_en": "A jet ski built from scratch, from the hull to the handlebars, here by the lake before its launch.",
+      "alt_en": "The black home-made jet ski on the grass by a lake"
     }
   ]
 }
