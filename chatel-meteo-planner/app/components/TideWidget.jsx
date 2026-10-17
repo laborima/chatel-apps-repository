@@ -259,7 +259,7 @@ export default function TideWidget({ tide, activities = [], dayPlanning, selecte
                                 </div>
                             ))}
                             {activityWindows.length === 0 && (
-                                <p className="text-xs opacity-70">Aucune plage d'activité disponible aujourd'hui.</p>
+                                <p className="text-xs opacity-70">Aucune plage d&apos;activité disponible aujourd&apos;hui.</p>
                             )}
                         </div>
                     </div>

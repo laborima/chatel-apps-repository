@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { t } from "../lib/i18n";
 import WeatherCard from "./WeatherCard";
 import TideWidget from "./TideWidget";
@@ -41,6 +41,12 @@ export default function Dashboard() {
     const [showDayDetails, setShowDayDetails] = useState(false);
     const [vesselPosition, setVesselPosition] = useState(null);
 
+    // The 2-minute refresh interval keeps the first fetchData closure, so read the sailor through a ref
+    const selectedSailorRef = useRef(null);
+    useEffect(() => {
+        selectedSailorRef.current = selectedSailor;
+    }, [selectedSailor]);
+
     // Load saved sailor from localStorage
     useEffect(() => {
         const savedSailorId = localStorage.getItem('selectedSailorId');
@@ -73,6 +79,35 @@ export default function Dashboard() {
         { key: "paddles", label: "Paddles / SUP", icon: "🏄‍♂️" }
     ];
 
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const currentSailor = selectedSailorRef.current;
+            const profileId = currentSailor?.id || null;
+            const data = await getFullPlanningData(profileId);
+
+            setCurrentConditions(data.currentConditions);
+            setForecast(data.forecast);
+            setSailors(data.sailors || []);
+            setPlanning5Day(data.planning5Day);
+            setRecommendations(data.recommendations);
+            setVesselPosition(data.vesselPosition || null);
+            setLastUpdate(new Date());
+
+            if (data.sailors && data.sailors.length > 0 && !currentSailor) {
+                setSelectedSailor(data.sailors[0]);
+            }
+
+            setLoading(false);
+        } catch (err) {
+            console.error("Error fetching data:", err);
+            setError(err.message);
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchData();
         // Refresh every 2 minutes for real-time updates
@@ -96,34 +131,6 @@ export default function Dashboard() {
             fetchData();
         }
     }, [selectedSailor?.id]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const profileId = selectedSailor?.id || null;
-            const data = await getFullPlanningData(profileId);
-
-            setCurrentConditions(data.currentConditions);
-            setForecast(data.forecast);
-            setSailors(data.sailors || []);
-            setPlanning5Day(data.planning5Day);
-            setRecommendations(data.recommendations);
-            setVesselPosition(data.vesselPosition || null);
-            setLastUpdate(new Date());
-
-            if (data.sailors && data.sailors.length > 0 && !selectedSailor) {
-                setSelectedSailor(data.sailors[0]);
-            }
-
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching data:", err);
-            setError(err.message);
-            setLoading(false);
-        }
-    };
 
     if (loading && !currentConditions) {
         return (
