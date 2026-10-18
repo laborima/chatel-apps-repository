@@ -1,7 +1,7 @@
 // Offline and fast reloads for the installed app (PWA). Pages: network first, the cached copy when offline.
 // Built assets (hashed names), models, images and fonts: from the cache, refreshed in the background.
 // Bump VERSION to drop everything cached by an older release.
-const VERSION = 'ride-v1';
+const VERSION = 'ride-v2';
 const SHELL = ['./', './manifest.webmanifest', './icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
