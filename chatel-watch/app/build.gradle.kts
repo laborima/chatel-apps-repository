@@ -9,6 +9,19 @@ val signalkBaseUrl: String = (findProperty("signalk.baseUrl") as String?)
     ?: localProps.getProperty("signalk.baseUrl")
     ?: "https://signalk.example.org"
 
+/* Client certificate for access from outside the LAN (mutual TLS), also kept out of git:
+   signalk.clientCert = path to the device .p12, signalk.clientCertPassword = its password */
+val signalkClientCert: String? = (findProperty("signalk.clientCert") as String?)
+    ?: localProps.getProperty("signalk.clientCert")
+val signalkClientCertPassword: String = (findProperty("signalk.clientCertPassword") as String?)
+    ?: localProps.getProperty("signalk.clientCertPassword")
+    ?: ""
+val clientCertResDir: File = layout.buildDirectory.dir("generated/clientCert").get().asFile.apply {
+    mkdirs()
+    val target = File(this, "signalk-client.p12")
+    if (signalkClientCert != null) file(signalkClientCert).copyTo(target, overwrite = true) else target.delete()
+}
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -26,6 +39,7 @@ android {
         versionCode = 11
         versionName = "2.0"
         buildConfigField("String", "DEFAULT_BASE_URL", "\"$signalkBaseUrl\"")
+        buildConfigField("String", "SIGNALK_CLIENT_CERT_PASSWORD", "\"$signalkClientCertPassword\"")
     }
 
     buildTypes {
@@ -39,6 +53,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    sourceSets["main"].resources.srcDir(clientCertResDir)
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

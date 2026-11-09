@@ -10,9 +10,16 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import org.leslaborie.chatel.watch.BuildConfig
 import java.io.IOException
+import java.security.KeyStore
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.math.PI
 import kotlin.math.max
 
@@ -45,7 +52,29 @@ object SignalKApi {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .apply { clientCertificate()?.let { (factory, trust) -> sslSocketFactory(factory, trust) } }
         .build()
+
+    /**
+     * Certificat client embarqué au build (`signalk.clientCert`) : hors du réseau local,
+     * le serveur n'accepte que les appareils qui le présentent (TLS mutuel).
+     * Sans certificat, l'app reste utilisable depuis le Wi-Fi de la maison.
+     */
+    private fun clientCertificate(): Pair<SSLSocketFactory, X509TrustManager>? {
+        val stream = SignalKApi::class.java.getResourceAsStream("/signalk-client.p12") ?: return null
+        val password = BuildConfig.SIGNALK_CLIENT_CERT_PASSWORD.toCharArray()
+        val keyStore = KeyStore.getInstance("PKCS12").apply { stream.use { load(it, password) } }
+        val keyManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
+            .apply { init(keyStore, password) }
+            .keyManagers
+        val trustManager = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            .apply { init(null as KeyStore?) }
+            .trustManagers
+            .filterIsInstance<X509TrustManager>()
+            .first()
+        val context = SSLContext.getInstance("TLS").apply { init(keyManagers, arrayOf(trustManager), null) }
+        return context.socketFactory to trustManager
+    }
 
     private suspend fun get(url: String): String = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
