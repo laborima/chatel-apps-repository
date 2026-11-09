@@ -33,8 +33,11 @@ internal fun text(
         )
         .build()
 
-/** Clic qui ouvre l'application. */
-internal fun openAppClickable(packageName: String): ModifiersBuilders.Clickable =
+/** Extra de lancement : page de l'application à ouvrir (voir MainActivity). */
+internal const val EXTRA_PAGE = "page"
+
+/** Clic qui ouvre l'application, éventuellement sur une page donnée. */
+internal fun openAppClickable(packageName: String, page: String? = null): ModifiersBuilders.Clickable =
     ModifiersBuilders.Clickable.Builder()
         .setId("open_app")
         .setOnClick(
@@ -43,6 +46,14 @@ internal fun openAppClickable(packageName: String): ModifiersBuilders.Clickable 
                     ActionBuilders.AndroidActivity.Builder()
                         .setPackageName(packageName)
                         .setClassName("$packageName.ui.MainActivity")
+                        .apply {
+                            if (page != null) {
+                                addKeyToExtraMapping(
+                                    EXTRA_PAGE,
+                                    ActionBuilders.AndroidStringExtra.Builder().setValue(page).build()
+                                )
+                            }
+                        }
                         .build()
                 )
                 .build()

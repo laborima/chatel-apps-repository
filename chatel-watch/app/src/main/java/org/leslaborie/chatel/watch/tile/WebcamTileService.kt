@@ -1,22 +1,19 @@
 package org.leslaborie.chatel.watch.tile
 
+import android.util.Log
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
-import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.leslaborie.chatel.watch.data.Prefs
 import org.leslaborie.chatel.watch.data.SignalKApi
 
@@ -24,35 +21,22 @@ import org.leslaborie.chatel.watch.data.SignalKApi
  * Tuile Webcam : image du port de Châtelaillon, fournie par le relais
  * du serveur (déjà à la taille de la montre).
  *
- * Temps réel : tant que la tuile est affichée (onTileEnterEvent),
- * une boucle demande un rafraîchissement toutes les 30 s ; la version
- * des ressources change à chaque tick pour forcer le rechargement de
- * l'image. La boucle s'arrête dès que la tuile n'est plus visible.
+ * Wear OS ne transmet plus l'entrée dans la tuile en temps réel : c'est la
+ * fraîcheur de 30 s qui fait redemander la tuile tant qu'elle est affichée, et la
+ * version des ressources, changée au même rythme, force le rechargement de
+ * l'image. Toucher la tuile ouvre la page webcam de l'app, en direct.
  */
 class WebcamTileService : TileService() {
 
+    companion object {
+        private const val REFRESH_MILLIS = 30_000L
+        private const val TAG = "WebcamTile"
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var liveRefreshJob: Job? = null
 
-    // La version des ressources pilote le rechargement de l'image
-    // (granularité 30 s, alignée sur la boucle de rafraîchissement)
     private fun currentVersion(): String =
-        (System.currentTimeMillis() / 30_000L).toString()
-
-    override fun onTileEnterEvent(requestParams: EventBuilders.TileEnterEvent) {
-        liveRefreshJob?.cancel()
-        liveRefreshJob = scope.launch {
-            while (isActive) {
-                delay(30_000)
-                getUpdater(this@WebcamTileService).requestUpdate(WebcamTileService::class.java)
-            }
-        }
-    }
-
-    override fun onTileLeaveEvent(requestParams: EventBuilders.TileLeaveEvent) {
-        liveRefreshJob?.cancel()
-        liveRefreshJob = null
-    }
+        (System.currentTimeMillis() / REFRESH_MILLIS).toString()
 
     override fun onTileRequest(
         requestParams: RequestBuilders.TileRequest
@@ -67,16 +51,22 @@ class WebcamTileService : TileService() {
         val box = LayoutElementBuilders.Box.Builder()
             .setWidth(expand())
             .setHeight(expand())
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setClickable(openAppClickable(packageName, page = "webcam"))
+                    .build()
+            )
             .addContent(image)
             .build()
 
-        tileOf(box, resourcesVersion = currentVersion(), freshnessMillis = 5 * 60 * 1000L)
+        tileOf(box, resourcesVersion = currentVersion(), freshnessMillis = REFRESH_MILLIS)
     }
 
     override fun onTileResourcesRequest(
         requestParams: RequestBuilders.ResourcesRequest
     ): ListenableFuture<ResourceBuilders.Resources> = scope.future {
-        val builder = ResourceBuilders.Resources.Builder().setVersion(currentVersion())
+        // Rendre la version demandée : sinon le renderer redemande en boucle
+        val builder = ResourceBuilders.Resources.Builder().setVersion(requestParams.version)
         try {
             // RGB_565 brut : seul format d'image inline garanti par le renderer
             val baseUrl = Prefs(this@WebcamTileService).currentBaseUrl()
@@ -85,6 +75,7 @@ class WebcamTileService : TileService() {
             bitmap.recycle()
         } catch (e: Exception) {
             // Image indisponible : la tuile restera vide jusqu'au prochain affichage
+            Log.w(TAG, "webcam frame unavailable: ${e.message}")
         }
         builder.build()
     }

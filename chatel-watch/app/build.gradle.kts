@@ -36,8 +36,8 @@ android {
         applicationId = "org.leslaborie.chatel.watch"
         minSdk = 30
         targetSdk = 34
-        versionCode = 12
-        versionName = "2.1"
+        versionCode = 13
+        versionName = "2.1.1"
         buildConfigField("String", "DEFAULT_BASE_URL", "\"$signalkBaseUrl\"")
         buildConfigField("String", "SIGNALK_CLIENT_CERT_PASSWORD", "\"$signalkClientCertPassword\"")
     }

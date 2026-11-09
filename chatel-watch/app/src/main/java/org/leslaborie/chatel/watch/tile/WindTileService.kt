@@ -7,7 +7,6 @@ import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
-import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -15,13 +14,9 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.leslaborie.chatel.watch.data.ActivityDef
 import org.leslaborie.chatel.watch.data.Planner
 import org.leslaborie.chatel.watch.data.Prefs
@@ -33,13 +28,12 @@ import org.leslaborie.chatel.watch.data.SignalKApi
  *   marqueur blanc au maximum atteint (rafale).
  * - Anneaux intérieurs : plage de vent praticable de chaque activité.
  *
- * Temps réel : tant que la tuile est affichée (onTileEnterEvent),
- * une boucle demande un rafraîchissement toutes les 30 s.
+ * Fraîcheur d'une minute : Wear OS ne transmet plus l'entrée dans la tuile en
+ * temps réel, c'est donc le système qui la redemande quand elle est affichée.
  */
 class WindTileService : TileService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var liveRefreshJob: Job? = null
 
     companion object {
         private const val GAUGE_MAX_KN = 40.0
@@ -83,21 +77,6 @@ class WindTileService : TileService() {
 
         private fun angleOf(knots: Double): Float =
             GAUGE_START + GAUGE_SWEEP * fractionOf(knots)
-    }
-
-    override fun onTileEnterEvent(requestParams: EventBuilders.TileEnterEvent) {
-        liveRefreshJob?.cancel()
-        liveRefreshJob = scope.launch {
-            while (isActive) {
-                delay(30_000)
-                getUpdater(this@WindTileService).requestUpdate(WindTileService::class.java)
-            }
-        }
-    }
-
-    override fun onTileLeaveEvent(requestParams: EventBuilders.TileLeaveEvent) {
-        liveRefreshJob?.cancel()
-        liveRefreshJob = null
     }
 
     private fun gaugeArc(
@@ -297,7 +276,7 @@ class WindTileService : TileService() {
                 text("Serveur injoignable", 15f, COLOR_INVALID)
             )
         }
-        tileOf(root, resourcesVersion = "1", freshnessMillis = 5 * 60 * 1000L)
+        tileOf(root, resourcesVersion = "1", freshnessMillis = 60 * 1000L)
     }
 
     override fun onTileResourcesRequest(

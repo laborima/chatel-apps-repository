@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import org.leslaborie.chatel.watch.data.AppData
 import org.leslaborie.chatel.watch.data.Prefs
 import org.leslaborie.chatel.watch.data.SignalKApi
+import org.leslaborie.chatel.watch.tile.EXTRA_PAGE
 import java.time.Instant
 
 /**
@@ -60,16 +61,18 @@ private const val WEBCAM_PAGE = 3
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Ouverte depuis la tuile webcam : arriver directement sur le direct
+        val initialPage = if (intent.getStringExtra(EXTRA_PAGE) == "webcam") WEBCAM_PAGE else 0
         setContent {
             MaterialTheme {
-                ChatelWatchApp()
+                ChatelWatchApp(initialPage)
             }
         }
     }
 }
 
 @Composable
-fun ChatelWatchApp() {
+fun ChatelWatchApp(initialPage: Int = 0) {
     val context = LocalContext.current
     val prefs = remember { Prefs(context) }
     val scope = rememberCoroutineScope()
@@ -98,7 +101,7 @@ fun ChatelWatchApp() {
     }
 
     val pageCount = 5
-    val pagerState = rememberPagerState { pageCount }
+    val pagerState = rememberPagerState(initialPage = initialPage) { pageCount }
     val indicatorState = remember(pagerState) {
         object : PageIndicatorState {
             override val pageOffset: Float
