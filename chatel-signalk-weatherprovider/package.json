@@ -9,8 +9,8 @@
     "signalk-node-server-plugin",
     "signalk-category-weather"
   ],
-  "dependencies": {
-    "node-fetch": "^2.6.7"
+  "engines": {
+    "node": ">=20"
   },
   "signalk": {
     "displayName": "Meteo La Rochelle Provider"

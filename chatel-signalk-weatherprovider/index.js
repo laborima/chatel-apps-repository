@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 
 const CLIENTRAW_URL = "https://www.meteolarochelle.fr/wdlchatel/clientraw.txt";
 
@@ -107,7 +106,8 @@ module.exports = function(app) {
   async function fetchWeather(options) {
     try {
       const response = await fetch(CLIENTRAW_URL, {
-        headers: { "User-Agent": "signalk-meteolarochelle/1.0" }
+        headers: { "User-Agent": "signalk-meteolarochelle/1.0" },
+        signal: AbortSignal.timeout(15000)
       });
       
       if (!response.ok) {
