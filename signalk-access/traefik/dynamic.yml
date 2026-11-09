@@ -1,0 +1,49 @@
+# Traefik dynamic configuration (file provider) for remote SignalK access.
+# Mounted read-only at /etc/traefik/dynamic/dynamic.yml, CA at /etc/traefik/client-ca.pem.
+
+tls:
+  options:
+    # Same options on the LAN and remote routers: TLS options are chosen per host
+    # before routing, so the client certificate stays optional at the handshake
+    # and the remote router enforces it with require-client-cert.
+    client-cert-optional:
+      minVersion: VersionTLS12
+      clientAuth:
+        caFiles:
+          - /etc/traefik/client-ca.pem
+        clientAuthType: VerifyClientCertIfGiven
+
+http:
+  middlewares:
+    # passTLSClientCert only sets the header when a certificate was presented:
+    # drop any value sent by the client first.
+    strip-client-cert-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Tls-Client-Cert: ""
+          X-Forwarded-Tls-Client-Cert-Info: ""
+
+    pass-client-cert:
+      passTLSClientCert:
+        info:
+          subject:
+            commonName: true
+
+    # trustForwardHeader keeps the X-Forwarded-Tls-Client-Cert-Info header set by
+    # pass-client-cert (false drops every X-Forwarded-* header). Client-sent
+    # X-Forwarded-* headers never reach this point: the entry point trusts no proxy
+    # and deletes them, strip-client-cert-headers removes them again.
+    check-client-cert:
+      forwardAuth:
+        address: http://cert-check:8080/
+        trustForwardHeader: true
+        maxResponseBodySize: 4096
+        authRequestHeaders:
+          - X-Forwarded-Tls-Client-Cert-Info
+
+    require-client-cert:
+      chain:
+        middlewares:
+          - strip-client-cert-headers
+          - pass-client-cert
+          - check-client-cert

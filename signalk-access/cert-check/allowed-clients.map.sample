@@ -1,0 +1,4 @@
+# One line per device allowed from outside the LAN. Remove a line and run
+# `docker exec cert-check nginx -s reload -c /etc/nginx/cert-check/nginx.conf` to revoke a lost device.
+"~CN%3Dmatthieu-watch%22" 1;
+"~CN%3Dmatthieu-phone%22" 1;
