@@ -36,8 +36,8 @@ android {
         applicationId = "org.leslaborie.chatel.watch"
         minSdk = 30
         targetSdk = 34
-        versionCode = 11
-        versionName = "2.0"
+        versionCode = 12
+        versionName = "2.1"
         buildConfigField("String", "DEFAULT_BASE_URL", "\"$signalkBaseUrl\"")
         buildConfigField("String", "SIGNALK_CLIENT_CERT_PASSWORD", "\"$signalkClientCertPassword\"")
     }
@@ -90,14 +90,8 @@ dependencies {
     // Complications de cadran (marée / vent)
     implementation("androidx.wear.watchface:watchface-complications-data-source-ktx:1.2.1")
 
-    // Network + images
+    // Network
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("io.coil-kt:coil-compose:2.7.0")
-
-    // Vidéo live webcam (HLS)
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
-    implementation("androidx.media3:media3-ui:1.4.1")
 
     // Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")

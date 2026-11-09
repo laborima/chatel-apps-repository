@@ -17,11 +17,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.leslaborie.chatel.watch.data.Prefs
 import org.leslaborie.chatel.watch.data.SignalKApi
 
 /**
- * Tuile Webcam : instantané du port de Châtelaillon, redimensionné
- * pour la montre.
+ * Tuile Webcam : image du port de Châtelaillon, fournie par le relais
+ * du serveur (déjà à la taille de la montre).
  *
  * Temps réel : tant que la tuile est affichée (onTileEnterEvent),
  * une boucle demande un rafraîchissement toutes les 30 s ; la version
@@ -78,7 +79,8 @@ class WebcamTileService : TileService() {
         val builder = ResourceBuilders.Resources.Builder().setVersion(currentVersion())
         try {
             // RGB_565 brut : seul format d'image inline garanti par le renderer
-            val bitmap = SignalKApi.fetchWebcamBitmap(maxWidthPx = 320)
+            val baseUrl = Prefs(this@WebcamTileService).currentBaseUrl()
+            val bitmap = SignalKApi.fetchWebcamFrame(baseUrl, maxWidthPx = 320)
             builder.addIdToImageMapping("webcam", bitmapToImageResource(bitmap))
             bitmap.recycle()
         } catch (e: Exception) {

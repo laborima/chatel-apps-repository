@@ -30,17 +30,15 @@ import kotlin.math.max
  */
 object SignalKApi {
 
-    const val WEBCAM_URL = "https://filmspv.viewsurf.com/chatelaillon02_live/media.jpg"
+    /**
+     * Webcam du port : le flux d'origine est en 4K, que la montre ne sait pas décoder.
+     * Le relais du serveur (`webcam-relay`) en extrait une image 480 px toutes les 2 s,
+     * et ne lit le flux que tant que quelqu'un regarde.
+     */
+    private const val WEBCAM_FRAME_PATH = "/webcam-relay/frame.jpg"
 
-    // Flux vidéo live Viewsurf/Quanteec (webcam du port)
-    private const val WEBCAM_SOURCE_ID = "61701253-3b92-4587-3334-3630-6d61-63-aa4f-03743e306fd3d"
-    const val WEBCAM_HLS_FALLBACK =
-        "https://ds2-cache.quanteec.com/contents/encodings/live/$WEBCAM_SOURCE_ID/master.m3u8"
-    private val QUANTEEC_PLATFORMS = listOf(
-        "https://platforms6.joada.net",
-        "https://platforms7.joada.net",
-        "https://platforms8.joada.net"
-    )
+    /** Dernière configuration reçue : sa position lance la météo sans l'attendre. */
+    @Volatile private var lastConfig: ActivitiesConfig? = null
 
     /** Au-delà, un extrême servi par `environment.tide.*` est considéré périmé. */
     private const val STALE_EXTREME_SECONDS = 24L * 3600L
@@ -114,6 +112,20 @@ object SignalKApi {
         val collection = JSONObject(get("$baseUrl/signalk/v2/api/resources/tides"))
         val extremes = mutableListOf<TideExtreme>()
         val seen = mutableSetOf<String>()
+
+        // Source Slackwater : { extremes: [{ time, level, high }] }
+        collection.optJSONArray("extremes")?.let { array ->
+            for (i in 0 until array.length()) {
+                val e = array.getJSONObject(i)
+                val time = parseInstant(e.opt("time")) ?: continue
+                val value = e.optDouble("level").takeIf { !it.isNaN() } ?: continue
+                val type = if (e.optBoolean("high")) TideExtremeType.HIGH else TideExtremeType.LOW
+                extremes.add(TideExtreme(type = type, value = value, time = time))
+            }
+            return extremes.sortedBy { it.time }
+        }
+
+        // Sources locale / SHOM : une feature GeoJSON par jour
 
         for (key in collection.keys()) {
             val properties = collection.optJSONObject(key)?.optJSONObject("properties") ?: continue
@@ -213,19 +225,22 @@ object SignalKApi {
      * Observations vent temps réel (station météo, pas la prévision).
      * Les noms de chemins varient selon le provider : on essaie les variantes.
      */
-    suspend fun fetchLiveWind(baseUrl: String): LiveWind {
+    suspend fun fetchLiveWind(baseUrl: String): LiveWind = coroutineScope {
+        val temperatureDeferred = async {
+            runCatching {
+                val t = JSONObject(get("$baseUrl/signalk/v1/api/vessels/self/environment/outside/temperature"))
+                (t.opt("value") as? Number)?.toDouble()?.minus(KELVIN)
+            }.getOrNull()
+        }
         val json = JSONObject(get("$baseUrl/signalk/v1/api/vessels/self/environment/wind"))
 
         fun firstValue(vararg keys: String): Double? =
             keys.firstNotNullOfOrNull { (json.valueAt(it) as? Number)?.toDouble() }
 
-        val temperatureC = runCatching {
-            val t = JSONObject(get("$baseUrl/signalk/v1/api/vessels/self/environment/outside/temperature"))
-            (t.opt("value") as? Number)?.toDouble()?.minus(KELVIN)
-        }.getOrNull()
+        val temperatureC = temperatureDeferred.await()
 
         val directionRad = firstValue("directionTrue", "angleTrueGround", "directionGround")
-        return LiveWind(
+        LiveWind(
             speedKnots = firstValue("speedOverGround", "speedTrueGround", "speedTrue")?.times(MS_TO_KNOTS),
             gustKnots = firstValue("gustOverGround", "gustTrueGround", "gust")?.times(MS_TO_KNOTS),
             maxGustTodayKnots = firstValue("maxGustToday")?.times(MS_TO_KNOTS),
@@ -270,20 +285,25 @@ object SignalKApi {
             longitude = locationJson.getDouble("longitude")
         )
 
-        return ActivitiesConfig(profiles, activities, location)
+        return ActivitiesConfig(profiles, activities, location).also { lastConfig = it }
     }
 
-    /** Récupère toutes les données nécessaires en parallèle. */
+    /**
+     * Récupère toutes les données nécessaires en parallèle. Avec une configuration
+     * déjà connue, la météo part en même temps qu'elle au lieu de l'attendre.
+     */
     suspend fun fetchAll(baseUrl: String): AppData = coroutineScope {
+        val known = lastConfig
         val configDeferred = async { fetchActivitiesConfig(baseUrl) }
         val tideDeferred = async { fetchTide(baseUrl) }
-        val config = configDeferred.await()
+        val location = known?.location ?: configDeferred.await().location
         val weatherDeferred = async {
-            fetchCurrentWeather(baseUrl, config.location.latitude, config.location.longitude)
+            fetchCurrentWeather(baseUrl, location.latitude, location.longitude)
         }
         val sunDeferred = async {
-            fetchSunTimes(baseUrl, config.location.latitude, config.location.longitude)
+            fetchSunTimes(baseUrl, location.latitude, location.longitude)
         }
+        val config = configDeferred.await()
         val liveWindDeferred = async {
             runCatching { fetchLiveWind(baseUrl) }.getOrNull()
         }
@@ -297,29 +317,12 @@ object SignalKApi {
     }
 
     /**
-     * Résout l'URL du flux HLS live de la webcam via l'API Quanteec
-     * (l'URL du CDN peut changer), avec repli sur la dernière URL connue.
+     * Dernière image de la webcam, via le relais du serveur (480 px, ~10 Ko).
+     * Le premier appel peut prendre quelques secondes, le temps que le relais
+     * démarre la lecture du flux.
      */
-    suspend fun fetchWebcamStreamUrl(): String {
-        for (platform in QUANTEEC_PLATFORMS) {
-            val url = runCatching {
-                JSONObject(get("$platform/api/videos/manifest/$WEBCAM_SOURCE_ID"))
-                    .optString("m3u8")
-                    .takeIf { it.isNotEmpty() }
-            }.getOrNull()
-            if (url != null) {
-                return url
-            }
-        }
-        return WEBCAM_HLS_FALLBACK
-    }
-
-    /**
-     * Récupère l'image webcam et la redimensionne pour l'écran de la montre
-     * (l'original fait ~400 Ko, trop lourd pour une tuile).
-     */
-    suspend fun fetchWebcamBitmap(maxWidthPx: Int = 450): Bitmap = withContext(Dispatchers.IO) {
-        val bytes = getBytes("$WEBCAM_URL?t=${System.currentTimeMillis() / 60000}")
+    suspend fun fetchWebcamFrame(baseUrl: String, maxWidthPx: Int = 480): Bitmap = withContext(Dispatchers.IO) {
+        val bytes = getBytes("$baseUrl$WEBCAM_FRAME_PATH")
         val full = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             ?: throw IOException("Image webcam illisible")
         if (full.width <= maxWidthPx) {

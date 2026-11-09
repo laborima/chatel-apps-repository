@@ -17,20 +17,45 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.wear.compose.material.HorizontalPageIndicator
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PageIndicatorState
+import androidx.wear.compose.material.Scaffold
+import androidx.wear.compose.material.TimeText
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.leslaborie.chatel.watch.data.AppData
 import org.leslaborie.chatel.watch.data.Prefs
 import org.leslaborie.chatel.watch.data.SignalKApi
+import java.time.Instant
 
-sealed interface AppState {
-    data object Loading : AppState
-    data class Error(val message: String) : AppState
-    data class Ready(val data: AppData) : AppState
+/**
+ * État affiché : les dernières données restent visibles pendant une mise à jour
+ * ou après une erreur réseau, au lieu de repasser par un écran de chargement.
+ */
+data class ScreenState(
+    val data: Data? = null,
+    val refreshing: Boolean = false,
+    val error: String? = null
+) {
+    data class Data(val app: AppData, val at: Instant)
+
+    val updatedAt: Instant? get() = data?.at
 }
+
+/** Dernières données de la session : rouvrir l'app les affiche immédiatement. */
+private object LastData {
+    @Volatile var value: ScreenState.Data? = null
+}
+
+/** Rafraîchissement automatique tant que l'app est au premier plan. */
+private const val AUTO_REFRESH_MILLIS = 2 * 60 * 1000L
+
+private const val WEBCAM_PAGE = 3
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,16 +76,24 @@ fun ChatelWatchApp() {
 
     val profileId by prefs.profileId.collectAsStateWithLifecycle(initialValue = Prefs.DEFAULT_PROFILE)
     val baseUrl by prefs.baseUrl.collectAsStateWithLifecycle(initialValue = Prefs.DEFAULT_BASE_URL)
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
 
     var refreshTick by remember { mutableIntStateOf(0) }
-    var state by remember { mutableStateOf<AppState>(AppState.Loading) }
+    var screen by remember { mutableStateOf(ScreenState(data = LastData.value)) }
 
-    LaunchedEffect(baseUrl, refreshTick) {
-        state = AppState.Loading
-        state = try {
-            AppState.Ready(SignalKApi.fetchAll(baseUrl))
-        } catch (e: Exception) {
-            AppState.Error(e.message ?: "Erreur réseau")
+    LaunchedEffect(baseUrl, refreshTick, resumed) {
+        if (!resumed) return@LaunchedEffect
+        while (true) {
+            screen = screen.copy(refreshing = true)
+            screen = try {
+                val data = ScreenState.Data(SignalKApi.fetchAll(baseUrl), Instant.now())
+                LastData.value = data
+                ScreenState(data = data)
+            } catch (e: Exception) {
+                screen.copy(refreshing = false, error = e.message ?: "Erreur réseau")
+            }
+            delay(AUTO_REFRESH_MILLIS)
         }
     }
 
@@ -79,20 +112,27 @@ fun ChatelWatchApp() {
 
     val onRefresh: () -> Unit = { refreshTick++ }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-            when (page) {
-                0 -> TideScreen(state, onRefresh)
-                1 -> WindScreen(state, onRefresh)
-                2 -> ActivitiesScreen(state, profileId, onRefresh)
-                3 -> WebcamScreen()
-                4 -> SettingsScreen(
-                    state = state,
-                    selectedProfileId = profileId,
-                    onSelectProfile = { id -> scope.launch { prefs.setProfileId(id) } }
-                )
+    Scaffold(
+        timeText = { if (pagerState.currentPage != WEBCAM_PAGE) TimeText() }
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                when (page) {
+                    0 -> TideScreen(screen, onRefresh)
+                    1 -> WindScreen(screen, onRefresh)
+                    2 -> ActivitiesScreen(screen, profileId, onRefresh)
+                    WEBCAM_PAGE -> WebcamScreen(
+                        baseUrl = baseUrl,
+                        active = resumed && pagerState.currentPage == WEBCAM_PAGE
+                    )
+                    4 -> SettingsScreen(
+                        screen = screen,
+                        selectedProfileId = profileId,
+                        onSelectProfile = { id -> scope.launch { prefs.setProfileId(id) } }
+                    )
+                }
             }
+            HorizontalPageIndicator(pageIndicatorState = indicatorState)
         }
-        HorizontalPageIndicator(pageIndicatorState = indicatorState)
     }
 }
