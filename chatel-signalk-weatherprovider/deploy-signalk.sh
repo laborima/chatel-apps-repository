@@ -222,6 +222,7 @@ deploy_tides() {
         "${TIDES_DIR}/dist" \
         "${TIDES_DIR}/public" \
         "${TIDES_DIR}/package.json" \
+        "${TIDES_DIR}/package-lock.json" \
         ${REMOTE_USER}@${REMOTE_HOST}:${STAGING}/
     
     # Clean and copy to Docker container
@@ -230,7 +231,7 @@ deploy_tides() {
     ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker cp ${STAGING}/. ${DOCKER_CONTAINER}:${CONTAINER_DIR}/"
     
     # Install dependencies inside container (skip prepare script to avoid rebuild)
-    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec -w ${CONTAINER_DIR} ${DOCKER_CONTAINER} npm install --production --ignore-scripts"
+    ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec -w ${CONTAINER_DIR} ${DOCKER_CONTAINER} npm ci --omit=dev --ignore-scripts"
 
     # Register plugin in SignalK config (prevents npm from pruning it on future Appstore installs)
     ssh -p ${SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST} "docker exec -w ${SIGNALK_DATA_DIR} ${DOCKER_CONTAINER} npm install --omit=dev --ignore-scripts file:local-plugins/${PLUGIN_NAME}"
