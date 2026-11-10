@@ -16,6 +16,22 @@ decode. This container turns it into small JPEG frames:
 
 Used by `chatel-watch` (webcam page and tile).
 
+## Other sources
+
+The same image can relay an RTSP camera of the LAN that must not be exposed itself (for
+instance a doorbell without authentication). Run a second instance with:
+
+| Variable | |
+|---|---|
+| `SOURCE_URL` | `rtsp://…` stream to read, instead of the harbour webcam |
+| `RTSP_TRANSPORT` | `tcp` (default) or `udp` for old cameras that refuse RTSP over TCP |
+| `BASE_PATH` | URL prefix of this instance, e.g. `/doorbell-relay` |
+| `FRAME_RATE` | frames per second kept from the RTSP stream (default 4) |
+| `FRAME_WIDTH` | frame width in pixels (default 480) |
+
+Route it like the webcam relay (LAN free, client certificate from outside), with its own
+router names and path prefix.
+
 ## Deployment
 
 Copy `Dockerfile` and `server.js` to `webcam-relay/` next to the SignalK `docker-compose.yml`,

@@ -11,6 +11,10 @@
  *   GET /webcam-relay/frame.jpg   latest frame (waits for the first one when starting)
  *   GET /webcam-relay/live.mjpg   multipart MJPEG stream for browsers
  *   GET /webcam-relay/status      JSON state, for monitoring
+ *
+ * With SOURCE_URL set (an RTSP camera on the LAN, e.g. a doorbell), the relay reads that
+ * stream instead, over RTSP_TRANSPORT (tcp by default; old cameras may only offer udp),
+ * decoding every frame and keeping FRAME_RATE per second.
  */
 
 const http = require('http');
@@ -22,6 +26,9 @@ const SOURCE_ID = process.env.WEBCAM_SOURCE_ID || '61701253-3b92-4587-3334-3630-
 const PLATFORMS = (process.env.QUANTEEC_PLATFORMS ||
     'https://platforms6.joada.net,https://platforms7.joada.net,https://platforms8.joada.net').split(',');
 const FALLBACK_URL = `https://ds2-cache.quanteec.com/contents/encodings/live/${SOURCE_ID}/master.m3u8`;
+const SOURCE_URL = process.env.SOURCE_URL || '';
+const RTSP_TRANSPORT = process.env.RTSP_TRANSPORT || 'tcp';
+const FRAME_RATE = Number(process.env.FRAME_RATE || 4);
 const WIDTH = Number(process.env.FRAME_WIDTH || 480);
 const IDLE_MS = Number(process.env.IDLE_MS || 45000);
 const FIRST_FRAME_TIMEOUT_MS = 30000;
@@ -65,15 +72,11 @@ function publishFrame(jpeg) {
     }
 }
 
-async function startFfmpeg() {
-    if (ffmpeg) return;
-    // Placeholder so concurrent requests do not start a second process
-    ffmpeg = { starting: true };
-    const url = await resolveStreamUrl();
-    log(`starting ffmpeg on ${url}`);
-
-    const proc = spawn('ffmpeg', [
-        '-hide_banner', '-loglevel', 'error',
+function ffmpegInput(url) {
+    if (url.startsWith('rtsp://')) {
+        return ['-rtsp_transport', RTSP_TRANSPORT, '-i', url, '-an', '-vf', `fps=${FRAME_RATE},scale=${WIDTH}:-2`];
+    }
+    return [
         '-skip_frame', 'nokey',
         // Read at native speed: frames come every 2 s instead of in bursts per segment
         '-re',
@@ -81,7 +84,20 @@ async function startFfmpeg() {
         '-i', url,
         '-an',
         '-fps_mode', 'passthrough',
-        '-vf', `scale=${WIDTH}:-2`,
+        '-vf', `scale=${WIDTH}:-2`
+    ];
+}
+
+async function startFfmpeg() {
+    if (ffmpeg) return;
+    // Placeholder so concurrent requests do not start a second process
+    ffmpeg = { starting: true };
+    const url = SOURCE_URL || await resolveStreamUrl();
+    log(`starting ffmpeg on ${SOURCE_URL ? 'configured source' : url}`);
+
+    const proc = spawn('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error',
+        ...ffmpegInput(url),
         '-q:v', '6',
         '-f', 'image2pipe', '-c:v', 'mjpeg', 'pipe:1'
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -146,7 +162,7 @@ const server = http.createServer(async (req, res) => {
         // A frame older than the idle window comes from a stopped stream: wait for a new one
         const current = frame && Date.now() - frameAt < IDLE_MS ? frame : await nextFrame(FIRST_FRAME_TIMEOUT_MS);
         if (!current) {
-            res.writeHead(503, { 'Retry-After': '5' }).end('Webcam stream starting');
+            res.writeHead(503, { 'Retry-After': '5' }).end('Stream starting');
             return;
         }
         res.writeHead(200, {
